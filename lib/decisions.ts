@@ -17,6 +17,8 @@ export type DecisionRecord = {
   verdict: Verdict;
   ai_opinion: string | null;
   ai_model: string | null;
+  pros: string[] | null;
+  cons: string[] | null;
   created_at: string;
 };
 
@@ -28,6 +30,14 @@ export function fallbackVerdict(incomeShare: number): Verdict {
   if (incomeShare >= 0.35) return "skip";
   if (incomeShare >= 0.12) return "think";
   return "buy";
+}
+
+export function sizeBucket(
+  incomeShare: number
+): "small" | "medium" | "large" {
+  if (incomeShare < 0.05) return "small";
+  if (incomeShare < 0.25) return "medium";
+  return "large";
 }
 
 export function relativeDate(iso: string) {

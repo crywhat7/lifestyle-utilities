@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Search, Spark } from "@/components/icons";
+import { Check, Cross, Search, Spark } from "@/components/icons";
 import type { DecisionRecord } from "@/lib/decisions";
 import { SIZE_LABEL, TYPE_LABEL, formatMoney } from "@/lib/money";
 import { analyze, type AnalyzeState } from "./actions";
@@ -147,6 +147,8 @@ export function DecisionResult({ decision }: { decision: DecisionRecord }) {
         verdict={decision.verdict}
       />
 
+      <ProsCons pros={decision.pros} cons={decision.cons} />
+
       {decision.ai_opinion ? (
         <section className="plate p-5">
           <p className="flex items-center gap-2 text-[0.6875rem] tracking-[0.18em] text-[var(--text-3)] uppercase">
@@ -165,6 +167,94 @@ export function DecisionResult({ decision }: { decision: DecisionRecord }) {
           Verificalo antes de comprar.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/** A favor y en contra, específicos de este producto y este presupuesto. */
+function ProsCons({
+  pros,
+  cons,
+}: {
+  pros: string[] | null;
+  cons: string[] | null;
+}) {
+  const forList = pros ?? [];
+  const againstList = cons ?? [];
+
+  if (forList.length === 0 && againstList.length === 0) return null;
+
+  return (
+    <section className="plate p-5">
+      <p className="eyebrow">Pros y contras</p>
+
+      <div className="mt-4 flex flex-col">
+        <ArgumentList
+          title="A favor"
+          items={forList}
+          tone="var(--accent)"
+          kind="pro"
+        />
+
+        {forList.length > 0 && againstList.length > 0 ? (
+          <span
+            aria-hidden="true"
+            className="my-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"
+          />
+        ) : null}
+
+        <ArgumentList
+          title="En contra"
+          items={againstList}
+          tone="var(--danger)"
+          kind="con"
+        />
+      </div>
+    </section>
+  );
+}
+
+function ArgumentList({
+  title,
+  items,
+  tone,
+  kind,
+}: {
+  title: string;
+  items: string[];
+  tone: string;
+  kind: "pro" | "con";
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <p
+        className="text-[0.6875rem] tracking-[0.16em] uppercase"
+        style={{ color: tone }}
+      >
+        {title}
+      </p>
+      <ul className="mt-2.5 flex flex-col gap-2.5">
+        {items.map((item, index) => (
+          <li
+            key={index}
+            className="flex gap-2.5 text-[0.875rem] leading-relaxed text-[var(--text-2)]"
+          >
+            <span
+              className="mt-[0.3125rem] flex size-4 shrink-0 items-center justify-center rounded-full"
+              style={{ background: `${tone}1f`, color: tone }}
+            >
+              {kind === "pro" ? (
+                <Check className="size-2.5" />
+              ) : (
+                <Cross className="size-2.5" />
+              )}
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

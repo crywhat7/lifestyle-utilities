@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack, Sliders, Trash } from "@/components/icons";
-import { relativeDate, type DecisionRecord } from "@/lib/decisions";
-import { VERDICT_COPY, formatDuration, formatMoney } from "@/lib/money";
+import { ArrowBack, Sliders } from "@/components/icons";
+import type { DecisionRecord } from "@/lib/decisions";
 import { createClient } from "@/lib/supabase/server";
-import { deleteDecision } from "./actions";
+import { HistoryItem } from "./history-item";
 import { PurchaseConsole } from "./purchase-console";
 import { RateSummary, WorkProfileForm } from "./work-profile-form";
 
@@ -151,60 +150,23 @@ export default async function ShouldIBuyItPage() {
           className="rise mt-3"
           style={{ "--d": "680ms" } as CSSProperties}
         >
-          <div className="mb-3 flex items-baseline justify-between px-1">
+          <div className="mb-1 flex items-baseline justify-between px-1">
             <h2 className="eyebrow">Historial</h2>
             <span className="text-[0.6875rem] text-[var(--text-3)] tabular-nums">
               {history.length}
             </span>
           </div>
+          <p className="mb-3 px-1 text-[0.75rem] text-[var(--text-3)]">
+            Tocá cualquiera para volver a ver el análisis completo.
+          </p>
 
           <ul className="flex flex-col gap-2">
             {history.map((decision) => (
-              <HistoryRow key={decision.id} decision={decision} />
+              <HistoryItem key={decision.id} decision={decision} />
             ))}
           </ul>
         </section>
       ) : null}
     </main>
-  );
-}
-
-function HistoryRow({ decision }: { decision: DecisionRecord }) {
-  const copy = VERDICT_COPY[decision.verdict];
-
-  return (
-    <li className="plate flex items-center gap-3 p-3.5">
-      <span
-        aria-hidden="true"
-        className="h-9 w-1 shrink-0 rounded-full"
-        style={{ background: copy.color, boxShadow: `0 0 10px ${copy.color}66` }}
-      />
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[0.9375rem] font-medium">
-          {decision.product_name}
-        </p>
-        <p className="mt-0.5 truncate text-[0.75rem] text-[var(--text-3)]">
-          {formatMoney(Number(decision.price), decision.currency)} ·{" "}
-          <span style={{ color: copy.color }}>{copy.label}</span> ·{" "}
-          {relativeDate(decision.created_at)}
-        </p>
-      </div>
-
-      <span className="display shrink-0 text-[1.125rem] tabular-nums text-[var(--text-2)]">
-        {formatDuration(Number(decision.hours_cost))}
-      </span>
-
-      <form action={deleteDecision}>
-        <input type="hidden" name="id" value={decision.id} />
-        <button
-          type="submit"
-          aria-label={`Borrar ${decision.product_name} del historial`}
-          className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
-        >
-          <Trash className="size-4" />
-        </button>
-      </form>
-    </li>
   );
 }

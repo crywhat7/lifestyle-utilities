@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { fallbackVerdict, type DecisionRecord } from "@/lib/decisions";
+import {
+  fallbackVerdict,
+  sizeBucket,
+  type DecisionRecord,
+} from "@/lib/decisions";
 import { GEMINI_MODEL, analyzePurchase as askGemini } from "@/lib/gemini";
 import {
   DEFAULT_CURRENCY,
@@ -20,6 +24,15 @@ export type AnalyzeState = {
   error?: string;
   decision?: DecisionRecord;
 };
+
+/** La IA a veces devuelve strings vacíos o listas larguísimas. */
+function cleanList(list: string[] | undefined) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
 
 function toNumber(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || value.trim() === "") return null;
@@ -143,7 +156,8 @@ export async function analyze(
     price_is_estimated: manualPrice == null,
     category: ai?.category ?? null,
     purchase_type: ai?.purchase_type ?? null,
-    size_bucket: ai?.size_bucket ?? null,
+    // El tamaño sale de la proporción real del ingreso, no del criterio de la IA.
+    size_bucket: sizeBucket(cost.incomeShare),
     hours_cost: Number(cost.hours.toFixed(2)),
     work_days_cost: Number(cost.workDays.toFixed(2)),
     income_share: Number(Math.min(cost.incomeShare, 99.9999).toFixed(4)),
@@ -151,6 +165,8 @@ export async function analyze(
     verdict,
     ai_opinion: ai?.opinion ?? null,
     ai_model: ai ? GEMINI_MODEL : null,
+    pros: cleanList(ai?.pros),
+    cons: cleanList(ai?.cons),
   };
 
   const { data: saved, error } = await supabase

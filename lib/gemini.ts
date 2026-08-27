@@ -11,9 +11,10 @@ export type PurchaseAnalysis = {
   price_is_estimated: boolean;
   category: string;
   purchase_type: PurchaseType;
-  size_bucket: "small" | "medium" | "large";
   verdict: Verdict;
   opinion: string;
+  pros: string[];
+  cons: string[];
 };
 
 type AnalyzeInput = {
@@ -37,9 +38,10 @@ const RESPONSE_SCHEMA = {
       type: "STRING",
       enum: ["necesidad", "inversion", "antojo", "impulso"],
     },
-    size_bucket: { type: "STRING", enum: ["small", "medium", "large"] },
     verdict: { type: "STRING", enum: ["buy", "think", "skip"] },
     opinion: { type: "STRING" },
+    pros: { type: "ARRAY", items: { type: "STRING" } },
+    cons: { type: "ARRAY", items: { type: "STRING" } },
   },
   required: [
     "product_name",
@@ -47,9 +49,10 @@ const RESPONSE_SCHEMA = {
     "price_is_estimated",
     "category",
     "purchase_type",
-    "size_bucket",
     "verdict",
     "opinion",
+    "pros",
+    "cons",
   ],
 } as const;
 
@@ -84,10 +87,14 @@ export async function analyzePurchase(
     "- product_name: el producto normalizado y corto (máx 5 palabras).",
     "- category: categoría en español, 1 o 2 palabras (ej. Tecnología, Comida, Ropa, Hogar, Salud).",
     "- purchase_type: necesidad, inversion, antojo o impulso.",
-    "- size_bucket: small para gastos chicos como una cena, medium para gasto notorio, large para una compra grande.",
-    "- verdict: buy si claramente vale las horas, think si amerita dudarlo, skip si el costo en vida no se justifica.",
+        "- verdict: buy si claramente vale las horas, think si amerita dudarlo, skip si el costo en vida no se justifica.",
     "- opinion: máximo 2 frases, en español con voseo (vos/tenés/podés/comprá), directa y concreta.",
     "  Mencioná el costo en tiempo cuando ayude. Nada de moralina ni de frases genéricas.",
+    "  Usá voseo centroamericano: nada de muletillas rioplatenses como che, boludo o dale.",
+    "- pros: 2 o 3 razones concretas para comprarlo, máximo 12 palabras cada una, con voseo.",
+    "- cons: 2 o 3 razones concretas para no comprarlo, máximo 12 palabras cada una, con voseo.",
+    "  Los pros y contras tienen que ser específicos de ESTE producto y de ESTE presupuesto,",
+    "  no consejos genéricos de ahorro.",
   ].join("\n");
 
   try {

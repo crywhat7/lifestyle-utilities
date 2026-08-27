@@ -101,8 +101,16 @@ create table if not exists lifestyle_utilities.purchase_decisions (
   verdict            text not null check (verdict in ('buy', 'think', 'skip')),
   ai_opinion         text,
   ai_model           text,
+  pros               text[] not null default '{}',
+  cons               text[] not null default '{}',
   created_at         timestamptz not null default now()
 );
+
+-- Para tablas creadas antes de que existieran los pros y contras.
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists pros text[] not null default '{}';
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists cons text[] not null default '{}';
 
 create index if not exists purchase_decisions_user_created_idx
   on lifestyle_utilities.purchase_decisions (user_id, created_at desc);
