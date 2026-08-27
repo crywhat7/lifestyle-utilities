@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { VERDICT_COPY, formatDuration, type Verdict } from "@/lib/money";
+import {
+  formatHours,
+  formatMoney,
+  formatWorkTime,
+  presentation,
+  riskLevel,
+  type Verdict,
+} from "@/lib/money";
 
 const EASE_EXPO = (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
@@ -36,33 +43,49 @@ function useCountUp(target: number, duration = 1150) {
 
 type Props = {
   hours: number;
-  workDays: number;
   incomeShare: number;
   verdict: Verdict;
+  hoursPerDay: number;
+  hourlyRate: number;
+  currency: string;
 };
 
-export function TimeReadout({ hours, workDays, incomeShare, verdict }: Props) {
+export function TimeReadout({
+  hours,
+  incomeShare,
+  verdict,
+  hoursPerDay,
+  hourlyRate,
+  currency,
+}: Props) {
   const animated = useCountUp(hours);
-  const copy = VERDICT_COPY[verdict];
-  const fill = Math.max(Math.min(incomeShare, 1), 0.02);
+  const risk = riskLevel(incomeShare);
+  const copy = presentation(verdict, risk);
+  const fill = Math.max(Math.min(incomeShare, 1), 0.015);
   const percent = Math.round(incomeShare * 100);
+  const overflow = incomeShare > 1;
 
   return (
     <section className="plate relative overflow-hidden p-6">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -right-16 size-56 rounded-full opacity-50 blur-3xl"
-        style={{ background: `radial-gradient(circle, ${copy.color}30, transparent 70%)` }}
+        className="pointer-events-none absolute -top-24 -right-16 size-56 rounded-full opacity-60 blur-3xl"
+        style={{
+          background: `radial-gradient(circle, ${copy.color}33, transparent 70%)`,
+        }}
       />
 
       <div className="relative flex items-center justify-between gap-3">
         <span
           className="chip"
-          style={{ color: copy.color, borderColor: `${copy.color}44` }}
+          style={{ color: copy.color, borderColor: `${copy.color}55` }}
         >
           <span
-            className="size-1.5 rounded-full"
-            style={{ background: copy.color, boxShadow: `0 0 8px ${copy.color}` }}
+            className={risk === "high" ? "pulse-dot size-1.5 rounded-full" : "size-1.5 rounded-full"}
+            style={{
+              background: copy.color,
+              boxShadow: `0 0 8px ${copy.color}`,
+            }}
           />
           {copy.label}
         </span>
@@ -73,39 +96,48 @@ export function TimeReadout({ hours, workDays, incomeShare, verdict }: Props) {
 
       <p
         className="display relative mt-5 tabular-nums"
-        style={{ fontSize: "clamp(3.25rem,19vw,4.75rem)", color: copy.color }}
-        aria-label={`${formatDuration(hours)} de tu vida`}
+        style={{ fontSize: "clamp(3.25rem,18vw,4.5rem)", color: copy.color }}
+        aria-label={`${formatWorkTime(hours, hoursPerDay)} de tu vida`}
       >
-        {formatDuration(animated)}
+        {formatWorkTime(animated, hoursPerDay)}
       </p>
+
       <p className="relative mt-3 text-[0.9375rem] text-[var(--text-2)]">
-        de tu vida trabajando.
+        de tu vida trabajando.{" "}
+        <span className="text-[var(--text-3)]">
+          Son {formatHours(hours)} a {hoursPerDay}h por día.
+        </span>
       </p>
 
       {/* Medidor: cuánto del mes se lleva */}
-      <div className="groove relative mt-7 h-3 overflow-hidden rounded-full p-0">
+      <div className="groove relative mt-7 h-3 overflow-hidden rounded-full">
         <div
           className="gauge-fill h-full w-full rounded-full"
           style={
             {
               "--fill": fill,
-              background: `linear-gradient(90deg, ${copy.color}55, ${copy.color})`,
-              boxShadow: `0 0 14px ${copy.color}55`,
+              background: `linear-gradient(90deg, ${copy.color}66, ${copy.color})`,
+              boxShadow: `0 0 14px ${copy.color}66`,
             } as CSSProperties
           }
         />
       </div>
 
-      <div className="relative mt-3 flex items-baseline justify-between text-[0.75rem] text-[var(--text-3)]">
+      <div className="relative mt-3 flex items-baseline justify-between gap-3 text-[0.75rem] text-[var(--text-3)]">
         <span>
-          <span className="text-[var(--text-2)] tabular-nums">{percent}%</span>{" "}
+          <span
+            className="tabular-nums"
+            style={{ color: overflow ? copy.color : "var(--text-2)" }}
+          >
+            {percent}%
+          </span>{" "}
           de tu ingreso del mes
         </span>
-        <span>
+        <span className="shrink-0">
           <span className="text-[var(--text-2)] tabular-nums">
-            {workDays.toFixed(1)}
+            {formatMoney(hourlyRate, currency)}
           </span>{" "}
-          días laborales
+          por hora
         </span>
       </div>
 

@@ -1,20 +1,29 @@
 import type { PurchaseType, Verdict } from "@/lib/money";
 
+export type AiStatus = "pending" | "ready" | "failed";
+
 export type DecisionRecord = {
   id: string;
   query: string;
   product_name: string;
-  price: number;
+  /** Precio ya convertido a la moneda del perfil. */
+  price: number | null;
   currency: string;
+  /** Precio tal como se escribió, en la moneda de la compra. */
+  price_original: number | null;
+  purchase_currency: string | null;
+  fx_rate: number | null;
   price_is_estimated: boolean;
   category: string | null;
   purchase_type: PurchaseType | null;
   size_bucket: "small" | "medium" | "large" | null;
-  hours_cost: number;
-  work_days_cost: number;
-  income_share: number;
+  hours_cost: number | null;
+  work_days_cost: number | null;
+  income_share: number | null;
   hourly_rate_snap: number;
-  verdict: Verdict;
+  verdict: Verdict | null;
+  ai_status: AiStatus;
+  ai_error: string | null;
   ai_opinion: string | null;
   ai_model: string | null;
   pros: string[] | null;
@@ -23,8 +32,8 @@ export type DecisionRecord = {
 };
 
 /**
- * Veredicto de respaldo cuando la IA no responde: solo mira qué tajada
- * del ingreso mensual se lleva la compra.
+ * Veredicto de respaldo, y el que se muestra al instante mientras la IA
+ * todavía no contesta: solo mira qué tajada del ingreso mensual se lleva.
  */
 export function fallbackVerdict(incomeShare: number): Verdict {
   if (incomeShare >= 0.35) return "skip";

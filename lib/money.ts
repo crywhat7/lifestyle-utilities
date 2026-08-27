@@ -10,28 +10,53 @@ export type WorkProfile = {
 
 export type Verdict = "buy" | "think" | "skip";
 
+export type Risk = "low" | "medium" | "high";
+
 export type PurchaseType = "necesidad" | "inversion" | "antojo" | "impulso";
 
+/**
+ * Colores en hexadecimal, no en var(): se les concatena alfa (`${color}55`)
+ * para halos y bordes, y `var(--x)55` es CSS inválido.
+ */
 export const VERDICT_COPY: Record<
   Verdict,
   { label: string; color: string; note: string }
 > = {
   buy: {
     label: "Compralo",
-    color: "var(--accent)",
+    color: "#c6f24e",
     note: "El tiempo que cuesta es proporcional a lo que te devuelve.",
   },
   think: {
     label: "Pensalo",
-    color: "var(--warn)",
+    color: "#f2b84e",
     note: "Dormí una noche. Si mañana lo seguís queriendo, es real.",
   },
   skip: {
     label: "Dejalo pasar",
-    color: "var(--danger)",
+    color: "#ff7a5c",
     note: "Ese precio te cuesta más vida de la que vale el objeto.",
   },
 };
+
+/** Arriba del 35% del ingreso ya no es una advertencia: es una decisión seria. */
+export const HIGH_RISK = {
+  label: "Alto riesgo",
+  color: "#ff4d33",
+  note: "Esto se lleva más de un tercio de tu mes. No lo decidas hoy.",
+};
+
+export function riskLevel(incomeShare: number): Risk {
+  if (incomeShare >= 0.35) return "high";
+  if (incomeShare >= 0.12) return "medium";
+  return "low";
+}
+
+/** El riesgo manda sobre el veredicto: la plata real pesa más que la opinión. */
+export function presentation(verdict: Verdict, risk: Risk) {
+  if (risk === "high") return HIGH_RISK;
+  return VERDICT_COPY[verdict];
+}
 
 export const TYPE_LABEL: Record<PurchaseType, string> = {
   necesidad: "Necesidad",
@@ -79,24 +104,36 @@ export function timeCost(price: number, profile: WorkProfile): TimeCost {
   };
 }
 
-/** "9h 35m", "48m", "1,240h" */
-export function formatDuration(hours: number) {
+/**
+ * Pasando las 24 horas, "104h 17m" no se puede pensar. Se parte en jornadas
+ * reales de la persona: 8h/día ⇒ 104h son 13 días de trabajo.
+ */
+export function formatWorkTime(hours: number, hoursPerDay: number) {
   if (!Number.isFinite(hours) || hours <= 0) return "0m";
 
-  if (hours < 1) {
-    return `${Math.round(hours * 60)}m`;
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+
+  if (hours < 24) {
+    const whole = Math.floor(hours);
+    const minutes = Math.round((hours - whole) * 60);
+    if (minutes === 60) return `${whole + 1}h`;
+    if (minutes === 0) return `${whole}h`;
+    return `${whole}h ${minutes}m`;
   }
 
-  if (hours >= 1000) {
-    return `${Math.round(hours).toLocaleString("es-GT")}h`;
-  }
+  const perDay = hoursPerDay > 0 ? hoursPerDay : 8;
+  const days = Math.floor(hours / perDay);
+  const rest = Math.round(hours - days * perDay);
 
-  const whole = Math.floor(hours);
-  const minutes = Math.round((hours - whole) * 60);
+  if (days >= 1000) return `${days.toLocaleString("es-GT")}d`;
+  if (rest <= 0) return `${days}d`;
+  return `${days}d ${rest}h`;
+}
 
-  if (minutes === 60) return `${whole + 1}h`;
-  if (minutes === 0) return `${whole}h`;
-  return `${whole}h ${minutes}m`;
+/** El total crudo, para no perder la cifra real bajo la traducción. */
+export function formatHours(hours: number) {
+  const rounded = Math.round(hours);
+  return `${rounded.toLocaleString("es-GT")} ${rounded === 1 ? "hora" : "horas"}`;
 }
 
 export function formatMoney(amount: number, currency: string) {
@@ -127,3 +164,5 @@ export const CURRENCIES = [
 ] as const;
 
 export const DEFAULT_CURRENCY = "HNL";
+
+export const CURRENCY_CODES = CURRENCIES.map((currency) => currency.code);

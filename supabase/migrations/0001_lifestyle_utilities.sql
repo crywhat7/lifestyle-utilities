@@ -83,22 +83,31 @@ create policy "work_profiles_delete_own"
 -- purchase_decisions — historial de todo lo consultado
 -- -----------------------------------------------------------------------------
 
+-- El cálculo local se guarda al instante; los campos de IA llegan después,
+-- por eso casi todo admite null hasta que ai_status pasa a 'ready'.
 create table if not exists lifestyle_utilities.purchase_decisions (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid not null references auth.users (id) on delete cascade,
   query              text not null,
   product_name       text not null,
-  price              numeric(12, 2) not null check (price >= 0),
+  -- Precio ya convertido a la moneda del perfil
+  price              numeric(12, 2) check (price >= 0),
   currency           text not null default 'HNL',
+  -- Precio tal como se escribió, en la moneda de la compra
+  price_original     numeric(12, 2) check (price_original >= 0),
+  purchase_currency  text,
+  fx_rate            numeric(16, 6),
   price_is_estimated boolean not null default false,
   category           text,
   purchase_type      text check (purchase_type in ('necesidad', 'inversion', 'antojo', 'impulso')),
   size_bucket        text check (size_bucket in ('small', 'medium', 'large')),
-  hours_cost         numeric(10, 2) not null,
-  work_days_cost     numeric(10, 2) not null,
-  income_share       numeric(6, 4) not null,
+  hours_cost         numeric(10, 2),
+  work_days_cost     numeric(10, 2),
+  income_share       numeric(8, 4),
   hourly_rate_snap   numeric(12, 4) not null,
-  verdict            text not null check (verdict in ('buy', 'think', 'skip')),
+  verdict            text check (verdict in ('buy', 'think', 'skip')),
+  ai_status          text not null default 'pending' check (ai_status in ('pending', 'ready', 'failed')),
+  ai_error           text,
   ai_opinion         text,
   ai_model           text,
   pros               text[] not null default '{}',
@@ -106,11 +115,46 @@ create table if not exists lifestyle_utilities.purchase_decisions (
   created_at         timestamptz not null default now()
 );
 
--- Para tablas creadas antes de que existieran los pros y contras.
+-- Puesta al día de tablas creadas por versiones anteriores de este archivo.
 alter table lifestyle_utilities.purchase_decisions
   add column if not exists pros text[] not null default '{}';
 alter table lifestyle_utilities.purchase_decisions
   add column if not exists cons text[] not null default '{}';
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists price_original numeric(12, 2);
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists purchase_currency text;
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists fx_rate numeric(16, 6);
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists ai_status text not null default 'pending';
+alter table lifestyle_utilities.purchase_decisions
+  add column if not exists ai_error text;
+
+alter table lifestyle_utilities.purchase_decisions
+  alter column price drop not null,
+  alter column hours_cost drop not null,
+  alter column work_days_cost drop not null,
+  alter column income_share drop not null,
+  alter column verdict drop not null;
+
+-- income_share pasó de numeric(6,4) a numeric(8,4): una compra puede valer
+-- varias veces el ingreso mensual.
+alter table lifestyle_utilities.purchase_decisions
+  alter column income_share type numeric(8, 4);
+
+do $do$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'purchase_decisions_ai_status_check'
+  ) then
+    alter table lifestyle_utilities.purchase_decisions
+      add constraint purchase_decisions_ai_status_check
+      check (ai_status in ('pending', 'ready', 'failed'));
+  end if;
+end
+$do$;
 
 create index if not exists purchase_decisions_user_created_idx
   on lifestyle_utilities.purchase_decisions (user_id, created_at desc);
@@ -132,14 +176,20 @@ create policy "purchase_decisions_delete_own"
   on lifestyle_utilities.purchase_decisions for delete to authenticated
   using ((select auth.uid()) = user_id);
 
--- El historial no se edita: se consulta o se borra.
+-- Update existe solo para que el análisis de IA complete la fila creada
+-- con el cálculo local. El dueño sigue siendo el único que puede tocarla.
+drop policy if exists "purchase_decisions_update_own" on lifestyle_utilities.purchase_decisions;
+create policy "purchase_decisions_update_own"
+  on lifestyle_utilities.purchase_decisions for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 -- -----------------------------------------------------------------------------
 -- Privilegios (RLS sigue siendo la última palabra)
 -- -----------------------------------------------------------------------------
 
 grant select, insert, update, delete on lifestyle_utilities.work_profiles to authenticated;
-grant select, insert, delete on lifestyle_utilities.purchase_decisions to authenticated;
+grant select, insert, update, delete on lifestyle_utilities.purchase_decisions to authenticated;
 grant all on all tables in schema lifestyle_utilities to service_role;
 
 -- -----------------------------------------------------------------------------

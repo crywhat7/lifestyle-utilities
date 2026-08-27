@@ -2,11 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack, Sliders } from "@/components/icons";
-import type { DecisionRecord } from "@/lib/decisions";
+import { ArrowBack, Chevron, Sliders, Trash } from "@/components/icons";
+import { relativeDate, type DecisionRecord } from "@/lib/decisions";
+import {
+  formatMoney,
+  formatWorkTime,
+  presentation,
+  riskLevel,
+} from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
-import { HistoryItem } from "./history-item";
-import { PurchaseConsole } from "./purchase-console";
+import { deleteDecision } from "./actions";
+import { PurchaseForm } from "./purchase-form";
 import { RateSummary, WorkProfileForm } from "./work-profile-form";
 
 export const metadata: Metadata = {
@@ -96,9 +102,7 @@ export default async function ShouldIBuyItPage() {
           style={{ "--d": "440ms" } as CSSProperties}
         >
           <p className="eyebrow">Paso único</p>
-          <h2 className="display mt-3 text-[1.75rem]">
-            ¿Cuánto vale tu hora?
-          </h2>
+          <h2 className="display mt-3 text-[1.75rem]">¿Cuánto vale tu hora?</h2>
           <p className="mt-2 mb-6 text-[0.875rem] leading-relaxed text-[var(--text-2)]">
             Con tu ingreso y tu jornada calculamos la tarifa. Se guarda una vez
             y la podés cambiar cuando quieras.
@@ -136,20 +140,14 @@ export default async function ShouldIBuyItPage() {
             </details>
           </section>
 
-          <div
-            className="rise"
-            style={{ "--d": "560ms" } as CSSProperties}
-          >
-            <PurchaseConsole currency={profile.currency} />
+          <div className="rise" style={{ "--d": "560ms" } as CSSProperties}>
+            <PurchaseForm currency={profile.currency} />
           </div>
         </>
       )}
 
-      {history.length > 0 ? (
-        <section
-          className="rise mt-3"
-          style={{ "--d": "680ms" } as CSSProperties}
-        >
+      {history.length > 0 && profile ? (
+        <section className="rise mt-3" style={{ "--d": "680ms" } as CSSProperties}>
           <div className="mb-1 flex items-baseline justify-between px-1">
             <h2 className="eyebrow">Historial</h2>
             <span className="text-[0.6875rem] text-[var(--text-3)] tabular-nums">
@@ -162,11 +160,81 @@ export default async function ShouldIBuyItPage() {
 
           <ul className="flex flex-col gap-2">
             {history.map((decision) => (
-              <HistoryItem key={decision.id} decision={decision} />
+              <HistoryRow
+                key={decision.id}
+                decision={decision}
+                hoursPerDay={profile.hours_per_day}
+              />
             ))}
           </ul>
         </section>
       ) : null}
     </main>
+  );
+}
+
+function HistoryRow({
+  decision,
+  hoursPerDay,
+}: {
+  decision: DecisionRecord;
+  hoursPerDay: number;
+}) {
+  const share =
+    decision.income_share != null ? Number(decision.income_share) : null;
+  const copy = presentation(
+    decision.verdict ?? "think",
+    share != null ? riskLevel(share) : "low"
+  );
+  const hours = decision.hours_cost != null ? Number(decision.hours_cost) : null;
+  const price = decision.price != null ? Number(decision.price) : null;
+  const pending = decision.ai_status === "pending";
+
+  return (
+    <li className="groove flex items-center gap-1 overflow-hidden">
+      <Link
+        href={`/hub/should-i-buy-it/${decision.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 p-4 transition-opacity duration-300 [transition-timing-function:var(--ease-quart)] active:opacity-70"
+      >
+        <span
+          aria-hidden="true"
+          className={`h-9 w-1 shrink-0 rounded-full ${pending ? "pulse-dot" : ""}`}
+          style={{
+            background: copy.color,
+            boxShadow: `0 0 10px ${copy.color}66`,
+          }}
+        />
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.9375rem] font-medium">
+            {decision.product_name}
+          </span>
+          <span className="mt-0.5 block truncate text-[0.75rem] text-[var(--text-3)]">
+            {price != null
+              ? `${formatMoney(price, decision.currency)} · `
+              : "Sin precio · "}
+            <span style={{ color: copy.color }}>{copy.label}</span> ·{" "}
+            {relativeDate(decision.created_at)}
+          </span>
+        </span>
+
+        <span className="display shrink-0 text-[1.0625rem] tabular-nums text-[var(--text-2)]">
+          {hours != null ? formatWorkTime(hours, hoursPerDay) : "—"}
+        </span>
+
+        <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--text-3)]" />
+      </Link>
+
+      <form action={deleteDecision} className="pr-3">
+        <input type="hidden" name="id" value={decision.id} />
+        <button
+          type="submit"
+          aria-label={`Borrar ${decision.product_name} del historial`}
+          className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+        >
+          <Trash className="size-4" />
+        </button>
+      </form>
+    </li>
   );
 }

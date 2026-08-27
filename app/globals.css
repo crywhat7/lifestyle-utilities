@@ -320,6 +320,43 @@
     transform-origin: left center;
     animation: sweep 1.15s var(--ease-expo) 0.15s both;
   }
+
+  /* Dial mecanizado: la aguja barre mientras la IA piensa */
+  .dial {
+    position: relative;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #0b0d10 0%, #16181c 100%);
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    box-shadow: var(--inset), 0 8px 18px -10px rgba(0, 0, 0, 0.9);
+  }
+
+  .dial::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 999px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(198, 242, 78, 0.06) 150deg,
+      var(--accent) 320deg,
+      transparent 352deg
+    );
+    mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 3px),
+      #000 calc(100% - 3px)
+    );
+    animation: needle 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+
+  .dial::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
 }
 
 @keyframes rise {
@@ -384,6 +421,15 @@
   }
 }
 
+@keyframes needle {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .fade {
@@ -399,6 +445,11 @@
   .gauge-fill {
     animation: none;
     transform: scaleX(var(--fill, 1));
+  }
+
+  /* La aguja sigue girando: es el único indicio de que algo pasa. */
+  .dial::before {
+    animation-duration: 3s;
   }
 
   .key {
