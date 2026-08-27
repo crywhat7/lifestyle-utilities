@@ -106,7 +106,7 @@ export function PaySchedules({
       <SectionHead
         eyebrow="Cuándo te pagan"
         title="Fechas de pago"
-        note="Podés no tener ninguna, o tener varias con montos distintos. Cada fecha que pasa se convierte sola en un ingreso."
+        note="Podés no tener ninguna, o tener varias con montos distintos. Solo son referencia para ver cuándo entra la próxima: el ingreso lo registrás vos."
       />
 
       {schedules.length > 0 ? (

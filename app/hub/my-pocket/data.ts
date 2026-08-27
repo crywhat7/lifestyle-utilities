@@ -1,10 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { convert } from "@/lib/fx";
 import { hourlyRate, type WorkProfile } from "@/lib/money";
 import {
-  clampDay,
-  isoDate,
   type FixedExpense,
   type PaySchedule,
   type PocketCategory,
@@ -13,9 +10,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 export const POCKET_PATH = "/hub/my-pocket";
-
-/** Cuántos meses hacia atrás se materializan los pagos al abrir la app. */
-const BACKFILL_MONTHS = 3;
 
 export type PocketSession = Awaited<ReturnType<typeof pocketSession>>;
 
@@ -138,83 +132,4 @@ export async function loadTransactions(
     amount_base: Number(row.amount_base),
     fx_rate: Number(row.fx_rate),
   })) as PocketTransaction[];
-}
-
-/**
- * Convierte los días de pago configurados en ingresos reales.
- *
- * Se ejecuta al abrir la herramienta y es idempotente: la constraint única
- * (pay_schedule_id, occurred_at) impide que un mismo día se cobre dos veces,
- * así que abrir la página diez veces no infla el balance.
- */
-export async function syncPaydays(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  schedules: PaySchedule[],
-  baseCurrency: string,
-  salaryCategoryId: string | null
-) {
-  const active = schedules.filter((schedule) => schedule.active);
-  if (active.length === 0) return;
-
-  const today = new Date();
-  const todayIso = isoDate(today);
-  const floor = new Date(
-    today.getFullYear(),
-    today.getMonth() - BACKFILL_MONTHS,
-    1
-  );
-
-  const rates = new Map<string, number>();
-
-  const rows: Record<string, unknown>[] = [];
-
-  for (const schedule of active) {
-    if (!rates.has(schedule.currency)) {
-      const converted = await convert(1, schedule.currency, baseCurrency);
-      if (!converted) continue;
-      rates.set(schedule.currency, converted.rate);
-    }
-
-    const rate = rates.get(schedule.currency);
-    if (rate == null) continue;
-
-    for (let offset = 0; offset <= BACKFILL_MONTHS; offset++) {
-      const year = floor.getFullYear();
-      const month = floor.getMonth() + offset;
-      const cursor = new Date(year, month, 1);
-      const occurred = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        clampDay(schedule.day_of_month, cursor.getFullYear(), cursor.getMonth())
-      );
-      const occurredIso = isoDate(occurred);
-
-      if (occurredIso > todayIso) continue;
-
-      rows.push({
-        user_id: userId,
-        kind: "income",
-        description: schedule.label,
-        amount: schedule.amount,
-        currency: schedule.currency,
-        amount_base: Math.round(schedule.amount * rate * 100) / 100,
-        base_currency: baseCurrency,
-        fx_rate: rate,
-        category_id: salaryCategoryId,
-        pay_schedule_id: schedule.id,
-        source: "salary",
-        occurred_at: occurredIso,
-      });
-    }
-  }
-
-  if (rows.length === 0) return;
-
-  await supabase
-    .from("pocket_transactions")
-    .upsert(rows, {
-      onConflict: "pay_schedule_id,occurred_at",
-      ignoreDuplicates: true,
-    });
 }

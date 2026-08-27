@@ -29,7 +29,6 @@ import {
   loadPaySchedules,
   loadTransactions,
   pocketSession,
-  syncPaydays,
 } from "./data";
 import { PocketDock } from "./entry-sheet";
 
@@ -47,19 +46,6 @@ export default async function MyPocketPage() {
     loadCategories(supabase),
     loadPaySchedules(supabase, user.id),
   ]);
-
-  const salaryCategory = categories.find(
-    (category) => category.user_id === null && category.slug === "salario"
-  );
-
-  // Los días de pago que ya pasaron se vuelven ingresos antes de sumar nada.
-  await syncPaydays(
-    supabase,
-    user.id,
-    schedules,
-    profile.currency,
-    salaryCategory?.id ?? null
-  );
 
   const [ledger, transactions, fixedExpenses] = await Promise.all([
     loadLedger(supabase, user.id),
@@ -155,7 +141,7 @@ export default async function MyPocketPage() {
                 Sin fechas de pago
               </span>
               <span className="block text-[0.75rem] text-[var(--text-3)]">
-                Configuralas para que el saldo se llene solo.
+                Configuralas para saber cuándo entra la próxima.
               </span>
             </span>
           )}

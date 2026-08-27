@@ -304,14 +304,8 @@ export async function deletePaySchedule(formData: FormData) {
 
   const { supabase, user } = await pocketSession();
 
-  // Los ingresos ya materializados se van con ella: si el pago no existía,
-  // el balance nunca debió contarlo.
-  await supabase
-    .from("pocket_transactions")
-    .delete()
-    .eq("pay_schedule_id", id)
-    .eq("user_id", user.id);
-
+  // Los movimientos no se tocan: borrar la fecha borra el recordatorio,
+  // nunca el historial. Eso lo decide la persona, movimiento por movimiento.
   await supabase
     .from("pocket_pay_schedules")
     .delete()
