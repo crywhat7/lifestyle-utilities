@@ -1,0 +1,254 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
+import {
+  ArrowOut,
+  CartTag,
+  PlusSlot,
+  Power,
+  Spark,
+  WaveHand,
+} from "@/components/icons";
+import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function HubPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/");
+
+  const { data: profile } = await supabase
+    .from("users_profiles")
+    .select("name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const fullName: string =
+    profile?.name ??
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    user.email?.split("@")[0] ??
+    "invitado";
+  const firstName = fullName.trim().split(/\s+/)[0];
+  const initials = fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+  return (
+    <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <header
+        className="fade flex items-center justify-between"
+        style={{ "--d": "60ms" } as CSSProperties}
+      >
+        <span className="eyebrow">Lifestyle Utilities</span>
+        <span className="flex items-center gap-2 text-[0.6875rem] tracking-[0.18em] text-[var(--text-3)] uppercase">
+          <span className="pulse-dot size-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]" />
+          En línea
+        </span>
+      </header>
+
+      {/* Momento firma: el saludo ocupa la pantalla */}
+      <section className="mt-3">
+        <p
+          className="rise text-[1.375rem] leading-none text-[var(--text-2)]"
+          style={{ "--d": "180ms" } as CSSProperties}
+        >
+          Hola,
+        </p>
+        <h1
+          className="display rise emboss mt-2 flex flex-wrap items-end gap-x-4 gap-y-2 text-[clamp(2.75rem,13vw,4rem)]"
+          style={{ "--d": "280ms" } as CSSProperties}
+        >
+          <span>{firstName}</span>
+          <WaveHand className="wave-hand mb-1 size-[0.85em] shrink-0 text-[var(--accent)]" />
+        </h1>
+      </section>
+
+      {/* Bento */}
+      <div className="grid grid-cols-2 gap-3">
+        <StatusTile count={TOOLS.length} />
+
+        {TOOLS.map((tool, index) => (
+          <ToolTile key={tool.slug} tool={tool} delay={620 + index * 90} />
+        ))}
+
+        <EmptySlot delay={740} label="Espacio libre" />
+        <EmptySlot delay={810} label="Próxima idea" />
+      </div>
+
+      <footer className="mt-auto pt-5">
+        <div
+          className="plate rise flex items-center gap-3 p-3"
+          style={{ "--d": "900ms" } as CSSProperties}
+        >
+          <span className="key flex size-11 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-semibold text-[var(--text-2)]">
+            {initials || "LU"}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.875rem] font-medium">
+              {fullName}
+            </span>
+            <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
+              {user.email}
+            </span>
+          </span>
+          <form action="/auth/signout" method="post">
+            <button
+              type="submit"
+              aria-label="Cerrar sesión"
+              className="key flex size-11 items-center justify-center rounded-full text-[var(--text-2)]"
+            >
+              <Power className="size-[1.125rem]" />
+            </button>
+          </form>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+function StatusTile({ count }: { count: number }) {
+  const bars = [30, 52, 38, 70, 46, 88, 58, 74, 42, 64, 34, 50];
+
+  return (
+    <section
+      className="plate rise col-span-2 flex items-end justify-between gap-4 p-5"
+      style={{ "--d": "460ms" } as CSSProperties}
+    >
+      <div className="relative">
+        <p className="eyebrow">Tu taller</p>
+        <p className="display mt-3 text-[3.25rem] tabular-nums">
+          {String(count).padStart(2, "0")}
+        </p>
+        <p className="mt-2 text-[0.8125rem] text-[var(--text-2)]">
+          {count === 1 ? "herramienta lista" : "herramientas listas"}
+        </p>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="relative flex h-16 items-end gap-[3px] pb-1"
+      >
+        {bars.map((height, index) => (
+          <span
+            key={index}
+            className="w-[5px] rounded-full"
+            style={{
+              height: `${height}%`,
+              background:
+                index === bars.length - 1
+                  ? "linear-gradient(180deg,#dcff6b,var(--accent-deep))"
+                  : "linear-gradient(180deg,rgba(198,242,78,.42),rgba(198,242,78,.10))",
+              boxShadow:
+                index === bars.length - 1
+                  ? "0 0 12px var(--accent-glow)"
+                  : undefined,
+            }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
+  const isReady = tool.status === "live";
+
+  const content = (
+    <>
+      {/* Halo del acento, hundido detrás del icono */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-16 -right-10 size-44 rounded-full opacity-60 blur-2xl"
+        style={{
+          background:
+            "radial-gradient(circle, var(--accent-glow), transparent 68%)",
+        }}
+      />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent)]">
+          {tool.iconKey === "cart" ? (
+            <CartTag className="size-7" />
+          ) : (
+            <Spark className="size-6" />
+          )}
+        </span>
+
+        <span className="chip">
+          {!isReady ? (
+            <span className="size-1.5 rounded-full bg-[var(--accent)]" />
+          ) : null}
+          {STATUS_LABEL[tool.status]}
+        </span>
+      </div>
+
+      <h2 className="display relative mt-6 text-[1.875rem]">{tool.name}</h2>
+      <p className="relative mt-2 text-[0.9375rem] text-[var(--text-2)]">
+        {tool.tagline}
+      </p>
+      <p className="relative mt-3 text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
+        {tool.description}
+      </p>
+
+      <div className="relative mt-6 flex items-center justify-between">
+        <span className="text-[0.75rem] text-[var(--text-3)]">
+          {isReady ? "Listo para usar" : "En construcción"}
+        </span>
+        <span
+          aria-hidden="true"
+          className={`key flex size-10 items-center justify-center rounded-full ${
+            isReady ? "key-accent" : "text-[var(--text-3)]"
+          }`}
+        >
+          <ArrowOut className="size-4" />
+        </span>
+      </div>
+    </>
+  );
+
+  const className =
+    "plate rise relative col-span-2 block overflow-hidden p-5 transition-[transform,filter] duration-500 [transition-timing-function:var(--ease-expo)] active:scale-[0.985] active:brightness-95";
+
+  if (!isReady) {
+    return (
+      <article
+        className={className}
+        style={{ "--d": `${delay}ms` } as CSSProperties}
+      >
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      href={tool.href}
+      className={className}
+      style={{ "--d": `${delay}ms` } as CSSProperties}
+    >
+      {content}
+    </Link>
+  );
+}
+
+function EmptySlot({ delay, label }: { delay: number; label: string }) {
+  return (
+    <div
+      className="groove rise flex aspect-square flex-col items-center justify-center gap-2 border-dashed border-white/8 text-[var(--text-3)]"
+      style={{ "--d": `${delay}ms` } as CSSProperties}
+      aria-hidden="true"
+    >
+      <PlusSlot className="size-5 opacity-50" />
+      <span className="text-[0.6875rem] tracking-[0.14em] uppercase">
+        {label}
+      </span>
+    </div>
+  );
+}

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# secretos locales compartidos con el asistente
+dotenv-para-claude.txt
