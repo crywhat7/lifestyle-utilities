@@ -7,6 +7,7 @@ import {
   PlusSlot,
   Power,
   Spark,
+  Wallet,
   WaveHand,
 } from "@/components/icons";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
@@ -72,14 +73,12 @@ export default async function HubPage() {
 
       {/* Bento */}
       <div className="grid grid-cols-2 gap-3">
-        <StatusTile count={TOOLS.length} />
-
         {TOOLS.map((tool, index) => (
-          <ToolTile key={tool.slug} tool={tool} delay={620 + index * 90} />
+          <ToolTile key={tool.slug} tool={tool} delay={460 + index * 110} />
         ))}
 
-        <EmptySlot delay={740} label="Espacio libre" />
-        <EmptySlot delay={810} label="Próxima idea" />
+        <EmptySlot delay={720} label="Espacio libre" />
+        <EmptySlot delay={790} label="Próxima idea" />
       </div>
 
       <footer className="mt-auto pt-5">
@@ -113,48 +112,11 @@ export default async function HubPage() {
   );
 }
 
-function StatusTile({ count }: { count: number }) {
-  const bars = [30, 52, 38, 70, 46, 88, 58, 74, 42, 64, 34, 50];
-
-  return (
-    <section
-      className="plate rise col-span-2 flex items-end justify-between gap-4 p-5"
-      style={{ "--d": "460ms" } as CSSProperties}
-    >
-      <div className="relative">
-        <p className="eyebrow">Tu taller</p>
-        <p className="display mt-3 text-[3.25rem] tabular-nums">
-          {String(count).padStart(2, "0")}
-        </p>
-        <p className="mt-2 text-[0.8125rem] text-[var(--text-2)]">
-          {count === 1 ? "herramienta lista" : "herramientas listas"}
-        </p>
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="relative flex h-16 items-end gap-[3px] pb-1"
-      >
-        {bars.map((height, index) => (
-          <span
-            key={index}
-            className="w-[5px] rounded-full"
-            style={{
-              height: `${height}%`,
-              background:
-                index === bars.length - 1
-                  ? "linear-gradient(180deg,#dcff6b,var(--accent-deep))"
-                  : "linear-gradient(180deg,rgba(198,242,78,.42),rgba(198,242,78,.10))",
-              boxShadow:
-                index === bars.length - 1
-                  ? "0 0 12px var(--accent-glow)"
-                  : undefined,
-            }}
-          />
-        ))}
-      </div>
-    </section>
-  );
+/** El icono de cada herramienta: un glifo propio, nunca una librería. */
+function ToolGlyph({ iconKey }: { iconKey: Tool["iconKey"] }) {
+  if (iconKey === "cart") return <CartTag className="size-7" />;
+  if (iconKey === "wallet") return <Wallet className="size-7" />;
+  return <Spark className="size-6" />;
 }
 
 function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
@@ -174,11 +136,7 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
 
       <div className="relative flex items-start justify-between gap-4">
         <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent)]">
-          {tool.iconKey === "cart" ? (
-            <CartTag className="size-7" />
-          ) : (
-            <Spark className="size-6" />
-          )}
+          <ToolGlyph iconKey={tool.iconKey} />
         </span>
 
         <span className="chip">

@@ -311,3 +311,112 @@ export function Chevron({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Billetera — icono de "My Pocket". */
+export function Wallet({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M6 14a4 4 0 0 1 4-4h24a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" />
+        <path d="M6 16.5V13a3 3 0 0 1 2.3-2.9l19-4.6A2.5 2.5 0 0 1 30.5 8v2" />
+        <path d="M42 20.5h-8a3.5 3.5 0 0 0 0 7h8z" />
+      </g>
+    </svg>
+  );
+}
+
+/** Flecha que entra — un ingreso. */
+export function ArrowIn({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 4v13" />
+        <path d="m6.5 11.5 5.5 5.5 5.5-5.5" />
+        <path d="M5 20h14" />
+      </g>
+    </svg>
+  );
+}
+
+/** Flecha que sale — un egreso. */
+export function ArrowUpRight({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 20V7" />
+        <path d="m6.5 12.5 5.5-5.5 5.5 5.5" />
+        <path d="M5 4h14" />
+      </g>
+    </svg>
+  );
+}
+
+/** Calendario — fechas de pago. */
+export function Calendar({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+        <path d="M3.5 10h17M8 3.5V6M16 3.5V6" />
+      </g>
+    </svg>
+  );
+}
+
+/** Ciclo — gastos fijos que vuelven cada mes. */
+export function Repeat({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5" />
+        <path d="M20 4.5v4h-4" />
+        <path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.5" />
+        <path d="M4 19.5v-4h4" />
+      </g>
+    </svg>
+  );
+}
+
+/** Cuadrícula — el desglose por categoría. */
+export function Grid({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+        <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+        <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+        <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+        <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+      </g>
+    </svg>
+  );
+}

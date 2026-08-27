@@ -114,6 +114,8 @@ export async function saveWorkProfile(
   }
 
   revalidatePath(TOOL_PATH);
+  // La tarifa es compartida: My Pocket toma de acá su moneda base.
+  revalidatePath("/hub/my-pocket");
   return { status: "saved" };
 }
 
