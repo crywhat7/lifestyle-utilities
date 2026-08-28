@@ -190,3 +190,91 @@ export function totals(
 export function ordinalDay(day: number) {
   return `el ${day}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Gastos fijos — cuándo toca el próximo                                       */
+/* -------------------------------------------------------------------------- */
+
+export type FixedDue = {
+  expense: FixedExpense;
+  /** Fecha en la que toca: este mes si sigue pendiente, el siguiente si ya se pagó. */
+  date: Date;
+  /** Negativo = ya se pasó la fecha y nadie lo registró. */
+  daysAway: number;
+  paid: boolean;
+};
+
+/**
+ * La agenda de lo que se repite.
+ *
+ * Un gasto fijo sin día no tiene fecha que anunciar, así que no entra. Los que
+ * ya se registraron este mes ruedan al siguiente: dejan de ser una deuda y
+ * pasan a ser un recordatorio. Los que no, se quedan en su día de este mes
+ * aunque ya haya pasado — un `daysAway` negativo es justamente la alarma.
+ */
+export function fixedDues(
+  expenses: FixedExpense[],
+  paidIds: Iterable<string> = [],
+  today = new Date()
+): FixedDue[] {
+  const paid = new Set(paidIds);
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  return expenses
+    .filter((expense) => expense.active && expense.day_of_month != null)
+    .map((expense) => {
+      const done = paid.has(expense.id);
+      let year = base.getFullYear();
+      let month = base.getMonth();
+
+      if (done) {
+        month += 1;
+        if (month > 11) {
+          month = 0;
+          year += 1;
+        }
+      }
+
+      const date = new Date(
+        year,
+        month,
+        clampDay(expense.day_of_month as number, year, month)
+      );
+
+      return {
+        expense,
+        date,
+        daysAway: Math.round((date.getTime() - base.getTime()) / 86_400_000),
+        paid: done,
+      };
+    })
+    .sort((a, b) => {
+      if (a.paid !== b.paid) return a.paid ? 1 : -1;
+      return a.date.getTime() - b.date.getTime();
+    });
+}
+
+/**
+ * Suma por moneda. Un gasto en dólares y otro en quetzales no se pueden sumar
+ * en un solo número, y mentir con un total falso es peor que mostrar dos.
+ */
+export function sumByCurrency(
+  rows: { amount: number; currency: string }[]
+): { currency: string; amount: number }[] {
+  const totals = new Map<string, number>();
+
+  for (const row of rows) {
+    totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amount);
+  }
+
+  return [...totals].map(([currency, amount]) => ({ currency, amount }));
+}
+
+/** Cómo se lee una fecha que ya pasó, hoy, mañana o dentro de unos días. */
+export function dueLabel(days: number) {
+  if (days < -1) return `atrasado ${Math.abs(days)} días`;
+  if (days === -1) return "atrasado 1 día";
+  if (days === 0) return "vence hoy";
+  if (days === 1) return "mañana";
+  return `en ${days} días`;
+}

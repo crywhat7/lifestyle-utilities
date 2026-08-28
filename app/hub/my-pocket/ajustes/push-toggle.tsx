@@ -2,20 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Check, Cross, Spark } from "@/components/icons";
+import { enablePush, readPushStatus, type PushStatus } from "@/lib/push-client";
 import {
   deletePushSubscription,
   savePushSubscription,
   sendAdminPush,
   sendTestPush,
 } from "./push-actions";
-
-type Status =
-  | "checking"
-  | "unsupported"
-  | "needs-install"
-  | "off"
-  | "on"
-  | "blocked";
 
 /**
  * Interruptor de avisos push.
@@ -26,7 +19,7 @@ type Status =
  * inicio, y ese caso se explica en vez de fallar en silencio.
  */
 export function PushToggle({ admin = false }: { admin?: boolean }) {
-  const [status, setStatus] = useState<Status>("checking");
+  const [status, setStatus] = useState<PushStatus>("checking");
   const [error, setError] = useState<string | null>(null);
   const [tested, setTested] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -34,42 +27,10 @@ export function PushToggle({ admin = false }: { admin?: boolean }) {
   useEffect(() => {
     let alive = true;
 
-    async function look() {
-      const supported =
-        "serviceWorker" in navigator &&
-        "PushManager" in window &&
-        "Notification" in window;
+    readPushStatus()
+      .then((next) => alive && setStatus(next))
+      .catch(() => alive && setStatus("unsupported"));
 
-      // iOS solo habilita el push cuando la app corre instalada.
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as { standalone?: boolean }).standalone === true;
-      const isIOS =
-        /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-      if (!supported) {
-        if (alive) setStatus(isIOS && !standalone ? "needs-install" : "unsupported");
-        return;
-      }
-
-      if (isIOS && !standalone) {
-        if (alive) setStatus("needs-install");
-        return;
-      }
-
-      if (Notification.permission === "denied") {
-        if (alive) setStatus("blocked");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.getRegistration();
-      const existing = await registration?.pushManager.getSubscription();
-
-      if (alive) setStatus(existing ? "on" : "off");
-    }
-
-    look().catch(() => alive && setStatus("unsupported"));
     return () => {
       alive = false;
     };
@@ -78,44 +39,10 @@ export function PushToggle({ admin = false }: { admin?: boolean }) {
   async function enable() {
     setError(null);
 
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setStatus(permission === "denied" ? "blocked" : "off");
-        return;
-      }
+    const outcome = await enablePush(savePushSubscription);
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-
-      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!key) {
-        setError("Falta la llave pública VAPID en el servidor.");
-        return;
-      }
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
-      });
-
-      const json = subscription.toJSON();
-      const outcome = await savePushSubscription({
-        endpoint: subscription.endpoint,
-        p256dh: json.keys?.p256dh ?? "",
-        auth: json.keys?.auth ?? "",
-        label: deviceLabel(),
-      });
-
-      if (outcome.status === "error") {
-        setError(outcome.error ?? "No se pudo guardar.");
-        return;
-      }
-
-      setStatus("on");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo activar.");
-    }
+    if (outcome.status === "error") setError(outcome.error);
+    else setStatus(outcome.status);
   }
 
   async function disable() {
@@ -309,30 +236,4 @@ function AdminPanel({ onError }: { onError: (message: string | null) => void }) 
       </p>
     </div>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-
-/** Nombre humano del dispositivo, para reconocerlo en la lista después. */
-function deviceLabel() {
-  const agent = navigator.userAgent;
-  if (/iphone/i.test(agent)) return "iPhone";
-  if (/ipad/i.test(agent)) return "iPad";
-  if (/android/i.test(agent)) return "Android";
-  if (/mac/i.test(agent)) return "Mac";
-  if (/windows/i.test(agent)) return "Windows";
-  return "Navegador";
-}
-
-/**
- * La llave VAPID viaja en base64url y `subscribe` la pide como bytes crudos.
- */
-function urlBase64ToUint8Array(base64: string) {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(normalized);
-  const output = new Uint8Array(raw.length);
-
-  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-  return output;
 }

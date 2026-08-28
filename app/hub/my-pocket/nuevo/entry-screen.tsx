@@ -58,22 +58,38 @@ export function EntryScreen({
   fixedExpenses,
   paySchedules,
   baseCurrency,
+  preselect = null,
 }: {
   kind: Kind;
   categories: PocketCategory[];
   fixedExpenses: FixedExpense[];
   paySchedules: PaySchedule[];
   baseCurrency: string;
+  /** Plantilla que llega elegida desde el balance: se salta el primer acto. */
+  preselect?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(
     createTransaction,
     INITIAL
   );
 
-  const [mode, setMode] = useState<"manual" | "template">("manual");
-  const [templateId, setTemplateId] = useState("");
-  const [categoryId, setCategoryId] = useState<Choice>(null);
-  const [composing, setComposing] = useState(false);
+  // Un fijo que llega por URL entra directo al monto: la persona ya eligió
+  // qué va a pagar cuando tocó la fila, volver a preguntárselo es un paso de más.
+  const arriving =
+    preselect && fixedExpenses.some((expense) => expense.id === preselect)
+      ? preselect
+      : null;
+
+  const [mode, setMode] = useState<"manual" | "template">(
+    arriving ? "template" : "manual"
+  );
+  const [templateId, setTemplateId] = useState(arriving ?? "");
+  const [categoryId, setCategoryId] = useState<Choice>(() => {
+    if (!arriving) return null;
+    const expense = fixedExpenses.find((item) => item.id === arriving);
+    return expense?.category_id ?? "";
+  });
+  const [composing, setComposing] = useState(Boolean(arriving));
   // "Cambiar" desde una plantilla pide la cuadrícula, no la lista de plantillas.
   const [picking, setPicking] = useState(false);
 

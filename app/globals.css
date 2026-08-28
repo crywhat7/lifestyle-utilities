@@ -593,33 +593,33 @@
   }
 
   /* ------------------------------------------------------------------------
-     Muelle flotante de acciones
+     Barra de acciones — pegada arriba, nunca flotando encima del contenido
      ------------------------------------------------------------------------ */
 
-  .dock {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
+  /*
+     Registrar es lo que se hace acá, así que las dos teclas no se van con el
+     scroll: se quedan clavadas en el borde de arriba. Sangra hasta el borde
+     de la columna (-1.25rem = el px-5 de la página) para que la línea que la
+     separa del contenido cruce la pantalla entera, como un header de verdad.
+  */
+  .pocket-bar {
+    position: sticky;
+    top: 0;
     z-index: 40;
-    width: 100%;
-    max-width: 30rem;
-    transform: translateX(-50%);
-    padding: 0 1.25rem max(1rem, env(safe-area-inset-bottom));
-    pointer-events: none;
+    margin: 0 -1.25rem;
+    padding: max(0.875rem, env(safe-area-inset-top)) 1.25rem 0.875rem;
+    /* Opaca, no traslúcida: un header estático no deja ver nada por detrás. */
+    background: linear-gradient(180deg, #0a0b0e 0%, #0c0e12 100%);
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color 0.32s var(--ease-quart),
+      box-shadow 0.32s var(--ease-quart);
   }
 
-  .dock > * {
-    pointer-events: auto;
-  }
-
-  /* Difumina el contenido que pasa por debajo del muelle. */
-  .dock::before {
-    content: "";
-    position: absolute;
-    inset: -3.5rem 0 0;
-    z-index: -1;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent, var(--void) 62%);
+  /* Solo cuando hay algo pasando por debajo la barra se despega del fondo. */
+  .pocket-bar[data-scrolled="true"] {
+    border-bottom-color: var(--edge);
+    box-shadow: 0 20px 34px -26px rgba(0, 0, 0, 0.98);
   }
 }
 

@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { hourlyRate, type WorkProfile } from "@/lib/money";
 import {
+  monthStart,
   type FixedExpense,
   type PaySchedule,
   type PocketCategory,
@@ -86,6 +87,31 @@ export async function loadFixedExpenses(
     ...row,
     amount: Number(row.amount),
   })) as FixedExpense[];
+}
+
+/**
+ * Qué gastos fijos ya quedaron registrados este mes.
+ *
+ * La fila del gasto guarda su `fixed_expense_id`, así que no hay que adivinar
+ * por nombre: o está la transacción del mes o el gasto sigue pendiente.
+ */
+export async function loadPaidFixedThisMonth(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("pocket_transactions")
+    .select("fixed_expense_id")
+    .eq("user_id", userId)
+    .eq("source", "fixed")
+    .gte("occurred_at", monthStart())
+    .not("fixed_expense_id", "is", null);
+
+  return new Set(
+    (data ?? [])
+      .map((row) => row.fixed_expense_id as string | null)
+      .filter((id): id is string => Boolean(id))
+  );
 }
 
 export type LedgerRow = Pick<

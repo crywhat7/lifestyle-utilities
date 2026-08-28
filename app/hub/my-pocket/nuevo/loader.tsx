@@ -11,7 +11,14 @@ import { EntryScreen } from "./entry-screen";
  * Registrar es una pantalla propia, no una hoja encima del balance: así hay
  * un solo scroll y la cuadrícula de categorías puede respirar.
  */
-export async function EntryRoute({ kind }: { kind: "income" | "expense" }) {
+export async function EntryRoute({
+  kind,
+  preselect = null,
+}: {
+  kind: "income" | "expense";
+  /** Id de la plantilla (gasto fijo o fecha de pago) que llega ya elegida. */
+  preselect?: string | null;
+}) {
   const { supabase, user, profile } = await pocketSession();
 
   if (!profile) redirect("/hub/my-pocket");
@@ -29,6 +36,7 @@ export async function EntryRoute({ kind }: { kind: "income" | "expense" }) {
       fixedExpenses={fixedExpenses}
       paySchedules={paySchedules}
       baseCurrency={profile.currency}
+      preselect={preselect}
     />
   );
 }
