@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
@@ -12,6 +13,11 @@ import {
 } from "@/components/icons";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Tu hub",
+  description: "Todas tus herramientas en un solo lugar.",
+};
 
 export default async function HubPage() {
   const supabase = await createClient();

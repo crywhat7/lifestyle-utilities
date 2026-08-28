@@ -10,7 +10,7 @@ import { DecisionView } from "../decision-view";
 import { Enricher } from "./enricher";
 
 export const metadata: Metadata = {
-  title: "Análisis · Should I Buy It",
+  title: "Análisis de compra",
 };
 
 export default async function DecisionPage({

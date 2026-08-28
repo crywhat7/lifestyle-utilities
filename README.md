@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lifestyle Utilities
 
-## Getting Started
+> Herramientas pequeñas y afiladas para las decisiones que hacen grande tu día a día.
 
-First, run the development server:
+Una app web (mobile-first, en español) con dos utilidades de finanzas personales
+detrás de un login con Google:
+
+| Herramienta | Qué hace |
+| --- | --- |
+| **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
+| **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
+
+---
+
+## Stack
+
+- **Next.js 16.3** (App Router, Turbopack, Server Components y Server Actions)
+- **React 19.2** · **TypeScript 5** · **Tailwind CSS 4**
+- **Supabase** — auth con Google OAuth + Postgres con RLS, esquema `lifestyle_utilities`
+- **IA**: Gemini como proveedor principal, Groq como respaldo automático
+- Tipo de cambio en vivo vía [open.er-api.com](https://open.er-api.com), cacheado 6 h
+
+El diseño es un sistema propio: superficies mecanizadas oscuras, tipografía
+grabada y un único acento (`#c6f24e`). Vive en [`app/globals.css`](app/globals.css).
+
+---
+
+## Arranque local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Creá un `.env.local` en la raíz:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Supabase (Project Settings > API)
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...          # reservado para tareas server-side
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# URL pública del sitio: la usan OAuth y todos los metadatos (canonical, OG…)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-## Learn More
+# IA (al menos una; si faltan las dos, el análisis se degrada con aviso)
+SHOULD_I_BUY_IT_GEMINI_API_KEY=...
+GROQ_API_KEY=...
 
-To learn more about Next.js, take a look at the following resources:
+# Opcionales — verificación de buscadores
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=
+NEXT_PUBLIC_YANDEX_VERIFICATION=
+NEXT_PUBLIC_BING_VERIFICATION=
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idempotentes):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. [`supabase/migrations/0001_lifestyle_utilities.sql`](supabase/migrations/0001_lifestyle_utilities.sql)
+2. [`supabase/migrations/0002_my_pocket.sql`](supabase/migrations/0002_my_pocket.sql)
 
-## Deploy on Vercel
+En Supabase → **Authentication → Providers** habilitá Google, y en **URL
+Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de
+producción como redirect URLs.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev     # http://localhost:3000
+npm run build   # build de producción
+npm run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Estructura
+
+```
+app/
+  layout.tsx              Metadatos globales, OG/Twitter, JSON-LD, fuentes
+  page.tsx                Landing pública + login con Google
+  opengraph-image.tsx     Tarjeta social 1200x630 generada con next/og
+  twitter-image.tsx       Reexporta la anterior
+  icon.tsx / apple-icon.tsx
+  manifest.ts             Web app manifest (PWA instalable)
+  robots.ts / sitemap.ts
+  auth/                   Callback y signout de Supabase
+  hub/
+    layout.tsx            noindex heredado por todo lo privado
+    page.tsx              Catálogo de herramientas
+    should-i-buy-it/
+    my-pocket/
+components/               Iconos y botón de Google
+lib/
+  site.ts                 Fuente única de marca, dominio y keywords
+  ai/                     Gemini → Groq con failover, prompts y parseo
+  money.ts, pocket.ts, decisions.ts, fx.ts, tools.ts
+proxy.ts                  Sesión + guardas de ruta (/hub exige login)
+supabase/migrations/      Esquema y RLS
+```
+
+---
+
+## SEO y compartir en redes
+
+Todo lo público sale de un solo archivo: [`lib/site.ts`](lib/site.ts). Cambiás el
+nombre, la descripción o las keywords ahí y se propaga a metadatos, manifest,
+sitemap y datos estructurados.
+
+**Qué está cubierto**
+
+- Título con plantilla (`%s · Lifestyle Utilities`), descripción, keywords, autor,
+  categoría, `referrer` y `format-detection`
+- **Open Graph** completo: `og:type`, `og:title`, `og:description`, `og:url`,
+  `og:site_name`, `og:locale` (+ `es_AR`, `es_MX`, `es_419`), `og:country_name`,
+  `og:image` con `width`, `height`, `alt` y `type` — lo que leen Facebook,
+  WhatsApp, Telegram, LinkedIn, Slack y Discord
+- **Twitter/X**: `summary_large_image` con título, descripción, imagen, alt y
+  etiquetas `label/data`
+- **Imagen social generada en runtime** (`/opengraph-image`, 1200x630) con la
+  identidad de la app — sin PNGs que mantener a mano
+- **Iconos**: favicon, `/icon` 512px y `/apple-icon` 180px para iOS
+- **Manifest** instalable con shortcuts a cada herramienta
+- **JSON-LD** (`WebSite`, `Person`, `WebApplication` con `offers` y `featureList`)
+- **robots.txt** y **sitemap.xml** generados; `/hub`, `/auth` y `/api` bloqueados
+- `noindex, nofollow` heredado en todo `/hub`: son datos financieros privados,
+  no hay nada que indexar
+- Ranuras listas para verificación de Google, Bing y Yandex vía variables de entorno
+
+**Antes de publicar**
+
+1. Poné `NEXT_PUBLIC_SITE_URL` con el dominio real (`https://…`). En producción,
+   una URL `http://` se ignora y se usa el fallback de
+   [`lib/site.ts`](lib/site.ts) — ahí está el dominio por defecto si querés
+   cambiarlo.
+2. Agregá esa misma URL a las redirect URLs de Supabase Auth.
+3. Validá las tarjetas: [opengraph.xyz](https://www.opengraph.xyz),
+   [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/),
+   [Twitter Card Validator](https://cards-dev.twitter.com/validator) y el
+   [Rich Results Test](https://search.google.com/test/rich-results) de Google.
+4. Dá de alta el sitio en Google Search Console y subí `/sitemap.xml`.
+
+---
+
+## Deploy
+
+Pensado para Vercel: importá el repo, cargá las variables de entorno del bloque
+de arriba (con `NEXT_PUBLIC_SITE_URL` apuntando al dominio final) y desplegá.
+Cualquier host con soporte para Node y el runtime de Next 16 también sirve.

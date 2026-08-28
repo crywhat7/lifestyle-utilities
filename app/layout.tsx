@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Space_Grotesk } from "next/font/google";
+import { absoluteUrl, site } from "@/lib/site";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -14,28 +15,179 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+const ogImage = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: `${site.name} — ${site.tagline}`,
+  type: "image/png",
+};
+
 export const metadata: Metadata = {
-  title: "Lifestyle Utilities",
-  description:
-    "Herramientas pequeñas y afiladas para tomar mejores decisiones de vida.",
-  applicationName: "Lifestyle Utilities",
+  // Base para resolver toda URL relativa (og:image, canonical, etc).
+  metadataBase: new URL(site.url),
+  title: {
+    default: `${site.name} — ${site.tagline}`,
+    template: `%s · ${site.name}`,
+  },
+  description: site.description,
+  applicationName: site.name,
+  generator: "Next.js",
+  referrer: "origin-when-cross-origin",
+  keywords: [...site.keywords],
+  authors: [{ name: site.author, url: site.url }],
+  creator: site.author,
+  publisher: site.name,
+  category: "finance",
+  classification: "Finanzas personales",
+  formatDetection: { telephone: false, email: false, address: false },
+
+  alternates: {
+    canonical: "/",
+    languages: { "es-ES": "/", es: "/" },
+  },
+
+  openGraph: {
+    type: "website",
+    determiner: "",
+    siteName: site.name,
+    title: `${site.name} — ${site.tagline}`,
+    description: site.shortDescription,
+    url: "/",
+    locale: site.locale,
+    alternateLocale: ["es_AR", "es_MX", "es_419"],
+    countryName: "Internacional",
+    images: [ogImage],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} — ${site.tagline}`,
+    description: site.shortDescription,
+    images: [ogImage],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+
+  manifest: "/manifest.webmanifest",
+
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+  },
+
+  appleWebApp: {
+    capable: true,
+    title: site.shortName,
+    statusBarStyle: "black-translucent",
+  },
+
+  // Google Search Console / Bing / Yandex: se activan poniendo la variable.
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
+    other: process.env.NEXT_PUBLIC_BING_VERIFICATION
+      ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_VERIFICATION }
+      : undefined,
+  },
+
+  // Etiquetas que la API tipada de Next todavía no cubre pero que
+  // consumen Facebook, Telegram, WhatsApp, Pinterest, Slack y Schema.org.
+  other: {
+    "twitter:label1": "Precio",
+    "twitter:data1": "Gratis",
+    "twitter:label2": "Herramientas",
+    "twitter:data2": "Should I Buy It · My Pocket",
+    "apple-mobile-web-app-capable": "yes",
+    "msapplication-TileColor": site.themeColor,
+    "msapplication-TileImage": absoluteUrl("/apple-icon"),
+    "pinterest-rich-pin": "true",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#08090b",
+  themeColor: site.themeColor,
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
+/** Datos estructurados: cómo Google entiende qué es este sitio. */
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": absoluteUrl("/#website"),
+      url: absoluteUrl("/"),
+      name: site.name,
+      description: site.description,
+      inLanguage: "es",
+      publisher: { "@id": absoluteUrl("/#person") },
+    },
+    {
+      "@type": "Person",
+      "@id": absoluteUrl("/#person"),
+      name: site.author,
+      url: absoluteUrl("/"),
+    },
+    {
+      "@type": "WebApplication",
+      "@id": absoluteUrl("/#app"),
+      name: site.name,
+      url: absoluteUrl("/"),
+      description: site.shortDescription,
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web",
+      browserRequirements: "Requiere JavaScript",
+      inLanguage: "es",
+      image: absoluteUrl("/opengraph-image"),
+      author: { "@id": absoluteUrl("/#person") },
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+      featureList: [
+        "Convertir el precio de una compra en horas de trabajo",
+        "Registrar ingresos y egresos con categorías",
+        "Ver el balance del mes y en qué se va la plata",
+        "Gastos fijos y fechas de pago configurables",
+      ],
+    },
+  ],
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
+      lang={site.lang}
+      dir="ltr"
       className={`${bricolage.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
       <body className="relative min-h-full">
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col">
           {children}
         </div>

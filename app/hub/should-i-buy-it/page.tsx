@@ -16,7 +16,7 @@ import { PurchaseForm } from "./purchase-form";
 import { RateSummary, WorkProfileForm } from "./work-profile-form";
 
 export const metadata: Metadata = {
-  title: "Should I Buy It · Lifestyle Utilities",
+  title: "Should I Buy It",
   description:
     "Convierte el precio de lo que querés comprar en las horas de vida que te cuesta.",
 };

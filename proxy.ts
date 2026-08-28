@@ -68,8 +68,10 @@ function redirectKeepingCookies(
 export const config = {
   matcher: [
     /*
-     * Todo excepto estáticos, imágenes optimizadas y assets públicos.
+     * Todo excepto estáticos, imágenes optimizadas, assets públicos y las
+     * rutas de SEO (robots, sitemap, manifest e imágenes de metadatos):
+     * son públicas por definición y no necesitan resolver la sesión.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)",
   ],
 };

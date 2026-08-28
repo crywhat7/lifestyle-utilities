@@ -32,7 +32,7 @@ import {
 } from "./data";
 
 export const metadata: Metadata = {
-  title: "My Pocket · Lifestyle Utilities",
+  title: "My Pocket",
   description: "Tu balance real: lo que entra, lo que sale y en qué se va.",
 };
 
