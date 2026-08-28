@@ -350,6 +350,52 @@ export async function deletePaySchedule(formData: FormData) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Desde cuándo cuenta el seguimiento                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mueve (o borra) la frontera del seguimiento de gastos fijos.
+ *
+ * Vacío devuelve la columna a nulo, que significa "usá la fecha en que nació
+ * el perfil". Adelante en el tiempo no se acepta: una frontera futura dejaría
+ * todos los fijos fuera de alcance para siempre.
+ */
+export async function savePocketSince(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const { supabase, user } = await pocketSession();
+
+  const raw = toText(formData.get("pocket_since"), 10);
+  let value: string | null = null;
+
+  if (raw) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return { status: "error", error: "Esa fecha no se entiende." };
+    }
+    if (raw > isoDate(new Date())) {
+      return { status: "error", error: "No puede ser una fecha futura." };
+    }
+    value = raw;
+  }
+
+  const { error } = await supabase
+    .from("work_profiles")
+    .update({ pocket_since: value })
+    .eq("user_id", user.id);
+
+  if (error) {
+    return {
+      status: "error",
+      error: "No se pudo guardar. ¿Corriste la migración 0004?",
+    };
+  }
+
+  refresh();
+  return { status: "saved" };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Gastos fijos                                                                */
 /* -------------------------------------------------------------------------- */
 

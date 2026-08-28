@@ -4,7 +4,13 @@ import { useActionState, useState, type CSSProperties } from "react";
 import { CategoryIcon, ICON_KEYS } from "@/components/category-icons";
 import { Calendar, Cross, PlusSlot, Repeat, Trash } from "@/components/icons";
 import { CURRENCIES, formatMoney } from "@/lib/money";
-import type { FixedExpense, PaySchedule, PocketCategory } from "@/lib/pocket";
+import {
+  fromIsoDate,
+  isoDate,
+  type FixedExpense,
+  type PaySchedule,
+  type PocketCategory,
+} from "@/lib/pocket";
 import {
   createCategory,
   deleteCategory,
@@ -12,6 +18,7 @@ import {
   deletePaySchedule,
   saveFixedExpense,
   savePaySchedule,
+  savePocketSince,
   type FormState,
 } from "../actions";
 import { CategoryGrid } from "../category-grid";
@@ -73,6 +80,80 @@ function AddButton({
 
 /* -------------------------------------------------------------------------- */
 /* Fechas de pago                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Desde cuándo cuentan los gastos fijos.
+ *
+ * Sin esta frontera, el primer día la app señala como atrasado todo recibo
+ * cuyo día ya pasó este mes — aunque la persona los haya pagado antes de tener
+ * cuenta. Por defecto es el día en que se creó el perfil; se corrige acá
+ * cuando ese día no es el que la persona considera su punto de partida.
+ */
+export function TrackingSince({
+  since,
+  accountSince,
+  custom,
+}: {
+  since: string;
+  accountSince: string;
+  custom: boolean;
+}) {
+  const [state, formAction, pending] = useActionState(savePocketSince, INITIAL);
+
+  return (
+    <section className="plate p-5">
+      <SectionHead
+        eyebrow="La frontera"
+        title="Desde cuándo cuenta"
+        note="Los gastos fijos que vencían antes de esta fecha no salen como atrasados: se pagaron antes de que existiera la cuenta. Vaciala para volver al día en que empezaste."
+      />
+
+      <form action={formAction} className="flex flex-col gap-4">
+        <div>
+          <label className="field-label" htmlFor="pocket-since">
+            Primer día del seguimiento
+          </label>
+          <input
+            id="pocket-since"
+            name="pocket_since"
+            type="date"
+            max={isoDate(new Date())}
+            defaultValue={since}
+            className="field tabular-nums"
+          />
+          <p className="mt-2 text-[0.75rem] leading-relaxed text-[var(--text-3)]">
+            {custom
+              ? `Puesta a mano. Tu cuenta arrancó el ${longDay(accountSince)}.`
+              : `Heredada de tu cuenta, que arrancó el ${longDay(accountSince)}.`}
+          </p>
+        </div>
+
+        <Feedback state={state} />
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="key key-accent flex h-13 items-center justify-center rounded-full text-[0.9375rem] font-semibold disabled:opacity-60"
+        >
+          {pending ? "Guardando…" : "Guardar fecha"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+/** "27 de agosto de 2026" — la fecha en palabras, no en casillas. */
+function longDay(iso: string) {
+  const date = fromIsoDate(iso);
+  if (!date) return iso;
+  return date.toLocaleDateString("es-GT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 
 export function PaySchedules({

@@ -1,9 +1,9 @@
 /**
  * Service worker de Lifestyle Utilities.
  *
- * Su único trabajo es recibir pushes y abrir la app donde corresponde. No
- * cachea nada a propósito: el saldo que ves tiene que ser el de la base, no
- * uno guardado hace tres días.
+ * Recibe los pushes, abre la app donde corresponde y hace que el navegador
+ * considere instalable la PWA. No cachea nada a propósito: el saldo que ves
+ * tiene que ser el de la base, no uno guardado hace tres días.
  */
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -11,6 +11,15 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
+
+/**
+ * Chrome no ofrece instalar la app si su service worker no atiende `fetch`.
+ *
+ * Este handler existe solo para cumplir ese requisito: deja pasar cada pedido
+ * a la red tal cual, sin tocarlo ni guardarlo. Es deliberadamente inútil —
+ * cachear acá sería servir saldos viejos, que es justo lo que no queremos.
+ */
+self.addEventListener("fetch", () => {});
 
 self.addEventListener("push", (event) => {
   let payload = {};

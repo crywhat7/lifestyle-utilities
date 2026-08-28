@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { Cross, Spark } from "@/components/icons";
 import { enablePush, readPushStatus, type PushStatus } from "@/lib/push-client";
+import { isSnoozed, snooze } from "@/lib/snooze";
 import { savePushSubscription } from "./ajustes/push-actions";
 
 /** Una semana de silencio: si dijo "ahora no", no se le insiste mañana. */
@@ -36,7 +37,7 @@ export function PushNudge() {
     readPushStatus()
       .then((next) => {
         if (!alive) return;
-        setSnoozed(isSnoozed());
+        setSnoozed(isSnoozed(SNOOZE_KEY, SNOOZE_DAYS));
         setStatus(next);
       })
       .catch(() => alive && setStatus("unsupported"));
@@ -57,12 +58,8 @@ export function PushNudge() {
     else setStatus(outcome.status);
   }
 
-  function snooze() {
-    try {
-      localStorage.setItem(SNOOZE_KEY, String(Date.now()));
-    } catch {
-      // Modo privado o almacenamiento lleno: se esconde igual por esta sesión.
-    }
+  function dismiss() {
+    snooze(SNOOZE_KEY);
     setSnoozed(true);
   }
 
@@ -105,7 +102,7 @@ export function PushNudge() {
 
         <button
           type="button"
-          onClick={snooze}
+          onClick={dismiss}
           aria-label="Ahora no"
           className="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--text-1)]"
         >
@@ -143,16 +140,4 @@ export function PushNudge() {
       ) : null}
     </section>
   );
-}
-
-function isSnoozed() {
-  try {
-    const raw = localStorage.getItem(SNOOZE_KEY);
-    if (!raw) return false;
-    const at = Number(raw);
-    if (!Number.isFinite(at)) return false;
-    return Date.now() - at < SNOOZE_DAYS * 86_400_000;
-  } catch {
-    return false;
-  }
 }

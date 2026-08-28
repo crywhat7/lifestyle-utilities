@@ -12,7 +12,13 @@ import {
   loadPaySchedules,
   pocketSession,
 } from "../data";
-import { CustomCategories, FixedExpenses, PaySchedules, Stagger } from "./forms";
+import {
+  CustomCategories,
+  FixedExpenses,
+  PaySchedules,
+  Stagger,
+  TrackingSince,
+} from "./forms";
 import { PushToggle } from "./push-toggle";
 
 export const metadata: Metadata = {
@@ -21,7 +27,8 @@ export const metadata: Metadata = {
 };
 
 export default async function PocketSettingsPage() {
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user, profile, since, accountSince, sinceIsCustom } =
+    await pocketSession();
 
   if (!profile) redirect("/hub/my-pocket");
 
@@ -84,6 +91,14 @@ export default async function PocketSettingsPage() {
           expenses={fixedExpenses}
           categories={categories}
           baseCurrency={profile.currency}
+        />
+      </Stagger>
+
+      <Stagger delay={520}>
+        <TrackingSince
+          since={since}
+          accountSince={accountSince}
+          custom={sinceIsCustom}
         />
       </Stagger>
 

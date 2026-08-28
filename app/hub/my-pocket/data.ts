@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { hourlyRate, type WorkProfile } from "@/lib/money";
 import {
+  isoDate,
   monthStart,
   type FixedExpense,
   type PaySchedule,
@@ -22,11 +23,37 @@ export async function pocketSession() {
 
   if (!user) redirect("/");
 
-  const { data } = await supabase
+  const COLUMNS = "monthly_income,hours_per_day,days_per_week,currency,hourly_rate,created_at";
+
+  // `pocket_since` llegó en la migración 0004. Si todavía no se corrió, la
+  // consulta falla entera y la persona vería el onboarding como si no tuviera
+  // perfil — así que se reintenta sin esa columna en vez de romper la app.
+  type ProfileRow = {
+    monthly_income: number;
+    hours_per_day: number;
+    days_per_week: number;
+    currency: string;
+    hourly_rate: number;
+    created_at?: string;
+    pocket_since?: string | null;
+  };
+
+  const full = await supabase
     .from("work_profiles")
-    .select("monthly_income,hours_per_day,days_per_week,currency,hourly_rate")
+    .select(`${COLUMNS},pocket_since`)
     .eq("user_id", user.id)
     .maybeSingle();
+
+  let data = full.data as ProfileRow | null;
+
+  if (!data) {
+    const fallback = await supabase
+      .from("work_profiles")
+      .select(COLUMNS)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    data = fallback.data as ProfileRow | null;
+  }
 
   let profile: WorkProfile | null = null;
 
@@ -41,7 +68,29 @@ export async function pocketSession() {
     profile.hourly_rate = profile.hourly_rate || hourlyRate(profile);
   }
 
-  return { supabase, user, profile };
+  return {
+    supabase,
+    user,
+    profile,
+    /** Desde cuándo cuentan los fijos. Ver `TrackingSince` en los ajustes. */
+    since: trackingSince(data?.pocket_since, data?.created_at),
+    /** El arranque real de la cuenta, para explicar de dónde sale el default. */
+    accountSince: isoDay(data?.created_at) ?? isoDate(new Date()),
+    /** Si la fecha está puesta a mano o heredada del perfil. */
+    sinceIsCustom: Boolean(data?.pocket_since),
+  };
+}
+
+/** Fecha configurada, o el día en que nació el perfil, o hoy. */
+function trackingSince(custom?: string | null, createdAt?: string) {
+  return isoDay(custom) ?? isoDay(createdAt) ?? isoDate(new Date());
+}
+
+/** Recorta un `date` o un `timestamptz` de Postgres a YYYY-MM-DD. */
+function isoDay(value?: string | null) {
+  if (typeof value !== "string") return null;
+  const day = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
 
 export async function loadCategories(

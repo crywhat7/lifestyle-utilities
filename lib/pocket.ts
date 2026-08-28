@@ -211,35 +211,45 @@ export type FixedDue = {
  * ya se registraron este mes ruedan al siguiente: dejan de ser una deuda y
  * pasan a ser un recordatorio. Los que no, se quedan en su día de este mes
  * aunque ya haya pasado — un `daysAway` negativo es justamente la alarma.
+ *
+ * `since` es la frontera del seguimiento: el día en que esta persona montó su
+ * sistema acá. Un vencimiento anterior a esa fecha no está atrasado, está
+ * fuera de alcance — se pagó (o no) antes de que la app existiera, y gritarle
+ * "atrasado la renta" a alguien que acaba de crear su cuenta es mentirle.
+ * Esa ocurrencia rueda al mes siguiente, que sí es la próxima de verdad.
  */
 export function fixedDues(
   expenses: FixedExpense[],
   paidIds: Iterable<string> = [],
-  today = new Date()
+  today = new Date(),
+  since: Date | null = null
 ): FixedDue[] {
   const paid = new Set(paidIds);
   const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const floor = since
+    ? new Date(since.getFullYear(), since.getMonth(), since.getDate())
+    : null;
 
   return expenses
     .filter((expense) => expense.active && expense.day_of_month != null)
     .map((expense) => {
+      const day = expense.day_of_month as number;
       const done = paid.has(expense.id);
+
       let year = base.getFullYear();
       let month = base.getMonth();
+      let date = new Date(year, month, clampDay(day, year, month));
 
-      if (done) {
+      // Un mes basta: la ocurrencia siguiente cae después de hoy, y hoy nunca
+      // es anterior al inicio del seguimiento.
+      if (done || (floor && date < floor)) {
         month += 1;
         if (month > 11) {
           month = 0;
           year += 1;
         }
+        date = new Date(year, month, clampDay(day, year, month));
       }
-
-      const date = new Date(
-        year,
-        month,
-        clampDay(expense.day_of_month as number, year, month)
-      );
 
       return {
         expense,
@@ -252,6 +262,13 @@ export function fixedDues(
       if (a.paid !== b.paid) return a.paid ? 1 : -1;
       return a.date.getTime() - b.date.getTime();
     });
+}
+
+/** Una fecha ISO corta a `Date` local, sin que UTC corra el día. */
+export function fromIsoDate(iso: string | null | undefined): Date | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 /**

@@ -175,6 +175,21 @@ const jsonLd = {
   ],
 };
 
+/**
+ * Guardián del evento de instalación. Ver `lib/install.ts` para el otro lado.
+ */
+const INSTALL_PROMPT_CATCHER = `
+window.__installPrompt = null;
+addEventListener("beforeinstallprompt", function (event) {
+  event.preventDefault();
+  window.__installPrompt = event;
+  dispatchEvent(new Event("installpromptready"));
+});
+addEventListener("appinstalled", function () {
+  window.__installPrompt = null;
+});
+`.trim();
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -187,6 +202,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           type="application/ld+json"
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {/*
+          Chrome dispara `beforeinstallprompt` una sola vez y muy temprano —
+          en una visita repetida, antes de que React hidrate. Si nadie lo
+          atrapa ahí, el evento se pierde y el botón de instalar no aparece
+          nunca. Esto lo guarda en `window` para que `InstallPrompt` lo
+          recoja cuando monte, sea antes o después.
+        */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CATCHER }}
         />
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col">
           {children}

@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import { CategoryIcon } from "@/components/category-icons";
 import {
   ArrowBack,
+  ArrowIn,
+  ArrowUpRight,
   Calendar,
   Check,
   Chevron,
@@ -18,6 +20,7 @@ import {
   daysAwayLabel,
   dueLabel,
   fixedDues,
+  fromIsoDate,
   monthStart,
   nextPayday,
   sumByCurrency,
@@ -36,7 +39,6 @@ import {
   loadTransactions,
   pocketSession,
 } from "./data";
-import { PocketBar } from "./pocket-bar";
 import { PushNudge } from "./push-nudge";
 
 export const metadata: Metadata = {
@@ -45,7 +47,8 @@ export const metadata: Metadata = {
 };
 
 export default async function MyPocketPage() {
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user, profile, since: trackingSince } =
+    await pocketSession();
 
   if (!profile) return <Onboarding />;
 
@@ -65,140 +68,195 @@ export default async function MyPocketPage() {
   const since = monthStart();
   const month = totals(ledger.filter((row) => row.occurred_at >= since));
   const payday = nextPayday(schedules);
-  const dues = fixedDues(fixed, paidFixed);
+  const dues = fixedDues(fixed, paidFixed, new Date(), fromIsoDate(trackingSince));
   const negative = all.balance < 0;
 
   return (
-    <main className="relative flex flex-1 flex-col gap-5 px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <PocketBar />
-
-      {/* Momento firma: el saldo ocupa la pantalla, en verde o en rojo */}
-      <section className="mt-2">
-        <p
-          className="eyebrow rise"
-          style={{ "--d": "100ms" } as CSSProperties}
+    <>
+      <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-32">
+        <header
+          className="fade flex items-center justify-between"
+          style={{ "--d": "40ms" } as CSSProperties}
         >
-          Balance general
-        </p>
-        <h1
-          className="display rise emboss mt-3 text-[clamp(2.75rem,15vw,4.25rem)] tabular-nums"
-          style={
-            {
-              "--d": "140ms",
-              color: negative ? "var(--danger)" : "var(--text-1)",
-            } as CSSProperties
-          }
-        >
-          {formatMoney(all.balance, profile.currency)}
-        </h1>
-        <p
-          className="rise mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-[var(--text-3)]"
-          style={{ "--d": "200ms" } as CSSProperties}
-        >
-          <span style={{ color: "var(--accent)" }}>
-            +{formatMoney(month.income, profile.currency)}
-          </span>
-          <span>y</span>
-          <span style={{ color: "var(--danger)" }}>
-            −{formatMoney(month.expense, profile.currency)}
-          </span>
-          <span>este mes</span>
-        </p>
-      </section>
-
-      <section
-        className="plate rise flex items-center gap-4 p-4"
-        style={{ "--d": "260ms" } as CSSProperties}
-      >
-        <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent)]">
-          <Calendar className="size-[1.125rem]" />
-        </span>
-        {payday ? (
-          <span className="min-w-0 flex-1">
-            <span className="block text-[0.8125rem] text-[var(--text-2)]">
-              {payday.schedule.label} · {daysAwayLabel(payday.daysAway)}
-            </span>
-            <span className="block text-[0.75rem] text-[var(--text-3)]">
-              {payday.date.toLocaleDateString("es-GT", {
-                day: "numeric",
-                month: "long",
-              })}
-            </span>
-          </span>
-        ) : (
-          <span className="min-w-0 flex-1">
-            <span className="block text-[0.8125rem] text-[var(--text-2)]">
-              Sin fechas de pago
-            </span>
-            <span className="block text-[0.75rem] text-[var(--text-3)]">
-              Configuralas para saber cuándo entra la próxima.
-            </span>
-          </span>
-        )}
-        {payday ? (
-          <span className="display shrink-0 text-[1.125rem] tabular-nums text-[var(--accent)]">
-            {formatMoney(payday.schedule.amount, payday.schedule.currency)}
-          </span>
-        ) : (
+          <Link
+            href="/hub"
+            className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
+          >
+            <ArrowBack className="size-4" />
+            Hub
+          </Link>
           <Link
             href="/hub/my-pocket/ajustes"
-            className="key flex h-9 shrink-0 items-center rounded-full px-4 text-[0.75rem]"
+            aria-label="Ajustes de My Pocket"
+            className="key flex size-10 items-center justify-center rounded-full text-[var(--text-2)]"
           >
-            Configurar
+            <Sliders className="size-4" />
           </Link>
-        )}
-      </section>
+        </header>
 
-      <PushNudge />
+        {/* Momento firma: el saldo ocupa la pantalla, en verde o en rojo */}
+        <section className="mt-3">
+          <p
+            className="eyebrow rise"
+            style={{ "--d": "100ms" } as CSSProperties}
+          >
+            Balance general
+          </p>
+          <h1
+            className="display rise emboss mt-3 text-[clamp(2.75rem,15vw,4.25rem)] tabular-nums"
+            style={
+              {
+                "--d": "140ms",
+                color: negative ? "var(--danger)" : "var(--text-1)",
+              } as CSSProperties
+            }
+          >
+            {formatMoney(all.balance, profile.currency)}
+          </h1>
+          <p
+            className="rise mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-[var(--text-3)]"
+            style={{ "--d": "200ms" } as CSSProperties}
+          >
+            <span style={{ color: "var(--accent)" }}>
+              +{formatMoney(month.income, profile.currency)}
+            </span>
+            <span>y</span>
+            <span style={{ color: "var(--danger)" }}>
+              −{formatMoney(month.expense, profile.currency)}
+            </span>
+            <span>este mes</span>
+          </p>
+        </section>
 
-      <FixedAgenda dues={dues} categories={categories} />
-
-      <div
-        className="rise grid grid-cols-2 gap-3"
-        style={{ "--d": "380ms" } as CSSProperties}
-      >
-        <Link
-          href="/hub/my-pocket/categorias"
-          className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
+        <section
+          className="plate rise flex items-center gap-4 p-4"
+          style={{ "--d": "260ms" } as CSSProperties}
         >
-          <Grid className="size-4" />
-          Por categoría
-        </Link>
-        <Link
-          href="/hub/my-pocket/ajustes"
-          className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
-        >
-          <Sliders className="size-4" />
-          Fijos y pagos
-        </Link>
-      </div>
-
-      <section
-        className="rise mt-2"
-        style={{ "--d": "430ms" } as CSSProperties}
-      >
-        <div className="mb-3 flex items-baseline justify-between px-1">
-          <h2 className="eyebrow">Movimientos</h2>
-          <span className="text-[0.6875rem] text-[var(--text-3)] tabular-nums">
-            {ledger.length}
+          <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent)]">
+            <Calendar className="size-[1.125rem]" />
           </span>
+          {payday ? (
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.8125rem] text-[var(--text-2)]">
+                {payday.schedule.label} · {daysAwayLabel(payday.daysAway)}
+              </span>
+              <span className="block text-[0.75rem] text-[var(--text-3)]">
+                {payday.date.toLocaleDateString("es-GT", {
+                  day: "numeric",
+                  month: "long",
+                })}
+              </span>
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.8125rem] text-[var(--text-2)]">
+                Sin fechas de pago
+              </span>
+              <span className="block text-[0.75rem] text-[var(--text-3)]">
+                Configuralas para saber cuándo entra la próxima.
+              </span>
+            </span>
+          )}
+          {payday ? (
+            <span className="display shrink-0 text-[1.125rem] tabular-nums text-[var(--accent)]">
+              {formatMoney(payday.schedule.amount, payday.schedule.currency)}
+            </span>
+          ) : (
+            <Link
+              href="/hub/my-pocket/ajustes"
+              className="key flex h-9 shrink-0 items-center rounded-full px-4 text-[0.75rem]"
+            >
+              Configurar
+            </Link>
+          )}
+        </section>
+
+        <PushNudge />
+
+        <FixedAgenda dues={dues} categories={categories} />
+
+        <div
+          className="rise grid grid-cols-2 gap-3"
+          style={{ "--d": "380ms" } as CSSProperties}
+        >
+          <Link
+            href="/hub/my-pocket/categorias"
+            className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
+          >
+            <Grid className="size-4" />
+            Por categoría
+          </Link>
+          <Link
+            href="/hub/my-pocket/ajustes"
+            className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
+          >
+            <Sliders className="size-4" />
+            Fijos y pagos
+          </Link>
         </div>
 
-        {transactions.length === 0 ? (
-          <div className="groove flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <Spark className="size-6 text-[var(--accent)]" />
-            <p className="text-[0.9375rem] text-[var(--text-2)]">
-              Todavía no hay nada registrado.
-            </p>
-            <p className="max-w-[16rem] text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
-              Tocá Egreso ahí arriba, elegí la categoría y escribí cuánto fue.
-            </p>
+        <section
+          className="rise mt-2"
+          style={{ "--d": "430ms" } as CSSProperties}
+        >
+          <div className="mb-3 flex items-baseline justify-between px-1">
+            <h2 className="eyebrow">Movimientos</h2>
+            <span className="text-[0.6875rem] text-[var(--text-3)] tabular-nums">
+              {ledger.length}
+            </span>
           </div>
-        ) : (
-          <Ledger transactions={transactions} categories={categories} />
-        )}
-      </section>
-    </main>
+
+          {transactions.length === 0 ? (
+            <div className="groove flex flex-col items-center gap-2 px-6 py-10 text-center">
+              <Spark className="size-6 text-[var(--accent)]" />
+              <p className="text-[0.9375rem] text-[var(--text-2)]">
+                Todavía no hay nada registrado.
+              </p>
+              <p className="max-w-[16rem] text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
+                Tocá Egreso ahí abajo, elegí la categoría y escribí cuánto fue.
+              </p>
+            </div>
+          ) : (
+            <Ledger transactions={transactions} categories={categories} />
+          )}
+        </section>
+      </main>
+
+      <ActionBar />
+    </>
+  );
+}
+
+/**
+ * El pie de la pantalla: fijo, opaco, siempre a la vista.
+ *
+ * No flota sobre los movimientos ni los difumina — la página le reserva su
+ * alto abajo, así que la lista termina donde empieza la barra. Registrar es
+ * la única acción que nunca hay que ir a buscar.
+ */
+function ActionBar() {
+  return (
+    <div className="pocket-bar">
+      <div
+        className="fade flex gap-3"
+        style={{ "--d": "460ms" } as CSSProperties}
+      >
+        <Link
+          href="/hub/my-pocket/nuevo/ingreso"
+          className="key flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-medium"
+        >
+          <ArrowIn className="size-[1.125rem] text-[var(--accent)]" />
+          Ingreso
+        </Link>
+        <Link
+          href="/hub/my-pocket/nuevo/egreso"
+          className="key key-accent flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-semibold"
+        >
+          <ArrowUpRight className="size-[1.125rem]" />
+          Egreso
+        </Link>
+      </div>
+    </div>
   );
 }
 

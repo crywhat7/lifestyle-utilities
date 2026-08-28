@@ -420,3 +420,38 @@ export function Grid({ className }: IconProps) {
     </svg>
   );
 }
+
+/** El botón Compartir de iOS — la puerta a "Agregar a inicio". */
+export function Share({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 15V3" />
+        <path d="m8 7 4-4 4 4" />
+        <path d="M6 11H5v10h14V11h-1" />
+      </g>
+    </svg>
+  );
+}
+
+/** Un teléfono con la app adentro — instalar en la pantalla de inicio. */
+export function Phone({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <g
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="6" y="2.5" width="12" height="19" rx="3" />
+        <path d="M12 9v6M9 12h6" />
+      </g>
+    </svg>
+  );
+}

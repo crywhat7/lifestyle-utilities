@@ -69,10 +69,14 @@ export const config = {
   matcher: [
     /*
      * Todo excepto estáticos, imágenes optimizadas, assets públicos, las
-     * rutas de SEO (robots, sitemap, manifest e imágenes de metadatos) y los
-     * trabajos de cron: son públicas por definición o se autentican solas, y
-     * ninguna necesita resolver una sesión de navegador.
+     * rutas de SEO (robots, sitemap, manifest e imágenes de metadatos), el
+     * service worker y los trabajos de cron: son públicas por definición o se
+     * autentican solas, y ninguna necesita resolver una sesión de navegador.
+     *
+     * `sw.js` va en la lista por una razón extra: el navegador lo vuelve a
+     * pedir cada pocas horas para ver si cambió, y esa petición no debería
+     * despertar a Supabase ni arriesgarse a que le reescriban cookies.
      */
-    "/((?!api/cron|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)",
+    "/((?!api/cron|_next/static|_next/image|favicon.ico|sw.js|robots.txt|sitemap.xml|manifest.webmanifest|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)",
   ],
 };

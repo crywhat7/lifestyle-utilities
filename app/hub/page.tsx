@@ -13,6 +13,7 @@ import {
 } from "@/components/icons";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
+import { InstallPrompt } from "./install-prompt";
 
 export const metadata: Metadata = {
   title: "Tu hub",
@@ -86,6 +87,8 @@ export default async function HubPage() {
         <EmptySlot delay={720} label="Espacio libre" />
         <EmptySlot delay={790} label="Próxima idea" />
       </div>
+
+      <InstallPrompt />
 
       <footer className="mt-auto pt-5">
         <div
