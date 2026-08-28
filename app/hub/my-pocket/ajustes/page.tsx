@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { ArrowBack } from "@/components/icons";
+import { isAdmin } from "@/lib/admin";
 import { formatMoney } from "@/lib/money";
 import { WorkProfileForm } from "../../should-i-buy-it/work-profile-form";
 import {
@@ -12,6 +13,7 @@ import {
   pocketSession,
 } from "../data";
 import { CustomCategories, FixedExpenses, PaySchedules, Stagger } from "./forms";
+import { PushToggle } from "./push-toggle";
 
 export const metadata: Metadata = {
   title: "Ajustes · My Pocket",
@@ -87,6 +89,10 @@ export default async function PocketSettingsPage() {
 
       <Stagger delay={560}>
         <CustomCategories mine={mine} />
+      </Stagger>
+
+      <Stagger delay={600}>
+        <PushToggle admin={isAdmin(user.email)} />
       </Stagger>
 
       <Stagger delay={640}>

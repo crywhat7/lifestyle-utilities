@@ -1,9 +1,11 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { authorizeCron, todayIn, TIMEZONE } from "@/lib/cron";
 import { salaryEmail, type SalaryLine } from "@/lib/emails/salary";
 import { convert } from "@/lib/fx";
+import { salaryPayload } from "@/lib/notifications";
 import { sendMail } from "@/lib/mail";
 import { daysInMonth } from "@/lib/pocket";
+import { dropSubscriptions, sendPush, type PushSubscriptionRow } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -18,9 +20,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-/** El día de pago es el del bolsillo de la persona, no el del servidor. */
-const TIMEZONE = process.env.POCKET_TIMEZONE || "America/Tegucigalpa";
 
 type Schedule = {
   id: string;
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
 /* -------------------------------------------------------------------------- */
 
 async function run(request: NextRequest) {
-  if (!authorized(request)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
@@ -60,7 +59,7 @@ async function run(request: NextRequest) {
     );
   }
 
-  const today = override ?? ymd(new Date(), TIMEZONE);
+  const today = override ?? todayIn(TIMEZONE);
   const [year, month, day] = today.split("-").map(Number);
   const lastDay = daysInMonth(year, month - 1);
 
@@ -208,7 +207,9 @@ async function run(request: NextRequest) {
     }
   }
 
-  const emailed = dry ? 0 : await notify(supabase, created, errors);
+  const { emailed, pushed } = dry
+    ? { emailed: 0, pushed: 0 }
+    : await notify(supabase, created, errors);
 
   return NextResponse.json({
     ok: true,
@@ -220,13 +221,18 @@ async function run(request: NextRequest) {
     ...(dry ? { preview: created } : {}),
     skipped: schedules.length - pending.length,
     emailed,
+    pushed,
     ...(errors.length > 0 ? { errors } : {}),
   });
 }
 
 /* -------------------------------------------------------------------------- */
 
-/** Un correo por persona, aunque le hayan caído dos pagos el mismo día. */
+/**
+ * Un aviso por persona, aunque le hayan caído dos pagos el mismo día: un
+ * correo y un push a cada dispositivo conectado. Los dos caminos son
+ * independientes — que falle uno no cancela el otro ni deshace el registro.
+ */
 async function notify(
   supabase: ReturnType<typeof createAdminClient>,
   created: (SalaryLine & { userId: string })[],
@@ -241,8 +247,11 @@ async function notify(
   }
 
   let emailed = 0;
+  let pushed = 0;
 
   for (const [userId, lines] of byUser) {
+    pushed += await push(supabase, userId, lines, errors);
+
     const { data, error } = await supabase.auth.admin.getUserById(userId);
     const to = data?.user?.email;
 
@@ -265,7 +274,30 @@ async function notify(
     else errors.push(`${userId}: correo no enviado — ${outcome.error}`);
   }
 
-  return emailed;
+  return { emailed, pushed };
+}
+
+/** El push llega a todos los dispositivos que esa persona haya conectado. */
+async function push(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  lines: SalaryLine[],
+  errors: string[]
+) {
+  const { data } = await supabase
+    .from("pocket_push_subscriptions")
+    .select("id,endpoint,p256dh,auth")
+    .eq("user_id", userId);
+
+  const subscriptions = (data ?? []) as PushSubscriptionRow[];
+  if (subscriptions.length === 0) return 0;
+
+  const result = await sendPush(subscriptions, salaryPayload(lines));
+
+  await dropSubscriptions(supabase, result.gone);
+  errors.push(...result.errors);
+
+  return result.sent;
 }
 
 async function currentBalance(
@@ -287,35 +319,3 @@ async function currentBalance(
 }
 
 /* -------------------------------------------------------------------------- */
-
-/**
- * `Authorization: Bearer <CRON_SECRET>`, o `?secret=` para los programadores
- * que no dejan poner cabeceras. La comparación es de tiempo constante.
- */
-function authorized(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const provided = bearer || request.nextUrl.searchParams.get("secret") || "";
-
-  return equals(provided, secret);
-}
-
-function equals(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
-}
-
-/** YYYY-MM-DD en la zona del bolsillo, sin que UTC corra el día. */
-function ymd(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
