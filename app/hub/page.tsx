@@ -45,7 +45,7 @@ export default async function HubPage() {
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <span className="eyebrow">Lifestyle Utilities</span>
         <span className="flex items-center gap-2 text-[0.6875rem] tracking-[0.18em] text-[var(--text-3)] uppercase">
@@ -58,13 +58,13 @@ export default async function HubPage() {
       <section className="mt-3">
         <p
           className="rise text-[1.375rem] leading-none text-[var(--text-2)]"
-          style={{ "--d": "180ms" } as CSSProperties}
+          style={{ "--d": "110ms" } as CSSProperties}
         >
           Hola,
         </p>
         <h1
           className="display rise emboss mt-2 flex flex-wrap items-end gap-x-4 gap-y-2 text-[clamp(2.75rem,13vw,4rem)]"
-          style={{ "--d": "280ms" } as CSSProperties}
+          style={{ "--d": "170ms" } as CSSProperties}
         >
           <span>{firstName}</span>
           <WaveHand className="wave-hand mb-1 size-[0.85em] shrink-0 text-[var(--accent)]" />
@@ -84,7 +84,7 @@ export default async function HubPage() {
       <footer className="mt-auto pt-5">
         <div
           className="plate rise flex items-center gap-3 p-3"
-          style={{ "--d": "900ms" } as CSSProperties}
+          style={{ "--d": "540ms" } as CSSProperties}
         >
           <span className="key flex size-11 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-semibold text-[var(--text-2)]">
             {initials || "LU"}

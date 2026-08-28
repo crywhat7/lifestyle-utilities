@@ -133,3 +133,28 @@ export async function loadTransactions(
     fx_rate: Number(row.fx_rate),
   })) as PocketTransaction[];
 }
+
+/** Un solo movimiento — para su pantalla de detalle. */
+export async function loadTransaction(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  id: string
+): Promise<PocketTransaction | null> {
+  const { data } = await supabase
+    .from("pocket_transactions")
+    .select(
+      "id,kind,description,amount,currency,amount_base,base_currency,fx_rate,category_id,source,ai_categorized,occurred_at,created_at"
+    )
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    ...data,
+    amount: Number(data.amount),
+    amount_base: Number(data.amount_base),
+    fx_rate: Number(data.fx_rate),
+  } as PocketTransaction;
+}

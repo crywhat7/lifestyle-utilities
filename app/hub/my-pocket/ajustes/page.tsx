@@ -39,7 +39,7 @@ export default async function PocketSettingsPage() {
     <main className="flex flex-1 flex-col gap-4 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <Link
           href="/hub/my-pocket"
@@ -54,14 +54,14 @@ export default async function PocketSettingsPage() {
       <section className="mt-2 mb-1">
         <h1
           className="display rise emboss text-[clamp(2.25rem,11vw,3rem)]"
-          style={{ "--d": "180ms" } as CSSProperties}
+          style={{ "--d": "110ms" } as CSSProperties}
         >
           Cómo entra
           <span className="block text-[var(--accent)]">y cómo sale</span>
         </h1>
         <p
           className="rise mt-4 max-w-[21rem] text-[0.875rem] leading-relaxed text-[var(--text-2)]"
-          style={{ "--d": "280ms" } as CSSProperties}
+          style={{ "--d": "170ms" } as CSSProperties}
         >
           Tu moneda base es {profile.currency} y tu ingreso mensual{" "}
           {formatMoney(profile.monthly_income, profile.currency)}. Todo lo que

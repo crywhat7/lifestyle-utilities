@@ -4,11 +4,13 @@ import type { CSSProperties } from "react";
 import { CategoryIcon } from "@/components/category-icons";
 import {
   ArrowBack,
+  ArrowIn,
+  ArrowUpRight,
   Calendar,
+  Chevron,
   Grid,
   Sliders,
   Spark,
-  Trash,
 } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
 import {
@@ -21,16 +23,13 @@ import {
   type PocketTransaction,
 } from "@/lib/pocket";
 import { WorkProfileForm } from "../should-i-buy-it/work-profile-form";
-import { deleteTransaction } from "./actions";
 import {
   loadCategories,
-  loadFixedExpenses,
   loadLedger,
   loadPaySchedules,
   loadTransactions,
   pocketSession,
 } from "./data";
-import { PocketDock } from "./entry-sheet";
 
 export const metadata: Metadata = {
   title: "My Pocket · Lifestyle Utilities",
@@ -47,10 +46,9 @@ export default async function MyPocketPage() {
     loadPaySchedules(supabase, user.id),
   ]);
 
-  const [ledger, transactions, fixedExpenses] = await Promise.all([
+  const [ledger, transactions] = await Promise.all([
     loadLedger(supabase, user.id),
     loadTransactions(supabase, user.id, 40),
-    loadFixedExpenses(supabase, user.id),
   ]);
 
   const all = totals(ledger);
@@ -64,7 +62,7 @@ export default async function MyPocketPage() {
       <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-32">
         <header
           className="fade flex items-center justify-between"
-          style={{ "--d": "60ms" } as CSSProperties}
+          style={{ "--d": "40ms" } as CSSProperties}
         >
           <Link
             href="/hub"
@@ -86,7 +84,7 @@ export default async function MyPocketPage() {
         <section className="mt-3">
           <p
             className="eyebrow rise"
-            style={{ "--d": "160ms" } as CSSProperties}
+            style={{ "--d": "100ms" } as CSSProperties}
           >
             Balance general
           </p>
@@ -94,7 +92,7 @@ export default async function MyPocketPage() {
             className="display rise emboss mt-3 text-[clamp(2.75rem,15vw,4.25rem)] tabular-nums"
             style={
               {
-                "--d": "240ms",
+                "--d": "140ms",
                 color: negative ? "var(--danger)" : "var(--text-1)",
               } as CSSProperties
             }
@@ -103,7 +101,7 @@ export default async function MyPocketPage() {
           </h1>
           <p
             className="rise mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-[var(--text-3)]"
-            style={{ "--d": "340ms" } as CSSProperties}
+            style={{ "--d": "200ms" } as CSSProperties}
           >
             <span style={{ color: "var(--accent)" }}>
               +{formatMoney(month.income, profile.currency)}
@@ -118,7 +116,7 @@ export default async function MyPocketPage() {
 
         <section
           className="plate rise flex items-center gap-4 p-4"
-          style={{ "--d": "440ms" } as CSSProperties}
+          style={{ "--d": "260ms" } as CSSProperties}
         >
           <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent)]">
             <Calendar className="size-[1.125rem]" />
@@ -161,7 +159,7 @@ export default async function MyPocketPage() {
 
         <div
           className="rise grid grid-cols-2 gap-3"
-          style={{ "--d": "520ms" } as CSSProperties}
+          style={{ "--d": "310ms" } as CSSProperties}
         >
           <Link
             href="/hub/my-pocket/categorias"
@@ -181,7 +179,7 @@ export default async function MyPocketPage() {
 
         <section
           className="rise mt-2"
-          style={{ "--d": "620ms" } as CSSProperties}
+          style={{ "--d": "370ms" } as CSSProperties}
         >
           <div className="mb-3 flex items-baseline justify-between px-1">
             <h2 className="eyebrow">Movimientos</h2>
@@ -197,8 +195,7 @@ export default async function MyPocketPage() {
                 Todavía no hay nada registrado.
               </p>
               <p className="max-w-[16rem] text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
-                Tocá Egreso ahí abajo y escribí en qué se te fue. La categoría
-                la ponemos nosotros.
+                Tocá Egreso ahí abajo, elegí la categoría y escribí cuánto fue.
               </p>
             </div>
           ) : (
@@ -207,11 +204,7 @@ export default async function MyPocketPage() {
         </section>
       </main>
 
-      <PocketDock
-        categories={categories}
-        fixedExpenses={fixedExpenses}
-        baseCurrency={profile.currency}
-      />
+      <Dock />
     </>
   );
 }
@@ -269,58 +262,85 @@ function Row({
   const converted = transaction.currency !== transaction.base_currency;
 
   return (
-    <li className="groove flex items-center gap-3 p-3">
-      <span
-        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5"
-        style={{ color: income ? "var(--accent)" : "var(--text-2)" }}
+    <li>
+      {/* La fila entera es la puerta al detalle: ahí se recategoriza y se borra. */}
+      <Link
+        href={`/hub/my-pocket/movimiento/${transaction.id}`}
+        className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
       >
-        <CategoryIcon
-          iconKey={category?.icon_key ?? "other"}
-          className="size-[1.1875rem]"
-        />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.9375rem] font-medium">
-          {transaction.description}
-        </span>
-        <span className="mt-0.5 flex items-center gap-1.5 truncate text-[0.75rem] text-[var(--text-3)]">
-          {category?.name ?? "Sin categoría"}
-          {transaction.ai_categorized ? (
-            <span
-              className="flex shrink-0 items-center"
-              title="Categoría puesta por la IA"
-            >
-              <Spark className="size-2.5 text-[var(--accent)]" />
-            </span>
-          ) : null}
-          {converted ? (
-            <span className="shrink-0">
-              · {formatMoney(transaction.amount, transaction.currency)}
-            </span>
-          ) : null}
-        </span>
-      </span>
-
-      <span
-        className="display shrink-0 text-[1.0625rem] tabular-nums"
-        style={{ color: income ? "var(--accent)" : "var(--text-1)" }}
-      >
-        {income ? "+" : "−"}
-        {formatMoney(transaction.amount_base, transaction.base_currency)}
-      </span>
-
-      <form action={deleteTransaction}>
-        <input type="hidden" name="id" value={transaction.id} />
-        <button
-          type="submit"
-          aria-label={`Borrar ${transaction.description}`}
-          className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+        <span
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5"
+          style={{ color: income ? "var(--accent)" : "var(--text-2)" }}
         >
-          <Trash className="size-4" />
-        </button>
-      </form>
+          <CategoryIcon
+            iconKey={category?.icon_key ?? "other"}
+            className="size-[1.1875rem]"
+          />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.9375rem] font-medium">
+            {transaction.description}
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5 truncate text-[0.75rem] text-[var(--text-3)]">
+            {category?.name ?? "Sin categoría"}
+            {transaction.ai_categorized ? (
+              <span
+                className="flex shrink-0 items-center"
+                title="Categoría puesta por la IA"
+              >
+                <Spark className="size-2.5 text-[var(--accent)]" />
+              </span>
+            ) : null}
+            {converted ? (
+              <span className="shrink-0">
+                · {formatMoney(transaction.amount, transaction.currency)}
+              </span>
+            ) : null}
+          </span>
+        </span>
+
+        <span
+          className="display shrink-0 text-[1.0625rem] tabular-nums"
+          style={{ color: income ? "var(--accent)" : "var(--text-1)" }}
+        >
+          {income ? "+" : "−"}
+          {formatMoney(transaction.amount_base, transaction.base_currency)}
+        </span>
+
+        <Chevron className="size-3.5 shrink-0 -rotate-90 text-[var(--text-3)]" />
+      </Link>
     </li>
+  );
+}
+
+/**
+ * El muelle ya no abre una hoja: lleva a su propia pantalla. Un solo scroll,
+ * el de la página, y la cuadrícula de categorías cabe entera.
+ */
+function Dock() {
+  return (
+    <div className="dock">
+      <div
+        className="rise flex gap-3"
+        style={{ "--d": "490ms" } as CSSProperties}
+      >
+        <Link
+          href="/hub/my-pocket/nuevo/ingreso"
+          className="key flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-medium"
+        >
+          <ArrowIn className="size-[1.125rem] text-[var(--accent)]" />
+          Ingreso
+        </Link>
+        <Link
+          href="/hub/my-pocket/nuevo/egreso"
+          className="key key-accent flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-semibold"
+        >
+          <ArrowUpRight className="size-[1.125rem]" />
+          Egreso
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -331,7 +351,7 @@ function Onboarding() {
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <Link
           href="/hub"
@@ -346,14 +366,14 @@ function Onboarding() {
       <section className="mt-2">
         <h1
           className="display rise emboss text-[clamp(2.75rem,13vw,3.75rem)]"
-          style={{ "--d": "180ms" } as CSSProperties}
+          style={{ "--d": "110ms" } as CSSProperties}
         >
           My
           <span className="block pl-[0.5em] text-[var(--accent)]">Pocket</span>
         </h1>
         <p
           className="rise mt-5 max-w-[20rem] text-[0.9375rem] leading-relaxed text-[var(--text-2)]"
-          style={{ "--d": "320ms" } as CSSProperties}
+          style={{ "--d": "190ms" } as CSSProperties}
         >
           Para llevar tu bolsillo necesitamos lo mismo que la otra herramienta:
           cuánto ganás. Se guarda una sola vez y sirve para las dos.
@@ -362,7 +382,7 @@ function Onboarding() {
 
       <section
         className="plate rise mt-2 p-5"
-        style={{ "--d": "440ms" } as CSSProperties}
+        style={{ "--d": "260ms" } as CSSProperties}
       >
         <p className="eyebrow">Paso único</p>
         <h2 className="display mt-3 text-[1.75rem]">¿Cuánto ganás al mes?</h2>

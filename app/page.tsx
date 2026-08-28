@@ -27,7 +27,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
     <main className="flex flex-1 flex-col px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "80ms" } as React.CSSProperties}
+        style={{ "--d": "50ms" } as React.CSSProperties}
       >
         <span className="eyebrow">Lifestyle Utilities</span>
         <span className="eyebrow tabular-nums">v0.1</span>
@@ -46,7 +46,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
         <div className="relative">
           <h1
             className="display rise emboss text-[clamp(3.5rem,17vw,5.25rem)]"
-            style={{ "--d": "220ms" } as React.CSSProperties}
+            style={{ "--d": "130ms" } as React.CSSProperties}
           >
             Lifestyle
             <span className="block pl-[0.55em] text-[var(--accent)]">
@@ -56,7 +56,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
 
           <p
             className="rise mt-7 max-w-[19rem] pl-px text-[0.9375rem] leading-relaxed text-[var(--text-2)]"
-            style={{ "--d": "400ms" } as React.CSSProperties}
+            style={{ "--d": "240ms" } as React.CSSProperties}
           >
             Herramientas pequeñas y afiladas para las decisiones que hacen
             grande tu día a día.
@@ -66,12 +66,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
         {/* Ranura separadora */}
         <div
           className="fade mt-9 h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent"
-          style={{ "--d": "560ms" } as React.CSSProperties}
+          style={{ "--d": "340ms" } as React.CSSProperties}
         />
 
         <div
           className="rise mt-7"
-          style={{ "--d": "640ms" } as React.CSSProperties}
+          style={{ "--d": "380ms" } as React.CSSProperties}
         >
           <GoogleSignIn />
 

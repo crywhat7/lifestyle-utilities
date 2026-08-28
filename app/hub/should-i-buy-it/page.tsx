@@ -67,7 +67,7 @@ export default async function ShouldIBuyItPage() {
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <Link
           href="/hub"
@@ -82,14 +82,14 @@ export default async function ShouldIBuyItPage() {
       <section className="mt-2">
         <h1
           className="display rise emboss text-[clamp(2.75rem,13vw,3.75rem)]"
-          style={{ "--d": "180ms" } as CSSProperties}
+          style={{ "--d": "110ms" } as CSSProperties}
         >
           Should I
           <span className="block pl-[0.5em] text-[var(--accent)]">Buy It</span>
         </h1>
         <p
           className="rise mt-5 max-w-[20rem] text-[0.9375rem] leading-relaxed text-[var(--text-2)]"
-          style={{ "--d": "320ms" } as CSSProperties}
+          style={{ "--d": "190ms" } as CSSProperties}
         >
           Todo lo que comprás se paga con horas de tu vida. Acá ves exactamente
           cuántas.
@@ -99,7 +99,7 @@ export default async function ShouldIBuyItPage() {
       {!profile ? (
         <section
           className="plate rise mt-2 p-5"
-          style={{ "--d": "440ms" } as CSSProperties}
+          style={{ "--d": "260ms" } as CSSProperties}
         >
           <p className="eyebrow">Paso único</p>
           <h2 className="display mt-3 text-[1.75rem]">¿Cuánto vale tu hora?</h2>
@@ -113,7 +113,7 @@ export default async function ShouldIBuyItPage() {
         <>
           <section
             className="plate rise p-5"
-            style={{ "--d": "440ms" } as CSSProperties}
+            style={{ "--d": "260ms" } as CSSProperties}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -140,14 +140,14 @@ export default async function ShouldIBuyItPage() {
             </details>
           </section>
 
-          <div className="rise" style={{ "--d": "560ms" } as CSSProperties}>
+          <div className="rise" style={{ "--d": "340ms" } as CSSProperties}>
             <PurchaseForm currency={profile.currency} />
           </div>
         </>
       )}
 
       {history.length > 0 && profile ? (
-        <section className="rise mt-3" style={{ "--d": "680ms" } as CSSProperties}>
+        <section className="rise mt-3" style={{ "--d": "410ms" } as CSSProperties}>
           <div className="mb-1 flex items-baseline justify-between px-1">
             <h2 className="eyebrow">Historial</h2>
             <span className="text-[0.6875rem] text-[var(--text-3)] tabular-nums">

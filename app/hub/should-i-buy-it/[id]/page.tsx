@@ -70,7 +70,7 @@ export default async function DecisionPage({
 
       <header
         className="fade flex items-center justify-between gap-3"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <Link
           href="/hub/should-i-buy-it"
@@ -86,7 +86,7 @@ export default async function DecisionPage({
 
       <div
         className="rise flex flex-1 flex-col"
-        style={{ "--d": "160ms" } as CSSProperties}
+        style={{ "--d": "100ms" } as CSSProperties}
       >
         <DecisionView decision={decision} profile={profile} />
       </div>

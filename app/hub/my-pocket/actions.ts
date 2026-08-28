@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { suggestCategory } from "@/lib/ai/categorize";
 import { convert } from "@/lib/fx";
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from "@/lib/money";
@@ -17,6 +18,7 @@ function refresh() {
   revalidatePath(POCKET_PATH);
   revalidatePath(SETTINGS_PATH);
   revalidatePath(CATEGORIES_PATH);
+  revalidatePath(`${POCKET_PATH}/movimiento/[id]`, "page");
 }
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -123,12 +125,32 @@ export async function createTransaction(
   }
 
   const kind = formData.get("kind") === "income" ? "income" : "expense";
-  const fixedId = toText(formData.get("fixed_expense_id"), 40);
+  const fixedId = kind === "expense" ? toText(formData.get("fixed_expense_id"), 40) : "";
+  const payId = kind === "income" ? toText(formData.get("pay_schedule_id"), 40) : "";
 
   let description = toText(formData.get("description"), 120);
   let amount = toNumber(formData.get("amount"));
   let currency = pickCurrency(formData.get("currency"), profile.currency);
   let categoryId = toText(formData.get("category_id"), 40) || null;
+
+  // Salario: la fecha de pago es la plantilla del ingreso. Igual que el gasto
+  // fijo, el monto se puede pisar porque el depósito nunca cae exacto.
+  if (payId) {
+    const { data: schedule } = await supabase
+      .from("pocket_pay_schedules")
+      .select("label,amount,currency")
+      .eq("id", payId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!schedule) {
+      return { status: "error", error: "Esa fecha de pago ya no existe." };
+    }
+
+    description = description || String(schedule.label);
+    amount = amount ?? Number(schedule.amount);
+    currency = pickCurrency(formData.get("currency"), String(schedule.currency));
+  }
 
   // Egreso fijo: la plantilla pone nombre, moneda y categoría; el monto se
   // puede pisar en el momento porque el recibo casi nunca llega igual.
@@ -202,13 +224,22 @@ export async function createTransaction(
     base_currency: profile.currency,
     fx_rate: converted.rate,
     category_id: categoryId,
+    pay_schedule_id: payId || null,
     fixed_expense_id: fixedId || null,
-    source: fixedId ? "fixed" : "manual",
+    source: payId ? "salary" : fixedId ? "fixed" : "manual",
     ai_categorized: aiCategorized,
     occurred_at: occurredAt,
   });
 
   if (error) {
+    // La constraint (pay_schedule_id, occurred_at) impide cobrar dos veces
+    // el mismo día de pago: eso no es un fallo, es la regla haciendo su trabajo.
+    if (error.code === "23505") {
+      return {
+        status: "error",
+        error: "Ese pago ya estaba registrado en esa fecha.",
+      };
+    }
     return {
       status: "error",
       error: "No se pudo guardar. ¿Corriste la migración de My Pocket?",
@@ -216,7 +247,8 @@ export async function createTransaction(
   }
 
   refresh();
-  return { status: "saved" };
+  // El registro vive en su propia pantalla: al guardar se vuelve al balance.
+  redirect(POCKET_PATH);
 }
 
 export async function deleteTransaction(formData: FormData) {
@@ -231,6 +263,7 @@ export async function deleteTransaction(formData: FormData) {
     .eq("user_id", user.id);
 
   refresh();
+  redirect(POCKET_PATH);
 }
 
 /** Recategorizar a mano: la última palabra siempre es de la persona. */
@@ -247,6 +280,7 @@ export async function setTransactionCategory(formData: FormData) {
     .eq("user_id", user.id);
 
   refresh();
+  redirect(POCKET_PATH);
 }
 
 /* -------------------------------------------------------------------------- */

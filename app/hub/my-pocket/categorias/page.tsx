@@ -78,7 +78,7 @@ export default async function CategoriesPage({
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <header
         className="fade flex items-center justify-between"
-        style={{ "--d": "60ms" } as CSSProperties}
+        style={{ "--d": "40ms" } as CSSProperties}
       >
         <Link
           href="/hub/my-pocket"
@@ -93,19 +93,19 @@ export default async function CategoriesPage({
       </header>
 
       <section className="mt-3">
-        <p className="eyebrow rise" style={{ "--d": "160ms" } as CSSProperties}>
+        <p className="eyebrow rise" style={{ "--d": "100ms" } as CSSProperties}>
           Gastado
         </p>
         <h1
           className="display rise emboss mt-3 text-[clamp(2.5rem,14vw,4rem)] tabular-nums"
-          style={{ "--d": "240ms" } as CSSProperties}
+          style={{ "--d": "140ms" } as CSSProperties}
         >
           {formatMoney(total, profile.currency)}
         </h1>
         {top?.category ? (
           <p
             className="rise mt-3 text-[0.8125rem] text-[var(--text-3)]"
-            style={{ "--d": "320ms" } as CSSProperties}
+            style={{ "--d": "190ms" } as CSSProperties}
           >
             Lo que más pesa:{" "}
             <span className="text-[var(--accent)]">{top.category.name}</span>,
@@ -116,7 +116,7 @@ export default async function CategoriesPage({
 
       <div
         className="tabs rise"
-        style={{ "--d": "400ms" } as CSSProperties}
+        style={{ "--d": "240ms" } as CSSProperties}
       >
         <Link
           href="/hub/my-pocket/categorias?p=mes"
@@ -137,7 +137,7 @@ export default async function CategoriesPage({
       {slices.length === 0 ? (
         <div
           className="groove rise flex flex-col items-center gap-2 px-6 py-12 text-center"
-          style={{ "--d": "480ms" } as CSSProperties}
+          style={{ "--d": "290ms" } as CSSProperties}
         >
           <Spark className="size-6 text-[var(--accent)]" />
           <p className="text-[0.9375rem] text-[var(--text-2)]">
@@ -154,7 +154,7 @@ export default async function CategoriesPage({
                 key={slice.category?.id ?? "none"}
                 className="plate rise p-4"
                 style={
-                  { "--d": `${480 + index * 60}ms` } as CSSProperties
+                  { "--d": `${290 + index * 40}ms` } as CSSProperties
                 }
               >
                 <div className="flex items-center gap-3">
