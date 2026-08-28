@@ -1,5 +1,6 @@
 import "server-only";
 import { formatMoney } from "@/lib/money";
+import { absoluteUrl } from "@/lib/site";
 
 export type SalaryLine = {
   label: string;
@@ -17,8 +18,9 @@ export type SalaryLine = {
 export function salaryEmail(lines: SalaryLine[], balance: number, baseCurrency: string) {
   const single = lines.length === 1;
   const total = lines.reduce((sum, line) => sum + line.amountBase, 0);
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const link = site ? `${site.replace(/\/$/, "")}/hub/my-pocket` : "";
+  // Por lib/site.ts y no por env directo: ahí vive el fallback y la regla de
+  // que en producción una URL http:// no se publica hacia afuera.
+  const link = absoluteUrl("/hub/my-pocket");
 
   const subject = single
     ? `Se registró tu ${lines[0].label.toLowerCase()}: ${formatMoney(lines[0].amountBase, baseCurrency)}`
