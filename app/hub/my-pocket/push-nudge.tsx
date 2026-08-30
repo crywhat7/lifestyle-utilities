@@ -96,7 +96,7 @@ export function PushNudge() {
           <p className="mt-1 text-[0.75rem] leading-relaxed text-[var(--text-3)]">
             {status === "needs-install"
               ? "En iPhone: Compartir → Agregar a inicio, y abrila desde el ícono nuevo."
-              : "Te avisamos cuando entre tu salario y cuando toque un gasto fijo, aunque la tengas cerrada."}
+              : "Te avisamos cuando entre tu salario y cuando venza un gasto contemplado, aunque la tengas cerrada."}
           </p>
         </div>
 

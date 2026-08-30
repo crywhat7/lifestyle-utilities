@@ -169,7 +169,7 @@ const jsonLd = {
         "Convertir el precio de una compra en horas de trabajo",
         "Registrar ingresos y egresos con categorías",
         "Ver el balance del mes y en qué se va la plata",
-        "Gastos fijos y fechas de pago configurables",
+        "Gastos contemplados y fechas de pago flexibles",
       ],
     },
   ],

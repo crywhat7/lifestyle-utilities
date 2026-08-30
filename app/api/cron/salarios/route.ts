@@ -4,7 +4,7 @@ import { salaryEmail, type SalaryLine } from "@/lib/emails/salary";
 import { convert } from "@/lib/fx";
 import { salaryPayload } from "@/lib/notifications";
 import { sendMail } from "@/lib/mail";
-import { daysInMonth } from "@/lib/pocket";
+import { occursOn, type Recurrence } from "@/lib/pocket";
 import { dropSubscriptions, sendPush, type PushSubscriptionRow } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -21,11 +21,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-type Schedule = {
+type Schedule = Recurrence & {
   id: string;
   user_id: string;
   label: string;
-  day_of_month: number;
   amount: number;
   currency: string;
 };
@@ -61,17 +60,22 @@ async function run(request: NextRequest) {
 
   const today = override ?? todayIn(TIMEZONE);
   const [year, month, day] = today.split("-").map(Number);
-  const lastDay = daysInMonth(year, month - 1);
+  // Fecha local del bolsillo, no del servidor: `new Date("2026-08-26")` sería
+  // medianoche UTC y en América eso todavía es el día anterior.
+  const date = new Date(year, month - 1, day);
 
-  // El 31 en un mes de 30 se cobra el último día que sí existe.
-  const query = supabase
+  const COLUMNS = "id,user_id,label,day_of_month,amount,currency";
+
+  // Las columnas de la regla llegaron con la migración 0006; sin ellas, todo
+  // sigue siendo mensual por día, que es como se comportaba antes.
+  const full = await supabase
     .from("pocket_pay_schedules")
-    .select("id,user_id,label,day_of_month,amount,currency")
+    .select(`${COLUMNS},freq,weekday,week_ordinal`)
     .eq("active", true);
 
-  const { data: matched, error: matchError } = await (day === lastDay
-    ? query.gte("day_of_month", day)
-    : query.eq("day_of_month", day));
+  const { data: matched, error: matchError } = full.error
+    ? await supabase.from("pocket_pay_schedules").select(COLUMNS).eq("active", true)
+    : full;
 
   if (matchError) {
     return NextResponse.json(
@@ -80,10 +84,18 @@ async function run(request: NextRequest) {
     );
   }
 
-  const schedules = (matched ?? []).map((row) => ({
-    ...row,
-    amount: Number(row.amount),
-  })) as Schedule[];
+  // El filtro vive en `occursOn`, no en la consulta: es la misma función que
+  // usa la pantalla para decir "cae hoy", así que el cron y la agenda nunca
+  // pueden discrepar sobre qué día toca.
+  const schedules = (matched ?? [])
+    .map((row) => ({
+      ...row,
+      freq: (row as { freq?: string }).freq ?? "monthly_day",
+      weekday: (row as { weekday?: number | null }).weekday ?? null,
+      week_ordinal: (row as { week_ordinal?: number | null }).week_ordinal ?? null,
+      amount: Number(row.amount),
+    }))
+    .filter((schedule) => occursOn(schedule as Schedule, date)) as Schedule[];
 
   if (schedules.length === 0) {
     return NextResponse.json({

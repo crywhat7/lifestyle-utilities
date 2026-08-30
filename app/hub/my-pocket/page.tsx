@@ -16,16 +16,21 @@ import {
 } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
 import {
+  committedAmount,
   dayLabel,
   daysAwayLabel,
   dueLabel,
   fixedDues,
   fromIsoDate,
+  hasRange,
+  isPendingLabel,
   monthStart,
   nextPayday,
+  recurrenceLabel,
   sumByCurrency,
   totals,
   type FixedDue,
+  type FixedExpense,
   type PocketCategory,
   type PocketTransaction,
 } from "@/lib/pocket";
@@ -33,9 +38,10 @@ import { WorkProfileForm } from "../should-i-buy-it/work-profile-form";
 import {
   loadCategories,
   loadFixedExpenses,
+  loadFixedPayments,
   loadLedger,
-  loadPaidFixedThisMonth,
   loadPaySchedules,
+  loadPendingPhrases,
   loadTransactions,
   pocketSession,
 } from "./data";
@@ -58,10 +64,11 @@ export default async function MyPocketPage() {
     loadFixedExpenses(supabase, user.id),
   ]);
 
-  const [ledger, transactions, paidFixed] = await Promise.all([
+  const [ledger, transactions, paidFixed, phrases] = await Promise.all([
     loadLedger(supabase, user.id),
     loadTransactions(supabase, user.id, 40),
-    loadPaidFixedThisMonth(supabase, user.id),
+    loadFixedPayments(supabase, user.id),
+    loadPendingPhrases(supabase),
   ]);
 
   const all = totals(ledger);
@@ -70,6 +77,11 @@ export default async function MyPocketPage() {
   const payday = nextPayday(schedules);
   const dues = fixedDues(fixed, paidFixed, new Date(), fromIsoDate(trackingSince));
   const negative = all.balance < 0;
+  // Solo se cuentan los que están a la vista: el aviso no promete un número
+  // exacto del histórico, promete que hay trabajo pendiente cerca.
+  const unclassified = transactions.filter((transaction) =>
+    isPendingLabel(transaction.description, phrases)
+  ).length;
 
   return (
     <>
@@ -144,7 +156,8 @@ export default async function MyPocketPage() {
                 {payday.date.toLocaleDateString("es-GT", {
                   day: "numeric",
                   month: "long",
-                })}
+                })}{" "}
+                · {recurrenceLabel(payday.schedule).toLowerCase()}
               </span>
             </span>
           ) : (
@@ -191,7 +204,7 @@ export default async function MyPocketPage() {
             className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
           >
             <Sliders className="size-4" />
-            Fijos y pagos
+            Contemplados y pagos
           </Link>
         </div>
 
@@ -206,6 +219,27 @@ export default async function MyPocketPage() {
             </span>
           </div>
 
+          {/* Los provisionales no se buscan entre cuarenta filas: si hay
+              alguno, se anuncia y se va derecho a arreglarlos. */}
+          {unclassified > 0 ? (
+            <Link
+              href="/hub/my-pocket/pendientes"
+              className="groove mb-3 flex items-center gap-3 p-3"
+            >
+              <span
+                aria-hidden="true"
+                className="pulse-dot size-2 shrink-0 rounded-full"
+                style={{ background: "var(--warn)" }}
+              />
+              <span className="min-w-0 flex-1 text-[0.8125rem] text-[var(--text-2)]">
+                {unclassified === 1
+                  ? "Un movimiento sigue con el nombre del banco"
+                  : `${unclassified} movimientos siguen con el nombre del banco`}
+              </span>
+              <Chevron className="size-3.5 shrink-0 -rotate-90 text-[var(--text-3)]" />
+            </Link>
+          ) : null}
+
           {transactions.length === 0 ? (
             <div className="groove flex flex-col items-center gap-2 px-6 py-10 text-center">
               <Spark className="size-6 text-[var(--accent)]" />
@@ -217,7 +251,11 @@ export default async function MyPocketPage() {
               </p>
             </div>
           ) : (
-            <Ledger transactions={transactions} categories={categories} />
+            <Ledger
+              transactions={transactions}
+              categories={categories}
+              phrases={phrases}
+            />
           )}
         </section>
       </main>
@@ -263,7 +301,7 @@ function ActionBar() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * La agenda de gastos fijos.
+ * La agenda de gastos contemplados.
  *
  * Lo que el balance no dice por sí solo: de ese saldo, cuánto ya está
  * comprometido. Solo se listan los que siguen pendientes — un fijo ya pagado
@@ -299,10 +337,11 @@ function FixedAgenda({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[0.875rem] text-[var(--text-2)]">
-            Gastos fijos al día
+            Gastos contemplados al día
           </span>
           <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
-            El próximo es {next.expense.name}, el {next.expense.day_of_month}.
+            El próximo es {next.expense.name},{" "}
+            {recurrenceLabel(next.expense).toLowerCase()}.
           </span>
         </span>
       </section>
@@ -310,18 +349,22 @@ function FixedAgenda({
   }
 
   const shown = pending.slice(0, 4);
+  // Con rango manda el techo: para saber si el saldo alcanza, la cifra útil
+  // es la peor. Por eso el total se anuncia como "hasta".
   const owed = sumByCurrency(
     pending.map((due) => ({
-      amount: due.expense.amount,
+      amount: committedAmount(due.expense),
       currency: due.expense.currency,
     }))
   );
+  const ranged = pending.some((due) => hasRange(due.expense));
 
   return (
     <section className="rise mt-2" style={{ "--d": "340ms" } as CSSProperties}>
       <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
-        <h2 className="eyebrow">Próximos fijos</h2>
+        <h2 className="eyebrow">Próximos contemplados</h2>
         <span className="text-[0.75rem] tabular-nums text-[var(--text-2)]">
+          {ranged ? "hasta " : ""}
           {owed
             .map((total) => formatMoney(total.amount, total.currency))
             .join(" · ")}{" "}
@@ -344,7 +387,7 @@ function FixedAgenda({
           href="/hub/my-pocket/ajustes"
           className="mt-2 flex items-center justify-center gap-1.5 px-1 py-2 text-[0.75rem] text-[var(--text-3)]"
         >
-          Ver los {dues.length} gastos fijos
+          Ver los {dues.length} gastos contemplados
           <Chevron className="size-3 -rotate-90" />
         </Link>
       ) : null}
@@ -394,12 +437,12 @@ function FixedRow({
                   : "var(--text-3)",
             }}
           >
-            El {due.expense.day_of_month} · {dueLabel(due.daysAway)}
+            {recurrenceLabel(due.expense)} · {dueLabel(due.daysAway)}
           </span>
         </span>
 
-        <span className="display shrink-0 text-[1.0625rem] tabular-nums">
-          {formatMoney(due.expense.amount, due.expense.currency)}
+        <span className="display shrink-0 text-right text-[1.0625rem] tabular-nums">
+          {amountLabel(due.expense)}
         </span>
 
         <Repeat className="size-3.5 shrink-0 text-[var(--text-3)]" />
@@ -408,12 +451,25 @@ function FixedRow({
   );
 }
 
+/**
+ * Un gasto contemplado no siempre cae por el mismo monto. Cuando tiene rango
+ * se muestra el techo con un "hasta": prometer el piso sería el consuelo que
+ * después no alcanza.
+ */
+function amountLabel(expense: FixedExpense) {
+  const amount = formatMoney(committedAmount(expense), expense.currency);
+  return hasRange(expense) ? `hasta ${amount}` : amount;
+}
+
 function Ledger({
   transactions,
   categories,
+  phrases,
 }: {
   transactions: PocketTransaction[];
   categories: PocketCategory[];
+  /** Frases del banco, normalizadas. Ver `loadPendingPhrases`. */
+  phrases: string[];
 }) {
   const byId = new Map(categories.map((category) => [category.id, category]));
 
@@ -439,6 +495,7 @@ function Ledger({
                 key={transaction.id}
                 transaction={transaction}
                 category={byId.get(transaction.category_id ?? "") ?? null}
+                pending={isPendingLabel(transaction.description, phrases)}
               />
             ))}
           </ul>
@@ -451,9 +508,12 @@ function Ledger({
 function Row({
   transaction,
   category,
+  pending = false,
 }: {
   transaction: PocketTransaction;
   category: PocketCategory | null;
+  /** Todavía lleva el nombre provisional del banco. */
+  pending?: boolean;
 }) {
   const income = transaction.kind === "income";
   const converted = transaction.currency !== transaction.base_currency;
@@ -476,8 +536,20 @@ function Row({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[0.9375rem] font-medium">
-            {transaction.description}
+          <span className="flex items-center gap-1.5">
+            {/* Un punto, no una etiqueta: la fila ya dice bastante y esto
+                solo tiene que hacerse notar al recorrer la lista. */}
+            {pending ? (
+              <span
+                aria-label="Pendiente de clasificar"
+                title="Pendiente de clasificar"
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--warn)" }}
+              />
+            ) : null}
+            <span className="block truncate text-[0.9375rem] font-medium">
+              {transaction.description}
+            </span>
           </span>
           <span className="mt-0.5 flex items-center gap-1.5 truncate text-[0.75rem] text-[var(--text-3)]">
             {category?.name ?? "Sin categoría"}

@@ -7,6 +7,9 @@ import { CURRENCIES, formatMoney } from "@/lib/money";
 import {
   fromIsoDate,
   isoDate,
+  hasRange,
+  recurrenceBadge,
+  recurrenceLabel,
   type FixedExpense,
   type PaySchedule,
   type PocketCategory,
@@ -22,6 +25,7 @@ import {
   type FormState,
 } from "../actions";
 import { CategoryGrid } from "../category-grid";
+import { RecurrenceFields } from "./recurrence-fields";
 
 const INITIAL: FormState = { status: "idle" };
 
@@ -83,7 +87,7 @@ function AddButton({
 /* -------------------------------------------------------------------------- */
 
 /**
- * Desde cuándo cuentan los gastos fijos.
+ * Desde cuándo cuentan los gastos contemplados.
  *
  * Sin esta frontera, el primer día la app señala como atrasado todo recibo
  * cuyo día ya pasó este mes — aunque la persona los haya pagado antes de tener
@@ -106,7 +110,7 @@ export function TrackingSince({
       <SectionHead
         eyebrow="La frontera"
         title="Desde cuándo cuenta"
-        note="Los gastos fijos que vencían antes de esta fecha no salen como atrasados: se pagaron antes de que existiera la cuenta. Vaciala para volver al día en que empezaste."
+        note="Los gastos contemplados que vencían antes de esta fecha no salen como atrasados: se pagaron antes de que existiera la cuenta. Vaciala para volver al día en que empezaste."
       />
 
       <form action={formAction} className="flex flex-col gap-4">
@@ -187,54 +191,65 @@ export function PaySchedules({
       <SectionHead
         eyebrow="Cuándo te pagan"
         title="Fechas de pago"
-        note="Podés no tener ninguna, o tener varias con montos distintos. Solo son referencia para ver cuándo entra la próxima: el ingreso lo registrás vos."
+        note="Podés no tener ninguna, o tener varias con montos distintos: el 15 y el 30, o todos los miércoles si te pagan por semana. Cuando cae la fecha, el ingreso se registra solo y te avisa."
       />
 
       {schedules.length > 0 ? (
         <ul className="mb-3 flex flex-col gap-2">
           {schedules.map((schedule) => (
-            <li key={schedule.id} className="groove flex items-center gap-3 p-3">
-              <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-full bg-white/5">
-                <span className="display text-[1rem] tabular-nums text-[var(--accent)]">
-                  {schedule.day_of_month}
+            /*
+               Dos líneas a propósito. En un teléfono de 375px, la insignia,
+               el monto y los dos iconos no dejan sitio para el nombre: con
+               todo en una fila "Quincena" se lee "Qu…". Las acciones bajan a
+               su propio renglón y el nombre recupera el ancho que necesita.
+            */
+            <li key={schedule.id} className="groove flex flex-col gap-1 p-3">
+              <div className="flex items-center gap-3">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 px-1">
+                  <span className="display text-center text-[0.8125rem] leading-tight tabular-nums text-[var(--accent)]">
+                    {recurrenceBadge(schedule)}
+                  </span>
                 </span>
-              </span>
 
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] font-medium">
-                  {schedule.label}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.9375rem] font-medium">
+                    {schedule.label}
+                  </span>
+                  <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
+                    {recurrenceLabel(schedule)}
+                  </span>
                 </span>
-                <span className="block text-[0.75rem] text-[var(--text-3)]">
-                  Cada mes · {schedule.currency}
+
+                <span className="display shrink-0 text-[1.0625rem] tabular-nums">
+                  {formatMoney(schedule.amount, schedule.currency)}
                 </span>
-              </span>
+              </div>
 
-              <span className="display shrink-0 text-[1.0625rem] tabular-nums">
-                {formatMoney(schedule.amount, schedule.currency)}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(schedule);
-                  setOpen(false);
-                }}
-                aria-label={`Editar ${schedule.label}`}
-                className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)]"
-              >
-                <Calendar className="size-4" />
-              </button>
-
-              <form action={deletePaySchedule}>
-                <input type="hidden" name="id" value={schedule.id} />
+              <div className="flex items-center justify-end gap-1">
                 <button
-                  type="submit"
-                  aria-label={`Borrar ${schedule.label}`}
-                  className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+                  type="button"
+                  onClick={() => {
+                    setEditing(schedule);
+                    setOpen(false);
+                  }}
+                  aria-label={`Editar ${schedule.label}`}
+                  className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[0.75rem] text-[var(--text-3)]"
                 >
-                  <Trash className="size-4" />
+                  <Calendar className="size-3.5" />
+                  Editar
                 </button>
-              </form>
+
+                <form action={deletePaySchedule}>
+                  <input type="hidden" name="id" value={schedule.id} />
+                  <button
+                    type="submit"
+                    aria-label={`Borrar ${schedule.label}`}
+                    className="flex size-9 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+                  >
+                    <Trash className="size-4" />
+                  </button>
+                </form>
+              </div>
             </li>
           ))}
         </ul>
@@ -262,39 +277,23 @@ export function PaySchedules({
             />
           </div>
 
-          <div className="grid grid-cols-[5.5rem_1fr] gap-3">
-            <div>
-              <label className="field-label" htmlFor="pay-day">
-                Día
-              </label>
-              <input
-                id="pay-day"
-                name="day_of_month"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max="31"
-                required
-                defaultValue={editing?.day_of_month ?? 15}
-                className="field tabular-nums"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="pay-amount">
-                Cuánto te pagan
-              </label>
-              <input
-                id="pay-amount"
-                name="amount"
-                type="number"
-                inputMode="decimal"
-                min="0.01"
-                step="0.01"
-                required
-                defaultValue={editing?.amount ?? (suggested > 0 ? suggested : "")}
-                className="field tabular-nums"
-              />
-            </div>
+          <RecurrenceFields id="pay" value={editing} />
+
+          <div>
+            <label className="field-label" htmlFor="pay-amount">
+              Cuánto te pagan
+            </label>
+            <input
+              id="pay-amount"
+              name="amount"
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="0.01"
+              required
+              defaultValue={editing?.amount ?? (suggested > 0 ? suggested : "")}
+              className="field tabular-nums"
+            />
           </div>
 
           <div>
@@ -348,7 +347,7 @@ export function PaySchedules({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Gastos fijos                                                                */
+/* Gastos contemplados                                                          */
 /* -------------------------------------------------------------------------- */
 
 export function FixedExpenses({
@@ -387,8 +386,8 @@ export function FixedExpenses({
     <section className="plate p-5">
       <SectionHead
         eyebrow="Lo que se repite"
-        title="Gastos fijos"
-        note="Renta, internet, suscripciones. Se registran de un toque desde la pestaña Egreso fijo, y el monto se puede corregir en el momento."
+        title="Gastos contemplados"
+        note="Renta, internet, la compra de todos los sábados. No hace falta que caigan siempre por el mismo monto: poné un rango y la agenda cuenta con el techo."
       />
 
       {expenses.length > 0 ? (
@@ -397,53 +396,63 @@ export function FixedExpenses({
             const category = byId.get(expense.category_id ?? "");
 
             return (
-              <li key={expense.id} className="groove flex items-center gap-3 p-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
-                  <CategoryIcon
-                    iconKey={category?.icon_key ?? "bills"}
-                    className="size-[1.125rem]"
-                  />
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.9375rem] font-medium">
-                    {expense.name}
+              /* Mismo reparto en dos líneas que las fechas de pago: el
+                 nombre y el rango necesitan el ancho, las acciones no. */
+              <li key={expense.id} className="groove flex flex-col gap-1 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+                    <CategoryIcon
+                      iconKey={category?.icon_key ?? "bills"}
+                      className="size-[1.125rem]"
+                    />
                   </span>
-                  <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
-                    {expense.day_of_month
-                      ? `Cada ${expense.day_of_month}`
-                      : "Sin día fijo"}
-                    {category ? ` · ${category.name}` : ""}
+
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.9375rem] font-medium">
+                      {expense.name}
+                    </span>
+                    <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
+                      {recurrenceLabel(expense)}
+                      {category ? ` · ${category.name}` : ""}
+                    </span>
                   </span>
-                </span>
 
-                <span className="display shrink-0 text-[1.0625rem] tabular-nums">
-                  {formatMoney(expense.amount, expense.currency)}
-                </span>
+                  <span className="display shrink-0 text-right text-[1.0625rem] tabular-nums">
+                    {formatMoney(expense.amount, expense.currency)}
+                    {hasRange(expense) ? (
+                      <span className="block text-[0.6875rem] text-[var(--text-3)]">
+                        a {formatMoney(expense.amount_max ?? 0, expense.currency)}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(expense);
-                    setCategoryId(expense.category_id ?? "");
-                    setOpen(false);
-                  }}
-                  aria-label={`Editar ${expense.name}`}
-                  className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)]"
-                >
-                  <Repeat className="size-4" />
-                </button>
-
-                <form action={deleteFixedExpense}>
-                  <input type="hidden" name="id" value={expense.id} />
+                <div className="flex items-center justify-end gap-1">
                   <button
-                    type="submit"
-                    aria-label={`Borrar ${expense.name}`}
-                    className="flex size-8 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+                    type="button"
+                    onClick={() => {
+                      setEditing(expense);
+                      setCategoryId(expense.category_id ?? "");
+                      setOpen(false);
+                    }}
+                    aria-label={`Editar ${expense.name}`}
+                    className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[0.75rem] text-[var(--text-3)]"
                   >
-                    <Trash className="size-4" />
+                    <Repeat className="size-3.5" />
+                    Editar
                   </button>
-                </form>
+
+                  <form action={deleteFixedExpense}>
+                    <input type="hidden" name="id" value={expense.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Borrar ${expense.name}`}
+                      className="flex size-9 items-center justify-center rounded-full text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--danger)]"
+                    >
+                      <Trash className="size-4" />
+                    </button>
+                  </form>
+                </div>
               </li>
             );
           })}
@@ -476,10 +485,12 @@ export function FixedExpenses({
             />
           </div>
 
-          <div className="grid grid-cols-[1fr_6.25rem] gap-2">
+          {/* Piso y techo. Dejar el techo vacío es decir "siempre cae igual",
+              que es el caso de la renta y de casi ninguna otra cosa. */}
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="field-label" htmlFor="fixed-amount">
-                Monto
+                Desde
               </label>
               <input
                 id="fixed-amount"
@@ -494,40 +505,42 @@ export function FixedExpenses({
               />
             </div>
             <div>
-              <label className="field-label" htmlFor="fixed-currency">
-                Moneda
+              <label className="field-label" htmlFor="fixed-amount-max">
+                Hasta · opcional
               </label>
-              <select
-                id="fixed-currency"
-                name="currency"
-                defaultValue={editing?.currency ?? baseCurrency}
-                className="field text-[0.9375rem]"
-              >
-                {CURRENCIES.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code}
-                  </option>
-                ))}
-              </select>
+              <input
+                id="fixed-amount-max"
+                name="amount_max"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                defaultValue={editing?.amount_max ?? ""}
+                placeholder="Mismo monto"
+                className="field tabular-nums"
+              />
             </div>
           </div>
 
           <div>
-            <label className="field-label" htmlFor="fixed-day">
-              Día del mes · opcional
+            <label className="field-label" htmlFor="fixed-currency">
+              Moneda
             </label>
-            <input
-              id="fixed-day"
-              name="day_of_month"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="31"
-              defaultValue={editing?.day_of_month ?? ""}
-              placeholder="Ej. 5"
-              className="field tabular-nums"
-            />
+            <select
+              id="fixed-currency"
+              name="currency"
+              defaultValue={editing?.currency ?? baseCurrency}
+              className="field text-[0.9375rem]"
+            >
+              {CURRENCIES.map((currency) => (
+                <option key={currency.code} value={currency.code}>
+                  {currency.code} — {currency.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <RecurrenceFields id="fixed" value={editing} optionalDay />
 
           <div>
             <span className="field-label">Categoría · opcional</span>
@@ -544,7 +557,11 @@ export function FixedExpenses({
             disabled={pending}
             className="key key-accent w-full py-4 text-[0.9375rem] font-semibold disabled:opacity-70"
           >
-            {pending ? "Guardando…" : editing ? "Guardar cambios" : "Agregar gasto fijo"}
+            {pending
+              ? "Guardando…"
+              : editing
+                ? "Guardar cambios"
+                : "Agregar gasto contemplado"}
           </button>
 
           <Feedback state={state} />
@@ -564,7 +581,7 @@ export function FixedExpenses({
         <AddButton
           open={open}
           onToggle={() => setOpen((value) => !value)}
-          label="Agregar gasto fijo"
+          label="Agregar gasto contemplado"
         />
       )}
     </section>

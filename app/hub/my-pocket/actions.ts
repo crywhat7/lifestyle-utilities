@@ -5,13 +5,20 @@ import { redirect } from "next/navigation";
 import { suggestCategory } from "@/lib/ai/categorize";
 import { convert } from "@/lib/fx";
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from "@/lib/money";
-import { isoDate, slugify, type PocketCategory } from "@/lib/pocket";
+import {
+  isoDate,
+  slugify,
+  type Freq,
+  type PocketCategory,
+  type Recurrence,
+} from "@/lib/pocket";
 import { createClient } from "@/lib/supabase/server";
 import { ensureGlobalCategory, globalCategories } from "./categories";
 import { loadCategories, POCKET_PATH, pocketSession } from "./data";
 
 const SETTINGS_PATH = `${POCKET_PATH}/ajustes`;
 const CATEGORIES_PATH = `${POCKET_PATH}/categorias`;
+const PENDING_PATH = `${POCKET_PATH}/pendientes`;
 
 export type FormState = { status: "idle" | "saved" | "error"; error?: string };
 
@@ -20,6 +27,7 @@ function refresh() {
   revalidatePath(SETTINGS_PATH);
   revalidatePath(CATEGORIES_PATH);
   revalidatePath(`${POCKET_PATH}/movimiento/[id]`, "page");
+  revalidatePath(PENDING_PATH);
 }
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -46,6 +54,54 @@ function toDay(value: FormDataEntryValue | null) {
   if (day == null) return null;
   const rounded = Math.round(day);
   return rounded >= 1 && rounded <= 31 ? rounded : null;
+}
+
+/**
+ * Lee la regla de recurrencia del formulario y la deja consistente.
+ *
+ * Lo que la frecuencia elegida no usa se guarda en nulo a propósito: un pago
+ * semanal que arrastre el día 15 de cuando era mensual es una bomba de tiempo
+ * el día que alguien lea esa columna sin mirar `freq`.
+ */
+function toRule(formData: FormData): Recurrence | { error: string } {
+  const raw = String(formData.get("freq") ?? "monthly_day");
+  const freq: Freq =
+    raw === "weekly" || raw === "monthly_weekday" ? raw : "monthly_day";
+
+  if (freq === "monthly_day") {
+    return {
+      freq,
+      day_of_month: toDay(formData.get("day_of_month")),
+      weekday: null,
+      week_ordinal: null,
+    };
+  }
+
+  const weekday = toNumber(formData.get("weekday"));
+  if (weekday == null || weekday < 0 || weekday > 6) {
+    return { error: "Elegí el día de la semana." };
+  }
+
+  if (freq === "weekly") {
+    return {
+      freq,
+      day_of_month: null,
+      weekday: Math.round(weekday),
+      week_ordinal: null,
+    };
+  }
+
+  const ordinal = toNumber(formData.get("week_ordinal"));
+  if (ordinal == null || ![1, 2, 3, 4, -1, -2].includes(Math.round(ordinal))) {
+    return { error: "Elegí qué semana del mes." };
+  }
+
+  return {
+    freq,
+    day_of_month: null,
+    weekday: Math.round(weekday),
+    week_ordinal: Math.round(ordinal),
+  };
 }
 
 /**
@@ -135,7 +191,7 @@ export async function createTransaction(
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!fixed) return { status: "error", error: "Ese gasto fijo ya no existe." };
+    if (!fixed) return { status: "error", error: "Ese gasto contemplado ya no existe." };
 
     description = description || String(fixed.name);
     amount = amount ?? Number(fixed.amount);
@@ -239,13 +295,21 @@ export async function deleteTransaction(formData: FormData) {
   redirect(POCKET_PATH);
 }
 
-/** Recategorizar a mano: la última palabra siempre es de la persona. */
+/**
+ * Recategorizar a mano: la última palabra siempre es de la persona.
+ *
+ * No redirige: se vuelve a dibujar la misma pantalla con la categoría puesta.
+ * Un movimiento que entró como "COMPRA EN PROCESO" se arregla en dos pasos
+ * —nombre y categoría— y mandar de vuelta al balance en el primero obligaba
+ * a volver a buscarlo para el segundo.
+ */
 export async function setTransactionCategory(formData: FormData) {
   const id = toText(formData.get("id"), 40);
   const categoryId = toText(formData.get("category_id"), 40);
   if (!id || !categoryId) return;
 
   const { supabase, user } = await pocketSession();
+
   await supabase
     .from("pocket_transactions")
     .update({ category_id: categoryId, ai_categorized: false })
@@ -253,7 +317,32 @@ export async function setTransactionCategory(formData: FormData) {
     .eq("user_id", user.id);
 
   refresh();
-  redirect(POCKET_PATH);
+  revalidatePath(PENDING_PATH);
+}
+
+/**
+ * Ponerle el nombre de verdad.
+ *
+ * Es la otra mitad de clasificar una compra retenida: el banco la registró
+ * como "COMPRA EN PROCESO" y días después uno sabe que era el súper. Se
+ * queda en la misma pantalla, que es donde está la cuadrícula de categorías.
+ */
+export async function renameTransaction(formData: FormData) {
+  const id = toText(formData.get("id"), 40);
+  const description = toText(formData.get("description"), 120);
+
+  if (!id || description.length < 2) return;
+
+  const { supabase, user } = await pocketSession();
+
+  await supabase
+    .from("pocket_transactions")
+    .update({ description })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  refresh();
+  revalidatePath(PENDING_PATH);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -268,14 +357,20 @@ export async function savePaySchedule(
 
   const id = toText(formData.get("id"), 40);
   const label = toText(formData.get("label"), 40) || "Pago";
-  const day = toDay(formData.get("day_of_month"));
   const amount = toNumber(formData.get("amount"));
   const currency = pickCurrency(
     formData.get("currency"),
     profile?.currency ?? DEFAULT_CURRENCY
   );
 
-  if (day == null) return { status: "error", error: "El día va del 1 al 31." };
+  const rule = toRule(formData);
+  if ("error" in rule) return { status: "error", error: rule.error };
+
+  // Un pago tiene que caer algún día: sin fecha no hay nada que anunciar ni
+  // que registrar solo. El gasto contemplado sí se permite no tenerla.
+  if (rule.freq === "monthly_day" && rule.day_of_month == null) {
+    return { status: "error", error: "El día va del 1 al 31." };
+  }
   if (amount == null || amount <= 0) {
     return { status: "error", error: "Poné cuánto te pagan ese día." };
   }
@@ -283,10 +378,10 @@ export async function savePaySchedule(
   const payload = {
     user_id: user.id,
     label,
-    day_of_month: day,
     amount,
     currency,
     active: true,
+    ...rule,
   };
 
   const { error } = id
@@ -298,7 +393,10 @@ export async function savePaySchedule(
     : await supabase.from("pocket_pay_schedules").insert(payload);
 
   if (error) {
-    return { status: "error", error: "No se pudo guardar la fecha de pago." };
+    return {
+      status: "error",
+      error: "No se pudo guardar. ¿Corriste la migración 0006?",
+    };
   }
 
   refresh();
@@ -327,7 +425,7 @@ export async function deletePaySchedule(formData: FormData) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Mueve (o borra) la frontera del seguimiento de gastos fijos.
+ * Mueve (o borra) la frontera del seguimiento de gastos contemplados.
  *
  * Vacío devuelve la columna a nulo, que significa "usá la fecha en que nació
  * el perfil". Adelante en el tiempo no se acepta: una frontera futura dejaría
@@ -369,7 +467,7 @@ export async function savePocketSince(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Gastos fijos                                                                */
+/* Gastos contemplados                                                          */
 /* -------------------------------------------------------------------------- */
 
 export async function saveFixedExpense(
@@ -381,26 +479,39 @@ export async function saveFixedExpense(
   const id = toText(formData.get("id"), 40);
   const name = toText(formData.get("name"), 60);
   const amount = toNumber(formData.get("amount"));
+  const amountMax = toNumber(formData.get("amount_max"));
   const currency = pickCurrency(
     formData.get("currency"),
     profile?.currency ?? DEFAULT_CURRENCY
   );
-  const day = toDay(formData.get("day_of_month"));
   const categoryId = toText(formData.get("category_id"), 40) || null;
+
+  const rule = toRule(formData);
+  if ("error" in rule) return { status: "error", error: rule.error };
 
   if (name.length < 2) return { status: "error", error: "Ponele nombre." };
   if (amount == null || amount <= 0) {
     return { status: "error", error: "Poné cuánto se paga." };
   }
 
+  // El rango es opcional, pero al revés no existe: un techo por debajo del
+  // piso solo puede ser un error de tipeo.
+  if (amountMax != null && amountMax < amount) {
+    return {
+      status: "error",
+      error: "El máximo no puede ser menor que el mínimo.",
+    };
+  }
+
   const payload = {
     user_id: user.id,
     name,
     amount,
+    amount_max: amountMax != null && amountMax > amount ? amountMax : null,
     currency,
-    day_of_month: day,
     category_id: categoryId,
     active: true,
+    ...rule,
   };
 
   const { error } = id
@@ -412,7 +523,10 @@ export async function saveFixedExpense(
     : await supabase.from("pocket_fixed_expenses").insert(payload);
 
   if (error) {
-    return { status: "error", error: "No se pudo guardar el gasto fijo." };
+    return {
+      status: "error",
+      error: "No se pudo guardar. ¿Corriste la migración 0006?",
+    };
   }
 
   refresh();

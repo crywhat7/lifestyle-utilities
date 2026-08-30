@@ -7,6 +7,7 @@ import { ArrowBack, Chevron, Repeat, Scan, Spark } from "@/components/icons";
 import { CURRENCIES, formatMoney } from "@/lib/money";
 import {
   isoDate,
+  recurrenceLabel,
   type FixedExpense,
   type PaySchedule,
   type PocketCategory,
@@ -26,7 +27,7 @@ const COPY = {
     title: "Nuevo egreso",
     ask: "¿En qué se fue?",
     tabManual: "Egreso manual",
-    tabTemplate: "Egreso fijo",
+    tabTemplate: "Contemplado",
     describeLabel: "En qué se fue",
     describeHint: "Café, gasolina, súper…",
     submit: "Registrar egreso",
@@ -107,8 +108,9 @@ export function EntryScreen({
           id: schedule.id,
           name: schedule.label,
           amount: schedule.amount,
+          amountMax: null,
           currency: schedule.currency,
-          note: `Cada ${schedule.day_of_month}`,
+          note: recurrenceLabel(schedule),
           categoryId: null,
         }))
     : fixedExpenses
@@ -117,10 +119,9 @@ export function EntryScreen({
           id: expense.id,
           name: expense.name,
           amount: expense.amount,
+          amountMax: expense.amount_max,
           currency: expense.currency,
-          note: expense.day_of_month
-            ? `Cada ${expense.day_of_month}`
-            : "Sin día fijo",
+          note: recurrenceLabel(expense),
           categoryId: expense.category_id,
         }));
 
@@ -310,6 +311,9 @@ export function EntryScreen({
               </select>
             </div>
             <p className="mt-2 px-1 text-[0.75rem] text-[var(--text-3)]">
+              {template?.amountMax
+                ? `Lo contemplado va de ${formatMoney(template.amount, template.currency)} a ${formatMoney(template.amountMax, template.currency)}. `
+                : ""}
               Se guarda convertido a {baseCurrency} al cambio del día.
             </p>
           </div>
@@ -361,7 +365,7 @@ export function EntryScreen({
                 : usingTemplate
                   ? isIncome
                     ? "Registrar salario"
-                    : "Registrar gasto fijo"
+                    : "Registrar contemplado"
                   : copy.submit}
             </button>
 
@@ -385,7 +389,9 @@ export function EntryScreen({
 type Template = {
   id: string;
   name: string;
+  /** Piso del rango contemplado, y lo que se propone al registrar. */
   amount: number;
+  amountMax: number | null;
   currency: string;
   note: string;
   categoryId: string | null;
@@ -483,7 +489,7 @@ function TemplateStep({
         <p className="text-[0.875rem] text-[var(--text-2)]">
           {isIncome
             ? "Todavía no tenés fechas de pago."
-            : "Todavía no tenés gastos fijos."}
+            : "Todavía no tenés gastos contemplados."}
         </p>
         <Link
           href="/hub/my-pocket/ajustes"
@@ -501,7 +507,7 @@ function TemplateStep({
         className="display rise text-[1.5rem] text-[var(--text-2)]"
         style={{ "--d": "190ms" } as CSSProperties}
       >
-        {isIncome ? "¿Cuál de tus pagos?" : "¿Cuál de tus gastos fijos?"}
+        {isIncome ? "¿Cuál de tus pagos?" : "¿Cuál de tus contemplados?"}
       </p>
 
       <ul
@@ -526,8 +532,13 @@ function TemplateStep({
                   {item.note}
                 </span>
               </span>
-              <span className="display shrink-0 text-[1.0625rem] tabular-nums">
+              <span className="display shrink-0 text-right text-[1.0625rem] tabular-nums">
                 {formatMoney(item.amount, item.currency)}
+                {item.amountMax ? (
+                  <span className="block text-[0.6875rem] text-[var(--text-3)]">
+                    a {formatMoney(item.amountMax, item.currency)}
+                  </span>
+                ) : null}
               </span>
             </button>
           </li>

@@ -23,7 +23,7 @@ import { PushToggle } from "./push-toggle";
 
 export const metadata: Metadata = {
   title: "Ajustes · My Pocket",
-  description: "Fechas de pago, gastos fijos y categorías propias.",
+  description: "Fechas de pago, gastos contemplados y categorías propias.",
 };
 
 export default async function PocketSettingsPage() {

@@ -3,10 +3,20 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { CategoryIcon } from "@/components/category-icons";
-import { ArrowBack, Spark, Trash } from "@/components/icons";
+import { ArrowBack, Check, Spark, Trash } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
-import { deleteTransaction, setTransactionCategory } from "../../actions";
-import { loadCategories, loadTransaction, pocketSession } from "../../data";
+import { isPendingLabel } from "@/lib/pocket";
+import {
+  deleteTransaction,
+  renameTransaction,
+  setTransactionCategory,
+} from "../../actions";
+import {
+  loadCategories,
+  loadPendingPhrases,
+  loadTransaction,
+  pocketSession,
+} from "../../data";
 
 export const metadata: Metadata = {
   title: "Movimiento · My Pocket",
@@ -21,9 +31,10 @@ export default async function TransactionPage({
 
   if (!profile) redirect("/hub/my-pocket");
 
-  const [transaction, categories] = await Promise.all([
+  const [transaction, categories, phrases] = await Promise.all([
     loadTransaction(supabase, user.id, id),
     loadCategories(supabase),
+    loadPendingPhrases(supabase),
   ]);
 
   if (!transaction) notFound();
@@ -38,6 +49,8 @@ export default async function TransactionPage({
   );
   const converted = transaction.currency !== transaction.base_currency;
   const date = new Date(`${transaction.occurred_at}T12:00:00`);
+  // Todavía lleva el nombre provisional del banco: acá se le pone el de verdad.
+  const pending = isPendingLabel(transaction.description, phrases);
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
@@ -89,6 +102,62 @@ export default async function TransactionPage({
         </p>
       </section>
 
+      {/*
+         El nombre se edita siempre, pero solo se anuncia cuando hace falta:
+         si el movimiento todavía se llama "COMPRA EN PROCESO", el campo llega
+         abierto y explicado; si ya tiene su nombre, es una línea más.
+      */}
+      <section
+        className="groove rise flex flex-col gap-3 p-4"
+        style={{ "--d": "215ms" } as CSSProperties}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span className="eyebrow">Nombre</span>
+          {pending ? (
+            <span
+              className="flex items-center gap-1.5 text-[0.6875rem] tracking-[0.14em] uppercase"
+              style={{ color: "var(--warn)" }}
+            >
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full"
+                style={{ background: "var(--warn)" }}
+              />
+              Por clasificar
+            </span>
+          ) : null}
+        </div>
+
+        <form action={renameTransaction} className="flex flex-col gap-3">
+          <input type="hidden" name="id" value={transaction.id} />
+          <input
+            name="description"
+            type="text"
+            required
+            minLength={2}
+            maxLength={120}
+            autoComplete="off"
+            defaultValue={transaction.description}
+            aria-label="Nombre del movimiento"
+            className="field"
+          />
+          <button
+            type="submit"
+            className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
+          >
+            <Check className="size-4" />
+            Guardar nombre
+          </button>
+        </form>
+
+        {pending ? (
+          <p className="text-[0.75rem] leading-relaxed text-[var(--text-3)]">
+            El banco todavía no dice qué compra fue. Cuando lo diga, ponele el
+            nombre real y elegí su categoría acá abajo.
+          </p>
+        ) : null}
+      </section>
+
       {/* Recategorizar sin JavaScript: cada casillero es su propio submit. */}
       <section className="rise mt-2" style={{ "--d": "240ms" } as CSSProperties}>
         <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
@@ -138,8 +207,8 @@ export default async function TransactionPage({
         </form>
 
         <p className="mt-3 px-1 text-[0.75rem] leading-relaxed text-[var(--text-3)]">
-          Tocá una para cambiarla. La última palabra siempre es tuya, aunque la
-          haya puesto la IA.
+          Tocá una para cambiarla y quedate acá: la última palabra siempre es
+          tuya, aunque la haya puesto la IA.
         </p>
       </section>
 

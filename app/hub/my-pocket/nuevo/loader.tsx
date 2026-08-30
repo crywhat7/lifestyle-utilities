@@ -16,7 +16,7 @@ export async function EntryRoute({
   preselect = null,
 }: {
   kind: "income" | "expense";
-  /** Id de la plantilla (gasto fijo o fecha de pago) que llega ya elegida. */
+  /** Id de la plantilla (gasto contemplado o fecha de pago) que llega ya elegida. */
   preselect?: string | null;
 }) {
   const { supabase, user, profile } = await pocketSession();
