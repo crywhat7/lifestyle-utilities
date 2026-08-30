@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState, type CSSProperties } from "react";
 import { CategoryIcon } from "@/components/category-icons";
-import { ArrowBack, Chevron, Repeat, Spark } from "@/components/icons";
+import { ArrowBack, Chevron, Repeat, Scan, Spark } from "@/components/icons";
 import { CURRENCIES, formatMoney } from "@/lib/money";
 import {
   isoDate,
@@ -212,6 +212,29 @@ export function EntryScreen({
           {copy.tabTemplate}
         </button>
       </div>
+
+      {!composing && !isIncome ? (
+        /* La captura del banco es un tercer camino, no una pestaña: lleva a
+           su propia pantalla y vuelve con varios egresos, no con uno. */
+        <Link
+          href="/hub/my-pocket/nuevo/escanear"
+          className="groove rise flex items-center gap-3 px-4 py-3.5"
+          style={{ "--d": "180ms" } as CSSProperties}
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+            <Scan className="size-[1.125rem]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.9375rem] font-medium">
+              Leer una captura del banco
+            </span>
+            <span className="block text-[0.75rem] text-[var(--text-3)]">
+              Varios egresos de una, sin escribir ninguno.
+            </span>
+          </span>
+          <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--text-3)]" />
+        </Link>
+      ) : null}
 
       {!composing ? (
         usingTemplate && !picking ? (

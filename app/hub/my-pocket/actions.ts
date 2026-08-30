@@ -7,6 +7,7 @@ import { convert } from "@/lib/fx";
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from "@/lib/money";
 import { isoDate, slugify, type PocketCategory } from "@/lib/pocket";
 import { createClient } from "@/lib/supabase/server";
+import { ensureGlobalCategory, globalCategories } from "./categories";
 import { loadCategories, POCKET_PATH, pocketSession } from "./data";
 
 const SETTINGS_PATH = `${POCKET_PATH}/ajustes`;
@@ -61,11 +62,7 @@ async function categorizeWithAi(
   currency: string,
   categories: PocketCategory[]
 ): Promise<string | null> {
-  const globals = categories.filter(
-    (category) =>
-      category.user_id === null &&
-      (category.kind === kind || category.kind === "both")
-  );
+  const globals = globalCategories(categories, kind);
 
   const suggestion = await suggestCategory({
     description,
@@ -77,37 +74,13 @@ async function categorizeWithAi(
 
   if (!suggestion) return null;
 
-  const slug = slugify(suggestion.name);
-  if (!slug) return null;
-
-  const match = globals.find((category) => category.slug === slug);
-  if (match) return match.id;
-
-  const { data: created } = await supabase
-    .from("pocket_categories")
-    .insert({
-      user_id: null,
-      name: suggestion.name,
-      slug,
-      icon_key: suggestion.iconKey,
-      kind,
-      is_ai: true,
-    })
-    .select("id")
-    .single();
-
-  if (created?.id) return created.id as string;
-
-  // Otra sesión la creó primero: la constraint única la rechazó, no la app.
-  const { data: existing } = await supabase
-    .from("pocket_categories")
-    .select("id")
-    .is("user_id", null)
-    .eq("slug", slug)
-    .eq("kind", kind)
-    .maybeSingle();
-
-  return (existing?.id as string | undefined) ?? null;
+  return ensureGlobalCategory(
+    supabase,
+    kind,
+    suggestion.name,
+    suggestion.iconKey,
+    globals
+  );
 }
 
 /* -------------------------------------------------------------------------- */

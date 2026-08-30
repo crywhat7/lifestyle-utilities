@@ -455,3 +455,50 @@ export function Phone({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Marco de escaneo: cuatro esquinas y la línea que barre. */
+export function Scan({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 8.5V5a2 2 0 0 1 2-2h3.5" />
+        <path d="M15.5 3H19a2 2 0 0 1 2 2v3.5" />
+        <path d="M21 15.5V19a2 2 0 0 1-2 2h-3.5" />
+        <path d="M8.5 21H5a2 2 0 0 1-2-2v-3.5" />
+        <path d="M6 12h12" opacity="0.55" />
+      </g>
+    </svg>
+  );
+}
+
+/** Cámara — para adjuntar la captura del banco. */
+export function Camera({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7a1 1 0 0 0 .84-.46l.92-1.42A1 1 0 0 1 9.8 3.7h4.4a1 1 0 0 1 .84.42l.92 1.42a1 1 0 0 0 .84.46h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z" />
+        <circle cx="12" cy="13" r="3.6" />
+      </g>
+    </svg>
+  );
+}
