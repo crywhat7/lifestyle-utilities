@@ -10,6 +10,7 @@ import {
   Check,
   Chevron,
   Grid,
+  Mic,
   Repeat,
   Sliders,
   Spark,
@@ -292,6 +293,15 @@ function ActionBar() {
         >
           <ArrowUpRight className="size-[1.125rem]" />
           Egreso
+        </Link>
+        {/* Dictar es el camino más corto que existe hacia un gasto
+            registrado: dos toques desde el balance y ni una tecla. */}
+        <Link
+          href="/hub/my-pocket/nuevo/dictar"
+          aria-label="Dictar un egreso en 7 segundos"
+          className="key flex size-14 shrink-0 items-center justify-center rounded-full text-[var(--accent)]"
+        >
+          <Mic className="size-[1.25rem]" />
         </Link>
       </div>
     </div>

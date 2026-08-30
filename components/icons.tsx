@@ -502,3 +502,40 @@ export function Camera({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Micrófono — dictar un gasto en vez de escribirlo. */
+export function Mic({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="9" y="2.5" width="6" height="11.5" rx="3" />
+        <path d="M5 11.5a7 7 0 0 0 14 0" />
+        <path d="M12 18.5V21.5" />
+      </g>
+    </svg>
+  );
+}
+
+/** Cuadrado de detener — el par del micrófono mientras graba. */
+export function Stop({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" />
+    </svg>
+  );
+}

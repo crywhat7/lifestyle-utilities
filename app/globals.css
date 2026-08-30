@@ -859,3 +859,153 @@
     animation-duration: 4s;
   }
 }
+
+/* ==========================================================================
+   My Pocket — dictar un egreso.
+   Un disco, un anillo que se vacía y siete barras: una por segundo.
+   ========================================================================== */
+
+@layer components {
+  .dictate {
+    position: relative;
+    width: 15rem;
+    height: 15rem;
+    display: grid;
+    place-items: center;
+  }
+
+  /* El anillo vive fuera del botón para que la tecla siga hundiéndose sola. */
+  .dictate-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    pointer-events: none;
+  }
+
+  .dictate-track {
+    fill: none;
+    stroke: rgba(243, 241, 234, 0.07);
+    stroke-width: 3;
+  }
+
+  /*
+     El vaciado es lineal a propósito. Todas las demás curvas de la app están
+     ahí para que el movimiento se sienta físico, pero un contador que
+     acelera o frena miente sobre el tiempo que queda, y esto es lo único de
+     la pantalla que la persona va a mirar mientras habla.
+  */
+  .dictate-drain {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 339.292;
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+    animation: drain 7s linear forwards;
+  }
+
+  .dictate-key {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 11.5rem;
+    height: 11.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--edge-strong);
+    background:
+      radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
+      linear-gradient(180deg, var(--surface-3) 0%, var(--surface-1) 62%, #0e1013 100%);
+    box-shadow:
+      0 30px 50px -22px rgba(0, 0, 0, 0.95),
+      var(--bevel-deep);
+    color: var(--text-1);
+    transition:
+      transform 0.32s var(--ease-expo),
+      box-shadow 0.32s var(--ease-expo),
+      color 0.32s var(--ease-expo);
+  }
+
+  .dictate-key:active {
+    transform: scale(0.97) translate3d(0, 2px, 0);
+    box-shadow: var(--lift-sm), inset 0 3px 10px rgba(0, 0, 0, 0.8);
+  }
+
+  .dictate-key:disabled {
+    color: var(--text-2);
+  }
+
+  /* Grabando, el disco se enciende por dentro: la superficie es la que avisa,
+     no un cartel rojo encima. */
+  .dictate[data-on="true"] .dictate-key {
+    color: var(--accent);
+    border-color: rgba(198, 242, 78, 0.28);
+    box-shadow:
+      0 30px 60px -22px rgba(198, 242, 78, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 0 40px rgba(198, 242, 78, 0.07);
+  }
+
+  /* Halo que respira mientras el micro está abierto. */
+  .dictate[data-on="true"]::before {
+    content: "";
+    position: absolute;
+    width: 11.5rem;
+    height: 11.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(198, 242, 78, 0.35);
+    animation: halo 2.4s var(--ease-quart) infinite;
+    pointer-events: none;
+  }
+
+  .dictate-bar {
+    display: block;
+    width: 3px;
+    height: 1.5rem;
+    border-radius: 999px;
+    background: var(--accent);
+    transform: scaleY(0.12);
+    transform-origin: bottom center;
+    /* Sube al instante y baja con cuerpo: así se lee como una voz y no como
+       un ecualizador de demo. */
+    transition: transform 0.09s var(--ease-quart);
+    will-change: transform;
+  }
+}
+
+@keyframes drain {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 339.292;
+  }
+}
+
+@keyframes halo {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* El anillo sigue vaciándose: es información, no decoración. El halo no. */
+  .dictate[data-on="true"]::before {
+    animation: none;
+    opacity: 0.35;
+  }
+
+  .dictate-bar {
+    transition: none;
+  }
+}

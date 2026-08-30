@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useActionState, useState, type CSSProperties } from "react";
 import { CategoryIcon } from "@/components/category-icons";
-import { ArrowBack, Chevron, Repeat, Scan, Spark } from "@/components/icons";
+import {
+  ArrowBack,
+  Chevron,
+  Mic,
+  Repeat,
+  Scan,
+  Spark,
+} from "@/components/icons";
 import { CURRENCIES, formatMoney } from "@/lib/money";
 import {
   isoDate,
@@ -215,26 +222,39 @@ export function EntryScreen({
       </div>
 
       {!composing && !isIncome ? (
-        /* La captura del banco es un tercer camino, no una pestaña: lleva a
-           su propia pantalla y vuelve con varios egresos, no con uno. */
-        <Link
-          href="/hub/my-pocket/nuevo/escanear"
-          className="groove rise flex items-center gap-3 px-4 py-3.5"
+        /* Los dos atajos que no pasan por el teclado. Van juntos y arriba de
+           todo: si registrar un gasto se puede hacer sin escribir, esa es la
+           puerta principal, no una función escondida. */
+        <div
+          className="rise grid grid-cols-2 gap-2"
           style={{ "--d": "180ms" } as CSSProperties}
         >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
-            <Scan className="size-[1.125rem]" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[0.9375rem] font-medium">
-              Leer una captura del banco
+          <Link
+            href="/hub/my-pocket/nuevo/dictar"
+            className="groove flex flex-col gap-2 p-3.5"
+          >
+            <span className="flex size-10 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+              <Mic className="size-[1.125rem]" />
             </span>
-            <span className="block text-[0.75rem] text-[var(--text-3)]">
-              Varios egresos de una, sin escribir ninguno.
+            <span className="text-[0.9375rem] font-medium">Dictarlo</span>
+            <span className="text-[0.75rem] leading-snug text-[var(--text-3)]">
+              7 segundos de voz y listo.
             </span>
-          </span>
-          <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--text-3)]" />
-        </Link>
+          </Link>
+
+          <Link
+            href="/hub/my-pocket/nuevo/escanear"
+            className="groove flex flex-col gap-2 p-3.5"
+          >
+            <span className="flex size-10 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+              <Scan className="size-[1.125rem]" />
+            </span>
+            <span className="text-[0.9375rem] font-medium">Leer captura</span>
+            <span className="text-[0.75rem] leading-snug text-[var(--text-3)]">
+              Varios egresos del banco de una.
+            </span>
+          </Link>
+        </div>
       ) : null}
 
       {!composing ? (
