@@ -44,7 +44,7 @@ export function GoogleSignIn() {
       </button>
 
       {failed ? (
-        <p role="alert" className="mt-4 text-center text-[0.8125rem] text-[#ff9a7a]">
+        <p role="alert" className="mt-4 text-center text-[0.8125rem] text-[var(--danger)]">
           No se pudo abrir Google. Revisá tu conexión y probá otra vez.
         </p>
       ) : null}

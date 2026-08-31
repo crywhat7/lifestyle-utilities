@@ -55,7 +55,7 @@ export function CategoryGrid({
                 aria-hidden="true"
                 className="absolute top-1.5 right-1.5 size-1.5 rounded-full"
                 style={{
-                  background: active ? "rgba(10,13,5,.45)" : "var(--accent)",
+                  background: active ? "var(--on-accent)" : "var(--accent)",
                 }}
               />
             ) : null}

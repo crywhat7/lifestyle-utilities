@@ -233,7 +233,7 @@ export function EntryScreen({
             href="/hub/my-pocket/nuevo/dictar"
             className="groove flex flex-col gap-2 p-3.5"
           >
-            <span className="flex size-10 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+            <span className="flex size-10 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
               <Mic className="size-[1.125rem]" />
             </span>
             <span className="text-[0.9375rem] font-medium">Dictarlo</span>
@@ -246,7 +246,7 @@ export function EntryScreen({
             href="/hub/my-pocket/nuevo/escanear"
             className="groove flex flex-col gap-2 p-3.5"
           >
-            <span className="flex size-10 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+            <span className="flex size-10 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
               <Scan className="size-[1.125rem]" />
             </span>
             <span className="text-[0.9375rem] font-medium">Leer captura</span>
@@ -473,7 +473,7 @@ function CategoryStep({
         className="rise groove flex items-center gap-3 px-4 py-4 text-left"
         style={{ "--d": "300ms" } as CSSProperties}
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
           <Spark className="size-[1.125rem]" />
         </span>
         <span className="min-w-0 flex-1">
@@ -541,7 +541,7 @@ function TemplateStep({
               onClick={() => onPick(item)}
               className="groove flex w-full items-center gap-3 p-3 text-left transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
                 <Repeat className="size-[1.125rem]" />
               </span>
               <span className="min-w-0 flex-1">
@@ -588,8 +588,8 @@ function ChosenChip({
       style={{ "--d": "20ms" } as CSSProperties}
     >
       <span
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5"
-        style={{ color: "var(--accent)" }}
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--tint)]"
+        style={{ color: "var(--accent-ink)" }}
       >
         {auto || !iconKey ? (
           <Spark className="size-[1.125rem]" />
@@ -605,7 +605,7 @@ function ChosenChip({
           {label}
         </span>
       </span>
-      <span className="text-[0.75rem] text-[var(--accent)]">Cambiar</span>
+      <span className="text-[0.75rem] text-[var(--accent-ink)]">Cambiar</span>
     </button>
   );
 }

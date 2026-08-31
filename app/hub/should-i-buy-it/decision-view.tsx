@@ -135,7 +135,7 @@ export function DecisionView({
           {decision.ai_opinion ? (
             <section className="plate p-5">
               <p className="flex items-center gap-2 text-[0.6875rem] tracking-[0.18em] text-[var(--text-3)] uppercase">
-                <Spark className="size-3.5 text-[var(--accent)]" />
+                <Spark className="size-3.5 text-[var(--accent-ink)]" />
                 Qué hacer
               </p>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-[var(--text-1)]">
@@ -237,21 +237,21 @@ function ProsCons({
         <ArgumentList
           title="A favor"
           items={forList}
-          tone="#c6f24e"
+          tone="var(--accent-ink)"
           kind="pro"
         />
 
         {forList.length > 0 && againstList.length > 0 ? (
           <span
             aria-hidden="true"
-            className="my-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            className="my-4 h-px bg-gradient-to-r from-transparent via-[var(--edge-strong)] to-transparent"
           />
         ) : null}
 
         <ArgumentList
           title="En contra"
           items={againstList}
-          tone="#ff7a5c"
+          tone="var(--danger)"
           kind="con"
         />
       </div>
@@ -288,7 +288,7 @@ function ArgumentList({
           >
             <span
               className="mt-[0.3125rem] flex size-4 shrink-0 items-center justify-center rounded-full"
-              style={{ background: `${tone}26`, color: tone }}
+              style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}
             >
               {kind === "pro" ? (
                 <Check className="size-2.5" />
@@ -313,11 +313,11 @@ function RetryButton({ id, subtle = false }: { id: string; subtle?: boolean }) {
         type="submit"
         className={
           subtle
-            ? "mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-[0.75rem] text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--accent)]"
+            ? "mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-[0.75rem] text-[var(--text-3)] transition-colors duration-300 [transition-timing-function:var(--ease-quart)] active:text-[var(--accent-ink)]"
             : "key flex h-12 w-full items-center justify-center gap-2 text-[0.9375rem] font-medium text-[var(--text-1)]"
         }
       >
-        <Spark className={subtle ? "size-3" : "size-4 text-[var(--accent)]"} />
+        <Spark className={subtle ? "size-3" : "size-4 text-[var(--accent-ink)]"} />
         Volver a analizar
       </button>
     </form>

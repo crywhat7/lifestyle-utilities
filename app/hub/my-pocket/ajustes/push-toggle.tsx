@@ -127,7 +127,7 @@ export function PushToggle({ admin = false }: { admin?: boolean }) {
       {status === "on" ? (
         <div className="flex flex-col gap-3">
           <div className="groove flex items-center gap-3 p-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
               <Check className="size-4" />
             </span>
             <span className="min-w-0 flex-1 text-[0.875rem] text-[var(--text-2)]">

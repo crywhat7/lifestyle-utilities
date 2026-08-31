@@ -108,7 +108,7 @@ export default async function CategoriesPage({
             style={{ "--d": "190ms" } as CSSProperties}
           >
             Lo que más pesa:{" "}
-            <span className="text-[var(--accent)]">{top.category.name}</span>,
+            <span className="text-[var(--accent-ink)]">{top.category.name}</span>,
             el {Math.round((top.total / (total || 1)) * 100)}% del total.
           </p>
         ) : null}
@@ -139,7 +139,7 @@ export default async function CategoriesPage({
           className="groove rise flex flex-col items-center gap-2 px-6 py-12 text-center"
           style={{ "--d": "290ms" } as CSSProperties}
         >
-          <Spark className="size-6 text-[var(--accent)]" />
+          <Spark className="size-6 text-[var(--accent-ink)]" />
           <p className="text-[0.9375rem] text-[var(--text-2)]">
             Sin egresos en este periodo.
           </p>
@@ -158,7 +158,7 @@ export default async function CategoriesPage({
                 }
               >
                 <div className="flex items-center gap-3">
-                  <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent)]">
+                  <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent-ink)]">
                     <CategoryIcon
                       iconKey={slice.category?.icon_key ?? "other"}
                       className="size-[1.1875rem]"

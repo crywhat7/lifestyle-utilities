@@ -11,6 +11,7 @@ import {
   Wallet,
   WaveHand,
 } from "@/components/icons";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
 import { InstallPrompt } from "./install-prompt";
@@ -54,11 +55,21 @@ export default async function HubPage() {
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <span className="eyebrow">Lifestyle Utilities</span>
-        <span className="flex items-center gap-2 text-[0.6875rem] tracking-[0.18em] text-[var(--text-3)] uppercase">
-          <span className="pulse-dot size-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]" />
-          En línea
+        {/*
+          El selector se queda con la derecha, así que el estado de conexión
+          pierde su rótulo y se muda al punto que ya lo acompañaba: sigue
+          latiendo al lado de la marca, y lo dice por accesibilidad.
+        */}
+        <span className="flex items-center gap-2.5">
+          <span
+            role="status"
+            aria-label="En línea"
+            title="En línea"
+            className="pulse-dot size-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"
+          />
+          <span className="eyebrow">Lifestyle Utilities</span>
         </span>
+        <ThemeSwitch />
       </header>
 
       {/* Momento firma: el saludo ocupa la pantalla */}
@@ -74,7 +85,7 @@ export default async function HubPage() {
           style={{ "--d": "170ms" } as CSSProperties}
         >
           <span>{firstName}</span>
-          <WaveHand className="wave-hand mb-1 size-[0.85em] shrink-0 text-[var(--accent)]" />
+          <WaveHand className="wave-hand mb-1 size-[0.85em] shrink-0 text-[var(--accent-ink)]" />
         </h1>
       </section>
 
@@ -144,7 +155,7 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
       />
 
       <div className="relative flex items-start justify-between gap-4">
-        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent)]">
+        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent-ink)]">
           <ToolGlyph iconKey={tool.iconKey} />
         </span>
 
@@ -208,7 +219,7 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
 function EmptySlot({ delay, label }: { delay: number; label: string }) {
   return (
     <div
-      className="groove rise flex aspect-square flex-col items-center justify-center gap-2 border-dashed border-white/8 text-[var(--text-3)]"
+      className="groove rise flex aspect-square flex-col items-center justify-center gap-2 border-dashed border-[var(--edge)] text-[var(--text-3)]"
       style={{ "--d": `${delay}ms` } as CSSProperties}
       aria-hidden="true"
     >

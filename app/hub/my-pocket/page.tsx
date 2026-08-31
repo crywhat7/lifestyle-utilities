@@ -130,7 +130,7 @@ export default async function MyPocketPage() {
             className="rise mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-[var(--text-3)]"
             style={{ "--d": "200ms" } as CSSProperties}
           >
-            <span style={{ color: "var(--accent)" }}>
+            <span style={{ color: "var(--accent-ink)" }}>
               +{formatMoney(month.income, profile.currency)}
             </span>
             <span>y</span>
@@ -145,7 +145,7 @@ export default async function MyPocketPage() {
           className="plate rise flex items-center gap-4 p-4"
           style={{ "--d": "260ms" } as CSSProperties}
         >
-          <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent)]">
+          <span className="groove flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--accent-ink)]">
             <Calendar className="size-[1.125rem]" />
           </span>
           {payday ? (
@@ -172,7 +172,7 @@ export default async function MyPocketPage() {
             </span>
           )}
           {payday ? (
-            <span className="display shrink-0 text-[1.125rem] tabular-nums text-[var(--accent)]">
+            <span className="display shrink-0 text-[1.125rem] tabular-nums text-[var(--accent-ink)]">
               {formatMoney(payday.schedule.amount, payday.schedule.currency)}
             </span>
           ) : (
@@ -243,7 +243,7 @@ export default async function MyPocketPage() {
 
           {transactions.length === 0 ? (
             <div className="groove flex flex-col items-center gap-2 px-6 py-10 text-center">
-              <Spark className="size-6 text-[var(--accent)]" />
+              <Spark className="size-6 text-[var(--accent-ink)]" />
               <p className="text-[0.9375rem] text-[var(--text-2)]">
                 Todavía no hay nada registrado.
               </p>
@@ -284,7 +284,7 @@ function ActionBar() {
           href="/hub/my-pocket/nuevo/ingreso"
           className="key flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-medium"
         >
-          <ArrowIn className="size-[1.125rem] text-[var(--accent)]" />
+          <ArrowIn className="size-[1.125rem] text-[var(--accent-ink)]" />
           Ingreso
         </Link>
         <Link
@@ -299,7 +299,7 @@ function ActionBar() {
         <Link
           href="/hub/my-pocket/nuevo/dictar"
           aria-label="Dictar un egreso en 7 segundos"
-          className="key flex size-14 shrink-0 items-center justify-center rounded-full text-[var(--accent)]"
+          className="key flex size-14 shrink-0 items-center justify-center rounded-full text-[var(--accent-ink)]"
         >
           <Mic className="size-[1.25rem]" />
         </Link>
@@ -342,7 +342,7 @@ function FixedAgenda({
         className="rise groove flex items-center gap-3 p-3.5"
         style={{ "--d": "340ms" } as CSSProperties}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
           <Check className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
@@ -421,10 +421,10 @@ function FixedRow({
       <Link
         href={`/hub/my-pocket/nuevo/egreso?fijo=${due.expense.id}`}
         className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
-        style={overdue ? { borderColor: "rgba(255, 122, 92, 0.35)" } : undefined}
+        style={overdue ? { borderColor: "color-mix(in srgb, var(--danger) 45%, transparent)" } : undefined}
       >
         <span
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)]"
           style={{ color: overdue ? "var(--danger)" : "var(--text-2)" }}
         >
           <CategoryIcon
@@ -536,7 +536,7 @@ function Row({
         className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
       >
         <span
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)]"
           style={{ color: income ? "var(--accent)" : "var(--text-2)" }}
         >
           <CategoryIcon
@@ -568,7 +568,7 @@ function Row({
                 className="flex shrink-0 items-center"
                 title="Categoría puesta por la IA"
               >
-                <Spark className="size-2.5 text-[var(--accent)]" />
+                <Spark className="size-2.5 text-[var(--accent-ink)]" />
               </span>
             ) : null}
             {converted ? (
@@ -618,7 +618,7 @@ function Onboarding() {
           style={{ "--d": "110ms" } as CSSProperties}
         >
           My
-          <span className="block pl-[0.5em] text-[var(--accent)]">Pocket</span>
+          <span className="block pl-[0.5em] text-[var(--accent-ink)]">Pocket</span>
         </h1>
         <p
           className="rise mt-5 max-w-[20rem] text-[0.9375rem] leading-relaxed text-[var(--text-2)]"

@@ -76,7 +76,7 @@ export function InstallPrompt() {
         className="rise groove flex items-center gap-3 p-4"
         style={{ "--d": "860ms" } as CSSProperties}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
           <Check className="size-4" />
         </span>
         <span className="min-w-0 flex-1 text-[0.875rem] text-[var(--text-2)]">
@@ -105,7 +105,7 @@ export function InstallPrompt() {
       />
 
       <div className="relative flex items-start justify-between gap-4">
-        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent)]">
+        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent-ink)]">
           <Phone className="size-7" />
         </span>
 
@@ -155,7 +155,7 @@ function IOSSteps() {
     <ol className="relative mt-6 flex flex-col gap-3">
       <Step number={1}>
         Tocá{" "}
-        <span className="inline-flex translate-y-[0.15em] items-center px-0.5 text-[var(--accent)]">
+        <span className="inline-flex translate-y-[0.15em] items-center px-0.5 text-[var(--accent-ink)]">
           <Share className="size-4" />
         </span>{" "}
         Compartir, abajo en Safari.

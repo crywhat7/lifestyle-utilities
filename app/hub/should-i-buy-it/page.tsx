@@ -85,7 +85,7 @@ export default async function ShouldIBuyItPage() {
           style={{ "--d": "110ms" } as CSSProperties}
         >
           Should I
-          <span className="block pl-[0.5em] text-[var(--accent)]">Buy It</span>
+          <span className="block pl-[0.5em] text-[var(--accent-ink)]">Buy It</span>
         </h1>
         <p
           className="rise mt-5 max-w-[20rem] text-[0.9375rem] leading-relaxed text-[var(--text-2)]"
@@ -127,7 +127,7 @@ export default async function ShouldIBuyItPage() {
               </span>
             </div>
 
-            <details className="group mt-4 border-t border-white/6 pt-4">
+            <details className="group mt-4 border-t border-[var(--edge)] pt-4">
               <summary className="flex cursor-pointer list-none items-center justify-between text-[0.8125rem] text-[var(--text-2)] marker:hidden">
                 Ajustar ingreso y jornada
                 <span className="text-[var(--text-3)] transition-transform duration-500 [transition-timing-function:var(--ease-expo)] group-open:rotate-45">

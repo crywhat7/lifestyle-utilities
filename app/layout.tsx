@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Space_Grotesk } from "next/font/google";
 import { absoluteUrl, site } from "@/lib/site";
+import { THEME_BOOT_SCRIPT, THEME_COLOR } from "@/lib/theme";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -121,8 +122,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: site.themeColor,
-  colorScheme: "dark",
+  // Sin elección guardada manda el sistema, así que la barra del navegador
+  // también viene en dos versiones. Cuando la persona elige, el selector
+  // reescribe esta meta en el cliente.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
+  ],
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -196,8 +203,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang={site.lang}
       dir="ltr"
       className={`${bricolage.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      /* El script de abajo le escribe `data-theme` a este mismo nodo antes de
+         que React lo vea, así que el servidor y el cliente no coinciden. */
+      suppressHydrationWarning
     >
       <body className="relative min-h-full">
+        {/*
+          Primero de todo, y bloqueante a propósito: es lo único del árbol
+          que tiene que correr ANTES del primer pintado. Si el tema elegido
+          se aplicara recién al hidratar, quien pidió oscuro se comería un
+          flash blanco en cada carga.
+        */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
         <script
           type="application/ld+json"
           suppressHydrationWarning

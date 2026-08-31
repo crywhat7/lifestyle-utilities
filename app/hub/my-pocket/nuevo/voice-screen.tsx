@@ -492,7 +492,7 @@ function Review({
           Categoría
         </label>
         <div className="flex items-center gap-2">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
             {categoryId ? (
               <CategoryIcon
                 iconKey={chosen?.icon_key ?? draft.iconKey}

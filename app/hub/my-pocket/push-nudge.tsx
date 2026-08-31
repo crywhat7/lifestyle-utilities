@@ -78,12 +78,12 @@ export function PushNudge() {
         className="pointer-events-none absolute -top-16 -left-10 size-40 rounded-full"
         style={{
           background:
-            "radial-gradient(circle, rgba(198,242,78,0.16) 0%, transparent 70%)",
+            "radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)",
         }}
       />
 
       <div className="relative flex items-start gap-3">
-        <span className="pulse-dot flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+        <span className="pulse-dot flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
           <Spark className="size-4" />
         </span>
 

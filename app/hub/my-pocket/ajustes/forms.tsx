@@ -205,8 +205,8 @@ export function PaySchedules({
             */
             <li key={schedule.id} className="groove flex flex-col gap-1 p-3">
               <div className="flex items-center gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 px-1">
-                  <span className="display text-center text-[0.8125rem] leading-tight tabular-nums text-[var(--accent)]">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] px-1">
+                  <span className="display text-center text-[0.8125rem] leading-tight tabular-nums text-[var(--accent-ink)]">
                     {recurrenceBadge(schedule)}
                   </span>
                 </span>
@@ -259,7 +259,7 @@ export function PaySchedules({
         <form
           key={editing?.id ?? "new"}
           action={formAction}
-          className="flex flex-col gap-4 border-t border-white/6 pt-5"
+          className="flex flex-col gap-4 border-t border-[var(--edge)] pt-5"
         >
           {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
@@ -400,7 +400,7 @@ export function FixedExpenses({
                  nombre y el rango necesitan el ancho, las acciones no. */
               <li key={expense.id} className="groove flex flex-col gap-1 p-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
                     <CategoryIcon
                       iconKey={category?.icon_key ?? "bills"}
                       className="size-[1.125rem]"
@@ -463,7 +463,7 @@ export function FixedExpenses({
         <form
           key={editing?.id ?? "new"}
           action={formAction}
-          className="flex flex-col gap-4 border-t border-white/6 pt-5"
+          className="flex flex-col gap-4 border-t border-[var(--edge)] pt-5"
         >
           {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
           <input type="hidden" name="category_id" value={categoryId} />
@@ -618,7 +618,7 @@ export function CustomCategories({ mine }: { mine: PocketCategory[] }) {
         <ul className="mb-3 flex flex-col gap-2">
           {mine.map((category) => (
             <li key={category.id} className="groove flex items-center gap-3 p-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
                 <CategoryIcon
                   iconKey={category.icon_key}
                   className="size-[1.125rem]"
@@ -652,7 +652,7 @@ export function CustomCategories({ mine }: { mine: PocketCategory[] }) {
       {open ? (
         <form
           action={formAction}
-          className="flex flex-col gap-4 border-t border-white/6 pt-5"
+          className="flex flex-col gap-4 border-t border-[var(--edge)] pt-5"
         >
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="icon_key" value={iconKey} />

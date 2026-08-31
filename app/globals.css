@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Lifestyle Utilities — dark skeuomorphic design system
+   Lifestyle Utilities — skeuomorphic design system, claro y oscuro
    Machined surfaces, engraved type, one signature accent.
 
    Todas las clases de componente viven en @layer components para que
@@ -9,45 +9,149 @@
    CSS sin capa le gana a CSS en capas sin importar el orden del archivo.
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Un solo vocabulario, dos luces.
+
+   El tema claro no es una inversión automática: la placa mecanizada sigue
+   siendo la misma pieza, pero iluminada desde arriba en vez de brillar sola
+   en el fondo. Por eso no cambian solo los grises — cambia de dónde sale el
+   volumen. En la oscuridad lo hace la sombra proyectada; en la luz, el bisel.
+
+   Cómo se resuelve, en dos capas:
+
+   · Los colores usan `light-dark()`, así que cada token se declara UNA vez y
+     el navegador elige según el `color-scheme` vigente. Automático sale
+     gratis: `color-scheme: light dark` en `:root` deja mandar al sistema, y
+     `[data-theme]` lo fija a una de las dos.
+   · Las recetas de profundidad (sombras, fondo, grano) no son colores, así
+     que `light-dark()` no las alcanza: esas siete sí van duplicadas abajo.
+   -------------------------------------------------------------------------- */
+
 :root {
-  /* Ground — never pure black */
-  --void: #08090b;
-  --void-2: #0d0f12;
+  /* Sin elección explícita, el sistema decide. */
+  color-scheme: light dark;
 
-  /* Machined surfaces */
-  --surface-1: #16181c;
-  --surface-2: #1e2127;
-  --surface-3: #272b32;
+  /* Fondo — nunca negro puro, nunca blanco puro */
+  --void: light-dark(#e9e7dd, #08090b);
+  --void-2: light-dark(#f4f2ea, #0d0f12);
+  --void-3: light-dark(#dedbcf, #050608);
 
-  /* Edges */
-  --edge: rgba(255, 255, 255, 0.07);
-  --edge-strong: rgba(255, 255, 255, 0.14);
+  /* Superficies mecanizadas */
+  --surface-1: light-dark(#f2f0e8, #16181c);
+  --surface-2: light-dark(#fbfaf4, #1e2127);
+  --surface-3: light-dark(#fefdf8, #272b32);
+  --plate-3: light-dark(#e7e4d9, #101216);
+  --sheet-3: light-dark(#eceadf, #0d0f13);
+  --key-deep: light-dark(#eae7db, #0e1013);
 
-  /* Type — warm off-white, never #fff */
-  --text-1: #f3f1ea;
-  --text-2: rgba(243, 241, 234, 0.62);
-  --text-3: rgba(243, 241, 234, 0.36);
+  /* Lo que está hundido: ranuras, campos, rieles, casillas */
+  --sunk-1: light-dark(#dbd8cc, #0b0d10);
+  --sunk-2: light-dark(#e9e7dd, #131519);
 
-  /* Signature accent */
-  --accent: #c6f24e;
-  --accent-deep: #8dbe22;
-  --accent-glow: rgba(198, 242, 78, 0.22);
+  /* Cantos */
+  --edge: light-dark(rgba(32, 30, 22, 0.1), rgba(255, 255, 255, 0.07));
+  --edge-strong: light-dark(rgba(32, 30, 22, 0.2), rgba(255, 255, 255, 0.14));
+  --edge-sunk: light-dark(rgba(32, 30, 22, 0.16), rgba(0, 0, 0, 0.7));
+  --tint: light-dark(rgba(32, 30, 22, 0.045), rgba(255, 255, 255, 0.05));
+
+  /* Tipografía — ni #fff ni #000: siempre con temperatura */
+  --text-1: light-dark(#191811, #f3f1ea);
+  --text-2: light-dark(rgba(25, 24, 17, 0.66), rgba(243, 241, 234, 0.62));
+  --text-3: light-dark(rgba(25, 24, 17, 0.44), rgba(243, 241, 234, 0.36));
+
+  /*
+     Acento firma. Dos papeles distintos, y ahí está el truco del tema claro:
+     `--accent` es relleno y siempre lleva `--on-accent` encima, así que el
+     lima sobrevive intacto. `--accent-ink` es tinta sobre superficie, y el
+     lima sobre papel no se lee — en claro se hunde a un oliva profundo.
+  */
+  --accent: light-dark(#b4e332, #c6f24e);
+  --accent-hi: light-dark(#cdf25c, #dcff6b);
+  --accent-deep: light-dark(#7da818, #8dbe22);
+  --accent-ink: light-dark(#4c6a0c, #c6f24e);
+  --accent-glow: light-dark(rgba(141, 190, 34, 0.3), rgba(198, 242, 78, 0.22));
+  --on-accent: light-dark(#131f07, #0a0d05);
 
   /* Semáforo del veredicto */
-  --warn: #f2b84e;
-  --danger: #ff7a5c;
+  --warn: light-dark(#9c6300, #f2b84e);
+  --danger: light-dark(#bd3a24, #ff7a5c);
+  /* Arriba del riesgo alto el rojo sube de temperatura: es otra categoría. */
+  --alert: light-dark(#a92a10, #ff4d33);
 
-  /* Depth recipes */
+  /* Velo del panel modal — la app apagándose detrás */
+  --veil-bg: light-dark(rgba(48, 46, 36, 0.4), rgba(4, 5, 7, 0.72));
+
+  /* Barra de acciones fija */
+  --bar-1: light-dark(#f2f0e8, #0c0e12);
+  --bar-2: light-dark(#e7e4da, #0a0b0e);
+
+  /* Recetas de profundidad — versión oscura (ver el bloque claro abajo) */
   --lift: 0 20px 34px -16px rgba(0, 0, 0, 0.95), 0 3px 8px rgba(0, 0, 0, 0.55);
   --lift-sm: 0 8px 16px -8px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.5);
   --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.55);
   --bevel-deep: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 3px rgba(0, 0, 0, 0.7);
   --inset: inset 0 2px 5px rgba(0, 0, 0, 0.8), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  /* El repujado del titular: en negro lo talla una sombra, en papel lo talla
+     una luz. Invertirlo es literalmente de dónde viene la iluminación. */
+  --emboss: 0 1px 0 rgba(0, 0, 0, 0.85), 0 2px 14px rgba(0, 0, 0, 0.5);
+  /* La caída larga que separa el pie fijo y la hoja modal del contenido. */
+  --drop: rgba(0, 0, 0, 0.95);
 
-  /* Motion — no default curves, ever */
+  --ground:
+    radial-gradient(130% 70% at 50% -12%, rgba(198, 242, 78, 0.07) 0%, transparent 58%),
+    radial-gradient(90% 50% at 100% 100%, rgba(120, 150, 255, 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, var(--void-2) 0%, var(--void) 45%, var(--void-3) 100%);
+  --grain: 0.4;
+
+  /* Movimiento — ninguna curva por defecto, jamás */
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-inout: cubic-bezier(0.87, 0, 0.13, 1);
+}
+
+/*
+   Las siete que `light-dark()` no puede cubrir. La sombra proyectada se
+   vuelve corta y tenue —si no, la placa flota sucia sobre el papel— y el
+   bisel blanco superior pasa a ser casi opaco: es el canto agarrando la luz.
+   El grano es la misma textura a un tercio: sobre papel se nota el triple.
+*/
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --lift: 0 16px 28px -18px rgba(46, 42, 28, 0.38), 0 2px 5px rgba(46, 42, 28, 0.1);
+    --lift-sm: 0 6px 12px -8px rgba(46, 42, 28, 0.34), 0 1px 2px rgba(46, 42, 28, 0.08);
+    --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(46, 42, 28, 0.12);
+    --bevel-deep: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -2px 3px rgba(46, 42, 28, 0.16);
+    --inset: inset 0 2px 4px rgba(46, 42, 28, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.75);
+    --emboss: 0 1px 0 rgba(255, 255, 255, 0.85), 0 1px 2px rgba(46, 42, 28, 0.22);
+    --drop: rgba(46, 42, 28, 0.34);
+    --ground:
+      radial-gradient(130% 70% at 50% -12%, rgba(141, 190, 34, 0.16) 0%, transparent 58%),
+      radial-gradient(90% 50% at 100% 100%, rgba(120, 150, 255, 0.1) 0%, transparent 60%),
+      linear-gradient(180deg, var(--void-2) 0%, var(--void) 45%, var(--void-3) 100%);
+    --grain: 0.16;
+  }
+}
+
+/* La elección explícita gana siempre: va después del media query a propósito. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --lift: 0 16px 28px -18px rgba(46, 42, 28, 0.38), 0 2px 5px rgba(46, 42, 28, 0.1);
+  --lift-sm: 0 6px 12px -8px rgba(46, 42, 28, 0.34), 0 1px 2px rgba(46, 42, 28, 0.08);
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(46, 42, 28, 0.12);
+  --bevel-deep: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -2px 3px rgba(46, 42, 28, 0.16);
+  --inset: inset 0 2px 4px rgba(46, 42, 28, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.75);
+  --emboss: 0 1px 0 rgba(255, 255, 255, 0.85), 0 1px 2px rgba(46, 42, 28, 0.22);
+  --drop: rgba(46, 42, 28, 0.34);
+  --ground:
+    radial-gradient(130% 70% at 50% -12%, rgba(141, 190, 34, 0.16) 0%, transparent 58%),
+    radial-gradient(90% 50% at 100% 100%, rgba(120, 150, 255, 0.1) 0%, transparent 60%),
+    linear-gradient(180deg, var(--void-2) 0%, var(--void) 45%, var(--void-3) 100%);
+  --grain: 0.16;
 }
 
 @theme inline {
@@ -60,6 +164,8 @@
   --color-text-2: var(--text-2);
   --color-text-3: var(--text-3);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-tint: var(--tint);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --font-display: var(--font-bricolage);
@@ -68,16 +174,12 @@
 
 @layer base {
   html {
-    color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
     background-color: var(--void);
-    background-image:
-      radial-gradient(130% 70% at 50% -12%, rgba(198, 242, 78, 0.07) 0%, transparent 58%),
-      radial-gradient(90% 50% at 100% 100%, rgba(120, 150, 255, 0.05) 0%, transparent 60%),
-      linear-gradient(180deg, var(--void-2) 0%, var(--void) 45%, #050608 100%);
+    background-image: var(--ground);
     background-attachment: fixed;
     color: var(--text-1);
     font-family: var(--font-space), ui-sans-serif, system-ui, sans-serif;
@@ -93,14 +195,14 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.4;
+    opacity: var(--grain);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
     mix-blend-mode: soft-light;
   }
 
   ::selection {
     background: var(--accent);
-    color: #0b0d07;
+    color: var(--on-accent);
   }
 
   :focus-visible {
@@ -117,7 +219,7 @@
 
   .plate {
     position: relative;
-    background: linear-gradient(168deg, var(--surface-2) 0%, var(--surface-1) 52%, #101216 100%);
+    background: linear-gradient(168deg, var(--surface-2) 0%, var(--surface-1) 52%, var(--plate-3) 100%);
     border: 1px solid var(--edge);
     box-shadow: var(--lift), var(--bevel);
     border-radius: 26px;
@@ -139,8 +241,8 @@
   }
 
   .groove {
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
-    border: 1px solid rgba(0, 0, 0, 0.7);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
+    border: 1px solid var(--edge-sunk);
     box-shadow: var(--inset);
     border-radius: 20px;
   }
@@ -170,8 +272,8 @@
 
   .key-accent {
     border-color: rgba(198, 242, 78, 0.32);
-    background: linear-gradient(180deg, #dcff6b 0%, var(--accent) 42%, var(--accent-deep) 100%);
-    color: #0a0d05;
+    background: linear-gradient(180deg, var(--accent-hi) 0%, var(--accent) 42%, var(--accent-deep) 100%);
+    color: var(--on-accent);
     box-shadow:
       0 22px 40px -18px rgba(198, 242, 78, 0.45),
       0 4px 10px rgba(0, 0, 0, 0.6),
@@ -189,9 +291,7 @@
   }
 
   .emboss {
-    text-shadow:
-      0 1px 0 rgba(0, 0, 0, 0.85),
-      0 2px 14px rgba(0, 0, 0, 0.5);
+    text-shadow: var(--emboss);
   }
 
   .display {
@@ -217,8 +317,8 @@
     width: 100%;
     min-width: 0;
     border-radius: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.7);
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
+    border: 1px solid var(--edge-sunk);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
     box-shadow: var(--inset);
     color: var(--text-1);
     font-family: inherit;
@@ -257,7 +357,7 @@
   }
 
   select.field option {
-    background: #16181c;
+    background: var(--surface-1);
     color: var(--text-1);
   }
 
@@ -282,7 +382,7 @@
     gap: 0.375rem;
     border-radius: 999px;
     border: 1px solid var(--edge);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.2));
+    background: linear-gradient(180deg, var(--tint), transparent);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
     padding: 0.375rem 0.75rem;
     font-size: 0.6875rem;
@@ -325,8 +425,8 @@
   .dial {
     position: relative;
     border-radius: 999px;
-    background: linear-gradient(180deg, #0b0d10 0%, #16181c 100%);
-    border: 1px solid rgba(0, 0, 0, 0.7);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--surface-1) 100%);
+    border: 1px solid var(--edge-sunk);
     box-shadow: var(--inset), 0 8px 18px -10px rgba(0, 0, 0, 0.9);
   }
 
@@ -465,17 +565,17 @@
 @layer components {
   /* El velo no es un overlay gris: es la app apagándose detrás del panel. */
   .veil {
-    background: rgba(4, 5, 7, 0.72);
+    background: var(--veil-bg);
     backdrop-filter: blur(12px) saturate(0.6);
     animation: fade 0.24s var(--ease-quart) both;
   }
 
   .sheet {
-    background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface-1) 40%, #0d0f13 100%);
+    background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface-1) 40%, var(--sheet-3) 100%);
     border-top: 1px solid var(--edge-strong);
     border-radius: 30px 30px 0 0;
     box-shadow:
-      0 -30px 70px -24px rgba(0, 0, 0, 0.95),
+      0 -30px 70px -24px var(--drop),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
     animation: sheet-up 0.38s var(--ease-expo) both;
   }
@@ -485,8 +585,8 @@
     width: 2.5rem;
     height: 0.25rem;
     border-radius: 999px;
-    background: rgba(243, 241, 234, 0.18);
-    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6);
+    background: var(--text-3);
+    box-shadow: inset 0 1px 0 var(--edge-sunk);
   }
 
   /* ------------------------------------------------------------------------
@@ -500,8 +600,8 @@
     gap: 0.25rem;
     padding: 0.25rem;
     border-radius: 999px;
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
-    border: 1px solid rgba(0, 0, 0, 0.7);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
+    border: 1px solid var(--edge-sunk);
     box-shadow: var(--inset);
   }
 
@@ -536,8 +636,8 @@
     aspect-ratio: 1;
     border-radius: 18px;
     padding: 0.375rem;
-    border: 1px solid rgba(0, 0, 0, 0.7);
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
+    border: 1px solid var(--edge-sunk);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
     box-shadow: var(--inset);
     color: var(--text-2);
     text-align: center;
@@ -553,9 +653,9 @@
   }
 
   .tile[data-active="true"] {
-    color: #0a0d05;
+    color: var(--on-accent);
     border-color: rgba(198, 242, 78, 0.4);
-    background: linear-gradient(180deg, #dcff6b 0%, var(--accent) 45%, var(--accent-deep) 100%);
+    background: linear-gradient(180deg, var(--accent-hi) 0%, var(--accent) 45%, var(--accent-deep) 100%);
     box-shadow:
       0 16px 30px -14px rgba(198, 242, 78, 0.5),
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -578,7 +678,7 @@
   .rail {
     height: 0.5rem;
     border-radius: 999px;
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
     box-shadow: var(--inset);
     overflow: hidden;
   }
@@ -611,9 +711,9 @@
     max-width: 30rem;
     transform: translateX(-50%);
     padding: 0.875rem 1.25rem max(0.875rem, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, #0c0e12 0%, #0a0b0e 100%);
+    background: linear-gradient(180deg, var(--bar-1) 0%, var(--bar-2) 100%);
     border-top: 1px solid var(--edge);
-    box-shadow: 0 -20px 34px -26px rgba(0, 0, 0, 0.98);
+    box-shadow: 0 -20px 34px -26px var(--drop);
   }
 }
 
@@ -650,9 +750,9 @@
     position: relative;
     overflow: hidden;
     border-radius: 20px;
-    border: 1px solid rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--edge-sunk);
     box-shadow: var(--inset);
-    background: #0b0d10;
+    background: var(--sunk-1);
     padding: 1.125rem;
     touch-action: none;
     user-select: none;
@@ -695,19 +795,19 @@
       linear-gradient(
         to right,
         transparent calc(33.33% - 0.5px),
-        rgba(243, 241, 234, 0.14) calc(33.33% - 0.5px),
-        rgba(243, 241, 234, 0.14) calc(33.33% + 0.5px),
+        var(--edge-strong) calc(33.33% - 0.5px),
+        var(--edge-strong) calc(33.33% + 0.5px),
         transparent calc(33.33% + 0.5px),
         transparent calc(66.66% - 0.5px),
-        rgba(243, 241, 234, 0.14) calc(66.66% - 0.5px),
-        rgba(243, 241, 234, 0.14) calc(66.66% + 0.5px),
+        var(--edge-strong) calc(66.66% - 0.5px),
+        var(--edge-strong) calc(66.66% + 0.5px),
         transparent calc(66.66% + 0.5px)
       ),
       linear-gradient(
         to bottom,
         transparent calc(50% - 0.5px),
-        rgba(243, 241, 234, 0.1) calc(50% - 0.5px),
-        rgba(243, 241, 234, 0.1) calc(50% + 0.5px),
+        var(--edge) calc(50% - 0.5px),
+        var(--edge) calc(50% + 0.5px),
         transparent calc(50% + 0.5px)
       );
   }
@@ -814,8 +914,8 @@
     height: 1.625rem;
     flex-shrink: 0;
     border-radius: 9px;
-    border: 1px solid rgba(0, 0, 0, 0.7);
-    background: linear-gradient(180deg, #0b0d10 0%, #131519 100%);
+    border: 1px solid var(--edge-sunk);
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
     box-shadow: var(--inset);
     color: transparent;
     transition:
@@ -826,11 +926,11 @@
 
   .check[data-on="true"] {
     border-color: rgba(198, 242, 78, 0.4);
-    background: linear-gradient(180deg, #dcff6b 0%, var(--accent) 45%, var(--accent-deep) 100%);
+    background: linear-gradient(180deg, var(--accent-hi) 0%, var(--accent) 45%, var(--accent-deep) 100%);
     box-shadow:
       0 10px 18px -10px rgba(198, 242, 78, 0.55),
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
-    color: #0a0d05;
+    color: var(--on-accent);
   }
 
   /* La fila descartada no se va: se apaga, para poder recuperarla. */
@@ -886,7 +986,7 @@
 
   .dictate-track {
     fill: none;
-    stroke: rgba(243, 241, 234, 0.07);
+    stroke: var(--edge);
     stroke-width: 3;
   }
 
@@ -916,9 +1016,9 @@
     border: 1px solid var(--edge-strong);
     background:
       radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
-      linear-gradient(180deg, var(--surface-3) 0%, var(--surface-1) 62%, #0e1013 100%);
+      linear-gradient(180deg, var(--surface-3) 0%, var(--surface-1) 62%, var(--key-deep) 100%);
     box-shadow:
-      0 30px 50px -22px rgba(0, 0, 0, 0.95),
+      0 30px 50px -22px var(--drop),
       var(--bevel-deep);
     color: var(--text-1);
     transition:
@@ -1007,5 +1107,122 @@
 
   .dictate-bar {
     transition: none;
+  }
+}
+
+/* ==========================================================================
+   Selector de tema — un riel hundido con una tecla que se desliza.
+
+   Es el mismo objeto que `.tabs`, encogido a tamaño de header: tres celdas
+   iguales y una sola tecla física que viaja entre ellas. La tecla se mueve
+   con `transform`, así que el deslizamiento corre en GPU y no toca layout.
+   ========================================================================== */
+
+@layer components {
+  /*
+     Qué celda está encendida y dónde para la tecla lo decide el atributo del
+     `<html>`, no el estado de React: el script de arranque ya lo escribió
+     antes del primer pintado, así que la tecla nace en su lugar. Sin
+     atributo es automático — la celda del medio.
+  */
+  .theme-switch {
+    --pos: 1;
+    position: relative;
+    /* Es un control de ancho fijo dentro de un header flex: sin esto el
+       titular lo aplasta en pantallas angostas y las celdas dejan de ser
+       tocables. */
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    padding: 0.1875rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
+    border: 1px solid var(--edge-sunk);
+    box-shadow: var(--inset);
+  }
+
+  /* La tecla: una sola, ocupa un tercio del riel y viaja al elegido. */
+  .theme-thumb {
+    position: absolute;
+    top: 0.1875rem;
+    left: 0.1875rem;
+    width: calc((100% - 0.375rem) / 3);
+    height: calc(100% - 0.375rem);
+    border-radius: 999px;
+    border: 1px solid var(--edge-strong);
+    background: linear-gradient(180deg, var(--surface-3) 0%, var(--surface-1) 100%);
+    box-shadow: var(--lift-sm), var(--bevel);
+    transform: translate3d(calc(var(--pos, 0) * 100%), 0, 0);
+    transition: transform 0.42s var(--ease-expo);
+    will-change: transform;
+    pointer-events: none;
+  }
+
+  :root[data-theme="light"] .theme-switch {
+    --pos: 0;
+  }
+
+  :root[data-theme="dark"] .theme-switch {
+    --pos: 2;
+  }
+
+  .theme-opt {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 2rem;
+    border-radius: 999px;
+    color: var(--text-3);
+    transition: color 0.32s var(--ease-expo);
+  }
+
+  :root:not([data-theme]) .theme-opt[data-choice="auto"],
+  :root[data-theme="light"] .theme-opt[data-choice="light"],
+  :root[data-theme="dark"] .theme-opt[data-choice="dark"] {
+    color: var(--accent-ink);
+  }
+
+  /* El foco se dibuja sobre el riel entero, no sobre cada celda: el anillo
+     dentro de un control de 30px se ve como un error, no como un estado. */
+  .theme-opt:focus-visible {
+    outline: none;
+  }
+
+  .theme-switch:has(.theme-opt:focus-visible) {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 3px;
+  }
+
+  /*
+     El cambio de tema en sí. Sin esto la pantalla corta de golpe y se lee
+     como un parpadeo roto; con esto la placa se apaga y se enciende. Solo
+     dura el instante del cambio: la clase se pone y se saca, porque dejar
+     una transición global viva arrastraría cada hover del resto de la app.
+  */
+  .theme-shift,
+  .theme-shift *,
+  .theme-shift *::before,
+  .theme-shift *::after {
+    transition:
+      background-color 0.36s var(--ease-quart),
+      background-image 0.36s var(--ease-quart),
+      border-color 0.36s var(--ease-quart),
+      box-shadow 0.36s var(--ease-quart),
+      color 0.36s var(--ease-quart),
+      opacity 0.36s var(--ease-quart) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-thumb {
+    transition: none;
+  }
+
+  .theme-shift,
+  .theme-shift *,
+  .theme-shift *::before,
+  .theme-shift *::after {
+    transition: none !important;
   }
 }

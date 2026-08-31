@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { ArrowBack } from "@/components/icons";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { isAdmin } from "@/lib/admin";
 import { formatMoney } from "@/lib/money";
 import { WorkProfileForm } from "../../should-i-buy-it/work-profile-form";
@@ -66,7 +67,7 @@ export default async function PocketSettingsPage() {
           style={{ "--d": "110ms" } as CSSProperties}
         >
           Cómo entra
-          <span className="block text-[var(--accent)]">y cómo sale</span>
+          <span className="block text-[var(--accent-ink)]">y cómo sale</span>
         </h1>
         <p
           className="rise mt-4 max-w-[21rem] text-[0.875rem] leading-relaxed text-[var(--text-2)]"
@@ -108,6 +109,19 @@ export default async function PocketSettingsPage() {
 
       <Stagger delay={600}>
         <PushToggle admin={isAdmin(user.email)} />
+      </Stagger>
+
+      <Stagger delay={620}>
+        <section className="plate flex items-center gap-4 p-5">
+          <span className="min-w-0 flex-1">
+            <p className="eyebrow">Cómo se ve</p>
+            <h2 className="display mt-2 text-[1.625rem]">Tema</h2>
+            <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-2)]">
+              Automático sigue lo que tenga puesto tu teléfono.
+            </p>
+          </span>
+          <ThemeSwitch />
+        </section>
       </Stagger>
 
       <Stagger delay={640}>

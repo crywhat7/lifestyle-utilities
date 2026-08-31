@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { GoogleSignIn } from "@/components/google-sign-in";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { Spark } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,7 +31,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
         style={{ "--d": "50ms" } as React.CSSProperties}
       >
         <span className="eyebrow">Lifestyle Utilities</span>
-        <span className="eyebrow tabular-nums">v0.1</span>
+        <ThemeSwitch />
       </header>
 
       {/* La pantalla entera es una sola placa mecanizada */}
@@ -40,7 +41,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
 
         {/* Marca semihundida en el borde superior de la placa */}
         <div className="key absolute top-0 left-6 flex size-16 -translate-y-1/2 items-center justify-center rounded-[20px]">
-          <Spark className="size-7 text-[var(--accent)] drop-shadow-[0_0_12px_var(--accent-glow)]" />
+          <Spark className="size-7 text-[var(--accent-ink)] drop-shadow-[0_0_12px_var(--accent-glow)]" />
         </div>
 
         <div className="relative">
@@ -49,7 +50,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
             style={{ "--d": "130ms" } as React.CSSProperties}
           >
             Lifestyle
-            <span className="block pl-[0.55em] text-[var(--accent)]">
+            <span className="block pl-[0.55em] text-[var(--accent-ink)]">
               Utilities
             </span>
           </h1>
@@ -65,7 +66,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
 
         {/* Ranura separadora */}
         <div
-          className="fade mt-9 h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent"
+          className="fade mt-9 h-px w-full bg-gradient-to-r from-transparent via-[var(--edge-strong)] to-transparent"
           style={{ "--d": "340ms" } as React.CSSProperties}
         />
 
@@ -78,7 +79,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/">) {
           {errorMessage ? (
             <p
               role="alert"
-              className="mt-4 text-center text-[0.8125rem] text-[#ff9a7a]"
+              className="mt-4 text-center text-[0.8125rem] text-[var(--danger)]"
             >
               {errorMessage}
             </p>
@@ -109,7 +110,7 @@ function Rivets() {
         <span
           key={position}
           aria-hidden="true"
-          className={`absolute ${position} size-1.5 rounded-full bg-black/70 shadow-[inset_0_1px_1px_rgba(0,0,0,.9),0_1px_0_rgba(255,255,255,.07)]`}
+          className={`absolute ${position} size-1.5 rounded-full bg-[var(--sunk-1)] shadow-[var(--inset)]`}
         />
       ))}
     </>

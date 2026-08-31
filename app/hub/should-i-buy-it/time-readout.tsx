@@ -78,7 +78,7 @@ export function TimeReadout({
       <div className="relative flex items-center justify-between gap-3">
         <span
           className="chip"
-          style={{ color: copy.color, borderColor: `${copy.color}55` }}
+          style={{ color: copy.color, borderColor: `color-mix(in srgb, ${copy.color} 34%, transparent)` }}
         >
           <span
             className={risk === "high" ? "pulse-dot size-1.5 rounded-full" : "size-1.5 rounded-full"}
@@ -141,7 +141,7 @@ export function TimeReadout({
         </span>
       </div>
 
-      <p className="relative mt-5 border-t border-white/6 pt-4 text-[0.8125rem] leading-relaxed text-[var(--text-2)]">
+      <p className="relative mt-5 border-t border-[var(--edge)] pt-4 text-[0.8125rem] leading-relaxed text-[var(--text-2)]">
         {copy.note}
       </p>
     </section>

@@ -83,7 +83,7 @@ export default async function PendingPage() {
           className="groove rise flex flex-col items-center gap-2 px-6 py-10 text-center"
           style={{ "--d": "200ms" } as CSSProperties}
         >
-          <Check className="size-6 text-[var(--accent)]" />
+          <Check className="size-6 text-[var(--accent-ink)]" />
           <p className="text-[0.9375rem] text-[var(--text-2)]">
             {phrases.length === 0 ? "Lista vacía" : "Todo clasificado"}
           </p>
@@ -102,7 +102,7 @@ export default async function PendingPage() {
                   href={`/hub/my-pocket/movimiento/${transaction.id}`}
                   className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
                 >
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--text-2)]">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--text-2)]">
                     <CategoryIcon
                       iconKey={category?.icon_key ?? "other"}
                       className="size-[1.1875rem]"

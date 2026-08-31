@@ -90,7 +90,7 @@ export function RiskPanel({
               />
               <span
                 aria-hidden="true"
-                className="mt-px flex size-5 shrink-0 items-center justify-center rounded-[7px] border border-white/12 bg-black/40 text-transparent transition-colors duration-300 [transition-timing-function:var(--ease-quart)] peer-checked:border-[var(--accent)]/60 peer-checked:bg-[var(--accent)] peer-checked:text-[#0a0d05] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]"
+                className="mt-px flex size-5 shrink-0 items-center justify-center rounded-[7px] border border-[var(--edge-strong)] bg-[var(--sunk-1)] text-transparent transition-colors duration-300 [transition-timing-function:var(--ease-quart)] peer-checked:border-[var(--accent)]/60 peer-checked:bg-[var(--accent)] peer-checked:text-[var(--on-accent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]"
               >
                 <Check className="size-3" />
               </span>
@@ -103,7 +103,7 @@ export function RiskPanel({
       </ul>
 
       {/* Simulador de cuotas */}
-      <div className="relative mt-5 border-t border-white/6 pt-5">
+      <div className="relative mt-5 border-t border-[var(--edge)] pt-5">
         <p className="field-label mb-3">Si lo pagás en cuotas</p>
 
         <div
@@ -162,8 +162,8 @@ export function RiskPanel({
       </div>
 
       <p
-        className="relative mt-5 border-t border-white/6 pt-4 text-[0.8125rem] leading-relaxed"
-        style={{ color: allClear ? "var(--accent)" : HIGH_RISK.color }}
+        className="relative mt-5 border-t border-[var(--edge)] pt-4 text-[0.8125rem] leading-relaxed"
+        style={{ color: allClear ? "var(--accent-ink)" : HIGH_RISK.color }}
       >
         {allClear
           ? "Con las tres cubiertas, ya no es un impulso: es una decisión tomada."

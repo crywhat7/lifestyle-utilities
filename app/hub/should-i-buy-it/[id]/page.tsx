@@ -56,7 +56,7 @@ export default async function DecisionPage({
   const tone =
     share != null
       ? presentation(decision.verdict ?? "think", riskLevel(share)).color
-      : "#c6f24e";
+      : "var(--accent-ink)";
 
   return (
     <main className="relative flex flex-1 flex-col gap-4 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
@@ -64,7 +64,7 @@ export default async function DecisionPage({
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10"
         style={{
-          background: `radial-gradient(120% 55% at 50% 0%, ${tone}1c 0%, transparent 62%)`,
+          background: `radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, ${tone} 11%, transparent) 0%, transparent 62%)`,
         }}
       />
 

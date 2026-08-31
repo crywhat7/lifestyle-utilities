@@ -120,7 +120,7 @@ export function WorkProfileForm({ initial, onboarding = false }: Props) {
         </p>
       ) : null}
       {state.status === "saved" ? (
-        <p className="text-center text-[0.8125rem] text-[var(--accent)]">
+        <p className="text-center text-[0.8125rem] text-[var(--accent-ink)]">
           Listo, tarifa actualizada.
         </p>
       ) : null}
@@ -143,7 +143,7 @@ export function RateSummary({
 
   return (
     <span className="flex items-baseline gap-2">
-      <span className="display text-[1.5rem] tabular-nums text-[var(--accent)]">
+      <span className="display text-[1.5rem] tabular-nums text-[var(--accent-ink)]">
         {formatMoney(rate, profile.currency)}
       </span>
       <span className="text-[0.75rem] text-[var(--text-3)]">

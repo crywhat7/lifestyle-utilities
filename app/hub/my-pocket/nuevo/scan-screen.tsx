@@ -203,7 +203,7 @@ function PickStep({
         className="groove rise flex cursor-pointer flex-col items-center gap-3 px-6 py-12 text-center"
         style={{ "--d": "210ms" } as CSSProperties}
       >
-        <span className="flex size-14 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+        <span className="flex size-14 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
           <Scan className="size-6" />
         </span>
         <span className="text-[0.9375rem] font-medium">
@@ -224,7 +224,7 @@ function PickStep({
         className="key rise flex h-14 cursor-pointer items-center justify-center gap-2 rounded-full text-[0.9375rem] font-medium"
         style={{ "--d": "270ms" } as CSSProperties}
       >
-        <Camera className="size-[1.125rem] text-[var(--accent)]" />
+        <Camera className="size-[1.125rem] text-[var(--accent-ink)]" />
         Tomar una foto
         <input
           type="file"
@@ -387,7 +387,7 @@ function Review({
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-[0.75rem]"
                     style={{
                       color: "var(--warn)",
-                      background: "rgba(242, 184, 78, 0.08)",
+                      background: "color-mix(in srgb, var(--warn) 10%, transparent)",
                     }}
                   >
                     <span aria-hidden="true">
@@ -401,7 +401,7 @@ function Review({
                 ) : null}
 
                 <label className="flex items-center gap-2">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-[var(--accent)]">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent-ink)]">
                     {edit?.categoryId ? (
                       <CategoryIcon
                         iconKey={category?.icon_key ?? expense.iconKey}

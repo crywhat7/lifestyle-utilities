@@ -24,17 +24,17 @@ export const VERDICT_COPY: Record<
 > = {
   buy: {
     label: "Compralo",
-    color: "#c6f24e",
+    color: "var(--accent-ink)",
     note: "El tiempo que cuesta es proporcional a lo que te devuelve.",
   },
   think: {
     label: "Pensalo",
-    color: "#f2b84e",
+    color: "var(--warn)",
     note: "Dormí una noche. Si mañana lo seguís queriendo, es real.",
   },
   skip: {
     label: "Dejalo pasar",
-    color: "#ff7a5c",
+    color: "var(--danger)",
     note: "Ese precio te cuesta más vida de la que vale el objeto.",
   },
 };
@@ -42,7 +42,7 @@ export const VERDICT_COPY: Record<
 /** Arriba del 35% del ingreso ya no es una advertencia: es una decisión seria. */
 export const HIGH_RISK = {
   label: "Alto riesgo",
-  color: "#ff4d33",
+  color: "var(--alert)",
   note: "Esto se lleva más de un tercio de tu mes. No lo decidas hoy.",
 };
 

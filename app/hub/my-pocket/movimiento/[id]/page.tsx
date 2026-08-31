@@ -165,7 +165,7 @@ export default async function TransactionPage({
           <span className="flex items-center gap-1.5 text-[0.75rem] text-[var(--text-3)]">
             {current?.name ?? "Sin categoría"}
             {transaction.ai_categorized ? (
-              <Spark className="size-2.5 text-[var(--accent)]" />
+              <Spark className="size-2.5 text-[var(--accent-ink)]" />
             ) : null}
           </span>
         </div>
@@ -191,7 +191,7 @@ export default async function TransactionPage({
                     style={{
                       background:
                         category.id === transaction.category_id
-                          ? "rgba(10,13,5,.45)"
+                          ? "var(--on-accent)"
                           : "var(--accent)",
                     }}
                   />
