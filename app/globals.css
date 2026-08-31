@@ -1226,3 +1226,54 @@
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   Esqueletos de carga.
+
+   No son un spinner tapando la pantalla: son la misma página con las piezas
+   todavía vacías, para que cuando lleguen los datos nada se mueva de lugar.
+   Una ranura hundida con un reflejo que la recorre — el mismo objeto que ya
+   usa el resto de la app, apagado.
+   ========================================================================== */
+
+@layer components {
+  .bone {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(180deg, var(--sunk-1) 0%, var(--sunk-2) 100%);
+    box-shadow: var(--inset);
+  }
+
+  /* El reflejo va en un pseudo-elemento para animar solo `transform`. */
+  .bone::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(-100%, 0, 0);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--tint) 45%,
+      var(--tint) 55%,
+      transparent 100%
+    );
+    animation: sheen 1.5s var(--ease-quart) var(--d, 0ms) infinite;
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin barrido, pero la pieza vacía se sigue viendo: eso es la información. */
+  .bone::after {
+    animation: none;
+  }
+}
