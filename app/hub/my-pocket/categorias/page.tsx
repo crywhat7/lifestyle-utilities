@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import { ArrowBack, Spark } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
@@ -8,7 +8,8 @@ import { monthLabel, monthStart, type PocketCategory } from "@/lib/pocket";
 import {
   loadCategories,
   loadLedger,
-  pocketSession,
+  loadPocketProfile,
+  pocketClient,
   type LedgerRow,
 } from "../data";
 
@@ -29,7 +30,14 @@ export default async function CategoriesPage({
   const params = await searchParams;
   const scope = params?.p === "todo" ? "todo" : "mes";
 
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user } = await pocketClient();
+
+  // Perfil, categorías y libro mayor no dependen entre sí: van juntos.
+  const [{ profile }, categories, ledger] = await Promise.all([
+    loadPocketProfile(supabase, user.id),
+    loadCategories(supabase),
+    loadLedger(supabase, user.id),
+  ]);
 
   if (!profile) {
     return (
@@ -37,17 +45,12 @@ export default async function CategoriesPage({
         <p className="text-[0.9375rem] text-[var(--text-2)]">
           Configurá primero tu ingreso.
         </p>
-        <Link href="/hub/my-pocket" className="key h-12 rounded-full px-6 pt-3.5">
+        <NavLink href="/hub/my-pocket" className="key h-12 rounded-full px-6 pt-3.5">
           Ir a My Pocket
-        </Link>
+        </NavLink>
       </main>
     );
   }
-
-  const [categories, ledger] = await Promise.all([
-    loadCategories(supabase),
-    loadLedger(supabase, user.id),
-  ]);
 
   const since = monthStart();
   const rows = ledger.filter(
@@ -80,13 +83,13 @@ export default async function CategoriesPage({
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Pocket
-        </Link>
+        </NavLink>
         <span className="eyebrow">
           {scope === "mes" ? monthLabel() : "Todo el histórico"}
         </span>
@@ -118,20 +121,20 @@ export default async function CategoriesPage({
         className="tabs rise"
         style={{ "--d": "240ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket/categorias?p=mes"
           className="tab text-center"
           data-active={scope === "mes" ? "true" : "false"}
         >
           Este mes
-        </Link>
-        <Link
+        </NavLink>
+        <NavLink
           href="/hub/my-pocket/categorias?p=todo"
           className="tab text-center"
           data-active={scope === "todo" ? "true" : "false"}
         >
           Todo
-        </Link>
+        </NavLink>
       </div>
 
       {slices.length === 0 ? (

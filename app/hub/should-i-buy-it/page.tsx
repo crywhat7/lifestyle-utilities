@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { ArrowBack, Chevron, Sliders, Trash } from "@/components/icons";
+import { currentUser } from "@/lib/auth";
 import { relativeDate, type DecisionRecord } from "@/lib/decisions";
 import {
   formatMoney,
@@ -30,12 +31,13 @@ type ProfileRow = {
 };
 
 export default async function ShouldIBuyItPage() {
-  const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // El proxy ya verificó la sesión en esta misma petición: preguntarla otra
+  // vez era un viaje entero a Supabase antes de la primera consulta.
+  const user = await currentUser();
 
   if (!user) redirect("/");
+
+  const supabase = await createClient("lifestyle_utilities");
 
   const [{ data: profileRow }, { data: historyRows }] = await Promise.all([
     supabase
@@ -69,13 +71,13 @@ export default async function ShouldIBuyItPage() {
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Hub
-        </Link>
+        </NavLink>
         <span className="eyebrow">Herramienta 01</span>
       </header>
 
@@ -192,7 +194,7 @@ function HistoryRow({
 
   return (
     <li className="groove flex items-center gap-1 overflow-hidden">
-      <Link
+      <NavLink
         href={`/hub/should-i-buy-it/${decision.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 p-4 transition-opacity duration-300 [transition-timing-function:var(--ease-quart)] active:opacity-70"
       >
@@ -223,7 +225,7 @@ function HistoryRow({
         </span>
 
         <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--text-3)]" />
-      </Link>
+      </NavLink>
 
       <form action={deleteDecision} className="pr-3">
         <input type="hidden" name="id" value={decision.id} />

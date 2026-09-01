@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import {
@@ -11,7 +10,9 @@ import {
   Wallet,
   WaveHand,
 } from "@/components/icons";
+import { NavLink } from "@/components/nav-link";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { currentUser } from "@/lib/auth";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
 import { InstallPrompt } from "./install-prompt";
@@ -22,13 +23,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HubPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // El proxy ya verificó la sesión en esta misma petición: leerla de la
+  // cabecera evita un segundo viaje a Supabase antes de la única consulta
+  // que esta pantalla necesita.
+  const user = await currentUser();
 
   if (!user) redirect("/");
 
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from("users_profiles")
     .select("name")
@@ -37,8 +39,7 @@ export default async function HubPage() {
 
   const fullName: string =
     profile?.name ??
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
+    user.name ??
     user.email?.split("@")[0] ??
     "invitado";
   const firstName = fullName.trim().split(/\s+/)[0];
@@ -206,13 +207,13 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
   }
 
   return (
-    <Link
+    <NavLink
       href={tool.href}
       className={className}
       style={{ "--d": `${delay}ms` } as CSSProperties}
     >
       {content}
-    </Link>
+    </NavLink>
   );
 }
 

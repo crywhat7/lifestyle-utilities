@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import { ArrowBack, Check, Chevron } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
@@ -10,7 +10,8 @@ import {
   loadCategories,
   loadPendingPhrases,
   loadPendingTransactions,
-  pocketSession,
+  loadPocketProfile,
+  pocketClient,
 } from "../data";
 
 export const metadata: Metadata = {
@@ -31,14 +32,17 @@ export const metadata: Metadata = {
  * exactamente eso en vez de fingir que no hay nada que hacer.
  */
 export default async function PendingPage() {
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user } = await pocketClient();
 
-  if (!profile) redirect("/hub/my-pocket");
-
-  const [categories, phrases] = await Promise.all([
+  // El perfil no manda sobre las otras dos consultas, así que las tres salen
+  // juntas: una ida y vuelta a Supabase en vez de dos.
+  const [{ profile }, categories, phrases] = await Promise.all([
+    loadPocketProfile(supabase, user.id),
     loadCategories(supabase),
     loadPendingPhrases(supabase),
   ]);
+
+  if (!profile) redirect("/hub/my-pocket");
 
   const transactions = await loadPendingTransactions(supabase, user.id, phrases);
   const byId = new Map(categories.map((category) => [category.id, category]));
@@ -49,13 +53,13 @@ export default async function PendingPage() {
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Pocket
-        </Link>
+        </NavLink>
         <span className="eyebrow">Sin nombre propio</span>
       </header>
 
@@ -98,7 +102,7 @@ export default async function PendingPage() {
 
             return (
               <li key={transaction.id}>
-                <Link
+                <NavLink
                   href={`/hub/my-pocket/movimiento/${transaction.id}`}
                   className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
                 >
@@ -135,7 +139,7 @@ export default async function PendingPage() {
                   </span>
 
                   <Chevron className="size-3.5 shrink-0 -rotate-90 text-[var(--text-3)]" />
-                </Link>
+                </NavLink>
               </li>
             );
           })}

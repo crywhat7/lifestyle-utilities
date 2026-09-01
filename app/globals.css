@@ -107,6 +107,9 @@
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-inout: cubic-bezier(0.87, 0, 0.13, 1);
+
+  /* Escala global de la entrada escalonada. Ver `.rise` / `.fade`. */
+  --stagger: 0.38;
 }
 
 /*
@@ -395,16 +398,51 @@
      Coreografía de entrada — estructura, titular, luego el resto
      ------------------------------------------------------------------------ */
 
+  /*
+    Cada elemento sigue declarando su turno en `--d`, pero la coreografía
+    entera se escala acá. Con el factor en 1 la última tarjeta del hub recién
+    aparecía cerca del segundo: al volver desde otra pantalla se veía el
+    fondo vacío y parecía que el toque no había hecho nada. El orden se
+    respeta, el reloj se acorta.
+  */
   .rise {
     opacity: 0;
-    animation: rise 0.58s var(--ease-expo) forwards;
-    animation-delay: var(--d, 0ms);
+    animation: rise 0.42s var(--ease-expo) forwards;
+    animation-delay: calc(var(--d, 0ms) * var(--stagger));
   }
 
   .fade {
     opacity: 0;
-    animation: fade 0.66s var(--ease-quart) forwards;
-    animation-delay: var(--d, 0ms);
+    animation: fade 0.44s var(--ease-quart) forwards;
+    animation-delay: calc(var(--d, 0ms) * var(--stagger));
+  }
+
+  .nav-link {
+    position: relative;
+  }
+
+  /*
+    El velo de "ya te escuché", encima de la tecla que se tocó.
+    Ver `components/nav-link.tsx`: solo se monta si la espera es real.
+  */
+  .link-veil {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--accent-glow) 50%,
+      transparent 100%
+    );
+    background-size: 55% 100%;
+    background-repeat: no-repeat;
+    animation:
+      veil-in 0.2s var(--ease-quart) 0.12s forwards,
+      veil-sweep 0.95s var(--ease-inout) 0.12s infinite;
   }
 
   .wave-hand {
@@ -479,6 +517,21 @@
   }
 }
 
+@keyframes veil-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes veil-sweep {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+
 @keyframes wave {
   0%,
   62%,
@@ -531,6 +584,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* El velo se queda quieto, pero se queda: es información, no adorno. */
+  .link-veil {
+    animation: veil-in 0.2s linear 0.12s forwards;
+    background-image: none;
+    background-color: var(--accent-glow);
+  }
+
   .rise,
   .fade {
     animation: none;

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { ArrowBack } from "@/components/icons";
+import { currentUser } from "@/lib/auth";
 import { relativeDate, type DecisionRecord } from "@/lib/decisions";
 import { presentation, riskLevel } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -19,12 +20,11 @@ export default async function DecisionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) redirect("/");
+
+  const supabase = await createClient("lifestyle_utilities");
 
   const [{ data: row }, { data: profileRow }] = await Promise.all([
     supabase
@@ -72,13 +72,13 @@ export default async function DecisionPage({
         className="fade flex items-center justify-between gap-3"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/should-i-buy-it"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Otra compra
-        </Link>
+        </NavLink>
         <span className="eyebrow shrink-0">
           {relativeDate(decision.created_at)}
         </span>

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { Cross, Spark } from "@/components/icons";
 import { enablePush, readPushStatus, type PushStatus } from "@/lib/push-client";
 import { isSnoozed, snooze } from "@/lib/snooze";
@@ -112,12 +112,12 @@ export function PushNudge() {
 
       <div className="relative mt-3.5">
         {status === "needs-install" ? (
-          <Link
+          <NavLink
             href="/hub/my-pocket/ajustes"
             className="key flex h-11 items-center justify-center rounded-full px-5 text-[0.8125rem] text-[var(--text-2)]"
           >
             Cómo se hace
-          </Link>
+          </NavLink>
         ) : (
           <button
             type="button"

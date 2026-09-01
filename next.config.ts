@@ -9,6 +9,24 @@ const nextConfig: NextConfig = {
       // el archivo llegue hasta ahí en vez de morir en el borde.
       bodySizeLimit: "6mb",
     },
+
+    /*
+      Cuánto vale lo que el router ya tiene en memoria.
+
+      Por defecto Next guarda cero segundos de una página dinámica, y todas
+      las de acá lo son: volver al hub desde My Pocket significaba renderizar
+      de nuevo en el servidor, con su viaje a Supabase, para mostrar
+      exactamente lo mismo que hacía cinco segundos. Con esto, ir y volver es
+      instantáneo dentro de la ventana.
+
+      No hay riesgo de ver plata vieja: cada Server Action que escribe llama a
+      `revalidatePath`, y eso vacía este caché en el acto para quien hizo el
+      cambio.
+    */
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
   },
 };
 

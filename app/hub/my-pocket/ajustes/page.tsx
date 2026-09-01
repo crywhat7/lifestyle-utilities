@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { ArrowBack } from "@/components/icons";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { isAdmin } from "@/lib/admin";
@@ -11,7 +11,8 @@ import {
   loadCategories,
   loadFixedExpenses,
   loadPaySchedules,
-  pocketSession,
+  loadPocketProfile,
+  pocketClient,
 } from "../data";
 import {
   CustomCategories,
@@ -28,16 +29,22 @@ export const metadata: Metadata = {
 };
 
 export default async function PocketSettingsPage() {
-  const { supabase, user, profile, since, accountSince, sinceIsCustom } =
-    await pocketSession();
+  const { supabase, user } = await pocketClient();
 
-  if (!profile) redirect("/hub/my-pocket");
-
-  const [categories, schedules, fixedExpenses] = await Promise.all([
+  // Las cuatro consultas de la pantalla, en una sola ida y vuelta.
+  const [
+    { profile, since, accountSince, sinceIsCustom },
+    categories,
+    schedules,
+    fixedExpenses,
+  ] = await Promise.all([
+    loadPocketProfile(supabase, user.id),
     loadCategories(supabase),
     loadPaySchedules(supabase, user.id),
     loadFixedExpenses(supabase, user.id),
   ]);
+
+  if (!profile) redirect("/hub/my-pocket");
 
   const mine = categories.filter((category) => category.user_id === user.id);
 
@@ -51,13 +58,13 @@ export default async function PocketSettingsPage() {
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Pocket
-        </Link>
+        </NavLink>
         <span className="eyebrow">Ajustes</span>
       </header>
 

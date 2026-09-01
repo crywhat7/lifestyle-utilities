@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import { ArrowBack, Check, Spark, Trash } from "@/components/icons";
 import { formatMoney } from "@/lib/money";
@@ -14,8 +14,9 @@ import {
 import {
   loadCategories,
   loadPendingPhrases,
+  loadPocketProfile,
   loadTransaction,
-  pocketSession,
+  pocketClient,
 } from "../../data";
 
 export const metadata: Metadata = {
@@ -27,15 +28,17 @@ export default async function TransactionPage({
   params,
 }: PageProps<"/hub/my-pocket/movimiento/[id]">) {
   const { id } = await params;
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user } = await pocketClient();
 
-  if (!profile) redirect("/hub/my-pocket");
-
-  const [transaction, categories, phrases] = await Promise.all([
+  // El perfil viaja con las otras tres en vez de por delante de ellas.
+  const [{ profile }, transaction, categories, phrases] = await Promise.all([
+    loadPocketProfile(supabase, user.id),
     loadTransaction(supabase, user.id, id),
     loadCategories(supabase),
     loadPendingPhrases(supabase),
   ]);
+
+  if (!profile) redirect("/hub/my-pocket");
 
   if (!transaction) notFound();
 
@@ -58,13 +61,13 @@ export default async function TransactionPage({
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Pocket
-        </Link>
+        </NavLink>
         <span className="eyebrow">{income ? "Ingreso" : "Egreso"}</span>
       </header>
 

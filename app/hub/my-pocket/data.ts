@@ -10,20 +10,41 @@ import {
   type PocketCategory,
   type PocketTransaction,
 } from "@/lib/pocket";
+import { currentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const POCKET_PATH = "/hub/my-pocket";
 
 export type PocketSession = Awaited<ReturnType<typeof pocketSession>>;
 
-export async function pocketSession() {
-  const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+/**
+ * El cliente y la persona, sin salir a la red.
+ *
+ * La sesión ya la verificó el proxy en esta misma petición, así que esto no
+ * espera a nadie: sirve para arrancar todas las consultas de una pantalla en
+ * paralelo en vez de encadenarlas detrás del perfil.
+ */
+export async function pocketClient() {
+  const user = await currentUser();
   if (!user) redirect("/");
 
+  return { supabase: await createClient("lifestyle_utilities"), user };
+}
+
+/** El cliente, la persona y su perfil de trabajo, en una sola llamada. */
+export async function pocketSession() {
+  const { supabase, user } = await pocketClient();
+  const profile = await loadPocketProfile(supabase, user.id);
+
+  return { supabase, user, ...profile };
+}
+
+export type PocketProfile = Awaited<ReturnType<typeof loadPocketProfile>>;
+
+export async function loadPocketProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
   const COLUMNS = "monthly_income,hours_per_day,days_per_week,currency,hourly_rate,created_at";
 
   // `pocket_since` llegó en la migración 0004. Si todavía no se corrió, la
@@ -42,7 +63,7 @@ export async function pocketSession() {
   const full = await supabase
     .from("work_profiles")
     .select(`${COLUMNS},pocket_since`)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   let data = full.data as ProfileRow | null;
@@ -51,7 +72,7 @@ export async function pocketSession() {
     const fallback = await supabase
       .from("work_profiles")
       .select(COLUMNS)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
     data = fallback.data as ProfileRow | null;
   }
@@ -70,8 +91,6 @@ export async function pocketSession() {
   }
 
   return {
-    supabase,
-    user,
     profile,
     /** Desde cuándo cuentan los fijos. Ver `TrackingSince` en los ajustes. */
     since: trackingSince(data?.pocket_since, data?.created_at),

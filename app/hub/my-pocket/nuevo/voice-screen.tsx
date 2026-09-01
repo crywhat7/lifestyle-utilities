@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   startTransition,
   useActionState,
@@ -10,6 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import { ArrowBack, Mic, Spark, Stop } from "@/components/icons";
 import { CURRENCIES } from "@/lib/money";
@@ -211,13 +211,13 @@ export function VoiceScreen({
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket/nuevo/egreso"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Egreso
-        </Link>
+        </NavLink>
         <span className="eyebrow">Sale plata</span>
       </header>
 

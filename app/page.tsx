@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { Spark } from "@/components/icons";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/auth";
 
 const ERROR_COPY: Record<string, string> = {
   oauth: "Google canceló el acceso. Probá de nuevo.",
@@ -11,10 +11,8 @@ const ERROR_COPY: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/">) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // La sesión ya viene resuelta por el proxy; esto no sale a la red.
+  const user = await currentUser();
 
   if (user) redirect("/hub");
 

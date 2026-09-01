@@ -12,6 +12,7 @@ import {
   timeCost,
   type WorkProfile,
 } from "@/lib/money";
+import { currentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const TOOL_PATH = "/hub/should-i-buy-it";
@@ -73,10 +74,8 @@ export async function saveWorkProfile(
   _prev: ProfileState,
   formData: FormData
 ): Promise<ProfileState> {
+  const user = await currentUser();
   const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) return { status: "error", error: "Sesión vencida." };
 
@@ -127,10 +126,8 @@ export async function startDecision(
   _prev: StartState,
   formData: FormData
 ): Promise<StartState> {
+  const user = await currentUser();
   const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) return { status: "error", error: "Sesión vencida." };
 
@@ -213,10 +210,8 @@ export async function startDecision(
  * hacía falta y arma pros, contras y recomendación.
  */
 export async function enrichDecision(id: string) {
+  const user = await currentUser();
   const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) return;
 
@@ -295,10 +290,8 @@ export async function retryAnalysis(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
+  const user = await currentUser();
   const supabase = await createClient("lifestyle_utilities");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) return;
 

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState, type CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import {
   ArrowBack,
@@ -176,13 +176,13 @@ export function EntryScreen({
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Pocket
-        </Link>
+        </NavLink>
         <span className="eyebrow">{copy.eyebrow}</span>
       </header>
 
@@ -229,7 +229,7 @@ export function EntryScreen({
           className="rise grid grid-cols-2 gap-2"
           style={{ "--d": "180ms" } as CSSProperties}
         >
-          <Link
+          <NavLink
             href="/hub/my-pocket/nuevo/dictar"
             className="groove flex flex-col gap-2 p-3.5"
           >
@@ -240,9 +240,9 @@ export function EntryScreen({
             <span className="text-[0.75rem] leading-snug text-[var(--text-3)]">
               7 segundos de voz y listo.
             </span>
-          </Link>
+          </NavLink>
 
-          <Link
+          <NavLink
             href="/hub/my-pocket/nuevo/escanear"
             className="groove flex flex-col gap-2 p-3.5"
           >
@@ -253,7 +253,7 @@ export function EntryScreen({
             <span className="text-[0.75rem] leading-snug text-[var(--text-3)]">
               Varios egresos del banco de una.
             </span>
-          </Link>
+          </NavLink>
         </div>
       ) : null}
 
@@ -511,12 +511,12 @@ function TemplateStep({
             ? "Todavía no tenés fechas de pago."
             : "Todavía no tenés gastos contemplados."}
         </p>
-        <Link
+        <NavLink
           href="/hub/my-pocket/ajustes"
           className="key mt-2 flex h-11 items-center rounded-full px-5 text-[0.8125rem]"
         >
           Configurar en Ajustes
-        </Link>
+        </NavLink>
       </div>
     );
   }

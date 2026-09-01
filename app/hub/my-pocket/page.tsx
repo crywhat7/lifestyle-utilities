@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { CSSProperties } from "react";
+import { NavLink } from "@/components/nav-link";
 import { CategoryIcon } from "@/components/category-icons";
 import {
   ArrowBack,
@@ -43,8 +43,9 @@ import {
   loadLedger,
   loadPaySchedules,
   loadPendingPhrases,
+  loadPocketProfile,
   loadTransactions,
-  pocketSession,
+  pocketClient,
 } from "./data";
 import { PushNudge } from "./push-nudge";
 
@@ -54,23 +55,40 @@ export const metadata: Metadata = {
 };
 
 export default async function MyPocketPage() {
-  const { supabase, user, profile, since: trackingSince } =
-    await pocketSession();
+  const { supabase, user } = await pocketClient();
 
-  if (!profile) return <Onboarding />;
+  /*
+    Las ocho consultas salen juntas.
 
-  const [categories, schedules, fixed] = await Promise.all([
+    Antes iban en tres tandas —perfil, después tres, después cuatro— y como
+    ninguna necesita el resultado de la anterior, la pantalla esperaba tres
+    idas y vueltas a Supabase en vez de una. Es la pantalla más pesada de la
+    app y era la que más se sentía trabada.
+
+    Quien todavía no tiene perfil paga ocho consultas para ver el onboarding,
+    una sola vez en la vida de la cuenta: no vale encadenarlas por eso.
+  */
+  const [
+    { profile, since: trackingSince },
+    categories,
+    schedules,
+    fixed,
+    ledger,
+    transactions,
+    paidFixed,
+    phrases,
+  ] = await Promise.all([
+    loadPocketProfile(supabase, user.id),
     loadCategories(supabase),
     loadPaySchedules(supabase, user.id),
     loadFixedExpenses(supabase, user.id),
-  ]);
-
-  const [ledger, transactions, paidFixed, phrases] = await Promise.all([
     loadLedger(supabase, user.id),
     loadTransactions(supabase, user.id, 40),
     loadFixedPayments(supabase, user.id),
     loadPendingPhrases(supabase),
   ]);
+
+  if (!profile) return <Onboarding />;
 
   const all = totals(ledger);
   const since = monthStart();
@@ -91,20 +109,20 @@ export default async function MyPocketPage() {
           className="fade flex items-center justify-between"
           style={{ "--d": "40ms" } as CSSProperties}
         >
-          <Link
+          <NavLink
             href="/hub"
             className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
           >
             <ArrowBack className="size-4" />
             Hub
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             href="/hub/my-pocket/ajustes"
             aria-label="Ajustes de My Pocket"
             className="key flex size-10 items-center justify-center rounded-full text-[var(--text-2)]"
           >
             <Sliders className="size-4" />
-          </Link>
+          </NavLink>
         </header>
 
         {/* Momento firma: el saldo ocupa la pantalla, en verde o en rojo */}
@@ -176,12 +194,12 @@ export default async function MyPocketPage() {
               {formatMoney(payday.schedule.amount, payday.schedule.currency)}
             </span>
           ) : (
-            <Link
+            <NavLink
               href="/hub/my-pocket/ajustes"
               className="key flex h-9 shrink-0 items-center rounded-full px-4 text-[0.75rem]"
             >
               Configurar
-            </Link>
+            </NavLink>
           )}
         </section>
 
@@ -193,20 +211,20 @@ export default async function MyPocketPage() {
           className="rise grid grid-cols-2 gap-3"
           style={{ "--d": "380ms" } as CSSProperties}
         >
-          <Link
+          <NavLink
             href="/hub/my-pocket/categorias"
             className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
           >
             <Grid className="size-4" />
             Por categoría
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             href="/hub/my-pocket/ajustes"
             className="key flex h-12 items-center justify-center gap-2 rounded-full text-[0.8125rem] text-[var(--text-2)]"
           >
             <Sliders className="size-4" />
             Contemplados y pagos
-          </Link>
+          </NavLink>
         </div>
 
         <section
@@ -223,7 +241,7 @@ export default async function MyPocketPage() {
           {/* Los provisionales no se buscan entre cuarenta filas: si hay
               alguno, se anuncia y se va derecho a arreglarlos. */}
           {unclassified > 0 ? (
-            <Link
+            <NavLink
               href="/hub/my-pocket/pendientes"
               className="groove mb-3 flex items-center gap-3 p-3"
             >
@@ -238,7 +256,7 @@ export default async function MyPocketPage() {
                   : `${unclassified} movimientos siguen con el nombre del banco`}
               </span>
               <Chevron className="size-3.5 shrink-0 -rotate-90 text-[var(--text-3)]" />
-            </Link>
+            </NavLink>
           ) : null}
 
           {transactions.length === 0 ? (
@@ -280,29 +298,29 @@ function ActionBar() {
         className="fade flex gap-3"
         style={{ "--d": "460ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub/my-pocket/nuevo/ingreso"
           className="key flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-medium"
         >
           <ArrowIn className="size-[1.125rem] text-[var(--accent-ink)]" />
           Ingreso
-        </Link>
-        <Link
+        </NavLink>
+        <NavLink
           href="/hub/my-pocket/nuevo/egreso"
           className="key key-accent flex h-14 flex-1 items-center justify-center gap-2 rounded-full text-[0.9375rem] font-semibold"
         >
           <ArrowUpRight className="size-[1.125rem]" />
           Egreso
-        </Link>
+        </NavLink>
         {/* Dictar es el camino más corto que existe hacia un gasto
             registrado: dos toques desde el balance y ni una tecla. */}
-        <Link
+        <NavLink
           href="/hub/my-pocket/nuevo/dictar"
           aria-label="Dictar un egreso en 7 segundos"
           className="key flex size-14 shrink-0 items-center justify-center rounded-full text-[var(--accent-ink)]"
         >
           <Mic className="size-[1.25rem]" />
-        </Link>
+        </NavLink>
       </div>
     </div>
   );
@@ -393,13 +411,13 @@ function FixedAgenda({
       </ul>
 
       {dues.length > shown.length ? (
-        <Link
+        <NavLink
           href="/hub/my-pocket/ajustes"
           className="mt-2 flex items-center justify-center gap-1.5 px-1 py-2 text-[0.75rem] text-[var(--text-3)]"
         >
           Ver los {dues.length} gastos contemplados
           <Chevron className="size-3 -rotate-90" />
-        </Link>
+        </NavLink>
       ) : null}
     </section>
   );
@@ -418,7 +436,7 @@ function FixedRow({
 
   return (
     <li>
-      <Link
+      <NavLink
         href={`/hub/my-pocket/nuevo/egreso?fijo=${due.expense.id}`}
         className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
         style={overdue ? { borderColor: "color-mix(in srgb, var(--danger) 45%, transparent)" } : undefined}
@@ -456,7 +474,7 @@ function FixedRow({
         </span>
 
         <Repeat className="size-3.5 shrink-0 text-[var(--text-3)]" />
-      </Link>
+      </NavLink>
     </li>
   );
 }
@@ -531,7 +549,7 @@ function Row({
   return (
     <li>
       {/* La fila entera es la puerta al detalle: ahí se recategoriza y se borra. */}
-      <Link
+      <NavLink
         href={`/hub/my-pocket/movimiento/${transaction.id}`}
         className="groove flex items-center gap-3 p-3 transition-transform duration-200 [transition-timing-function:var(--ease-expo)] active:scale-[0.99]"
       >
@@ -588,7 +606,7 @@ function Row({
         </span>
 
         <Chevron className="size-3.5 shrink-0 -rotate-90 text-[var(--text-3)]" />
-      </Link>
+      </NavLink>
     </li>
   );
 }
@@ -602,13 +620,13 @@ function Onboarding() {
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
       >
-        <Link
+        <NavLink
           href="/hub"
           className="key flex h-10 items-center gap-2 rounded-full pr-4 pl-3 text-[0.8125rem] text-[var(--text-2)]"
         >
           <ArrowBack className="size-4" />
           Hub
-        </Link>
+        </NavLink>
         <span className="eyebrow">Herramienta 02</span>
       </header>
 

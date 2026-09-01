@@ -3,7 +3,8 @@ import {
   loadCategories,
   loadFixedExpenses,
   loadPaySchedules,
-  pocketSession,
+  loadPocketProfile,
+  pocketClient,
 } from "../data";
 import { EntryScreen } from "./entry-screen";
 
@@ -19,15 +20,18 @@ export async function EntryRoute({
   /** Id de la plantilla (gasto contemplado o fecha de pago) que llega ya elegida. */
   preselect?: string | null;
 }) {
-  const { supabase, user, profile } = await pocketSession();
+  const { supabase, user } = await pocketClient();
+
+  // Todo junto: el perfil no le da datos a ninguna de las otras consultas.
+  const [{ profile }, categories, fixedExpenses, paySchedules] =
+    await Promise.all([
+      loadPocketProfile(supabase, user.id),
+      loadCategories(supabase),
+      loadFixedExpenses(supabase, user.id),
+      loadPaySchedules(supabase, user.id),
+    ]);
 
   if (!profile) redirect("/hub/my-pocket");
-
-  const [categories, fixedExpenses, paySchedules] = await Promise.all([
-    loadCategories(supabase),
-    loadFixedExpenses(supabase, user.id),
-    loadPaySchedules(supabase, user.id),
-  ]);
 
   return (
     <EntryScreen
