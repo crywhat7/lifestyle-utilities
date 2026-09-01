@@ -6,7 +6,7 @@ export type Tool = {
   tagline: string;
   description: string;
   href: string;
-  iconKey: "cart" | "spark" | "wallet";
+  iconKey: "cart" | "spark" | "wallet" | "slate";
   status: ToolStatus;
 };
 
@@ -33,6 +33,16 @@ export const TOOLS: Tool[] = [
       "Tu balance real en un número: ingresos, egresos y en qué se te va la plata.",
     href: "/hub/my-pocket",
     iconKey: "wallet",
+    status: "live",
+  },
+  {
+    slug: "clean-daily",
+    name: "Clean Daily",
+    tagline: "Lo de ayer no se arrastra",
+    description:
+      "Tus hábitos del día en una pizarra que se borra a las 00:00, y las tareas que no mueren hasta que las marcás.",
+    href: "/hub/clean-daily",
+    iconKey: "slate",
     status: "live",
   },
 ];

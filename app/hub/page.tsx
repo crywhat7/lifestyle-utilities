@@ -6,6 +6,7 @@ import {
   CartTag,
   PlusSlot,
   Power,
+  Slate,
   Spark,
   Wallet,
   WaveHand,
@@ -137,6 +138,7 @@ export default async function HubPage() {
 function ToolGlyph({ iconKey }: { iconKey: Tool["iconKey"] }) {
   if (iconKey === "cart") return <CartTag className="size-7" />;
   if (iconKey === "wallet") return <Wallet className="size-7" />;
+  if (iconKey === "slate") return <Slate className="size-7" />;
   return <Spark className="size-6" />;
 }
 

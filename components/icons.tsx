@@ -596,3 +596,165 @@ export function Auto({ className }: IconProps) {
     </svg>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Clean Daily                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Pizarra — el glifo de la herramienta.
+ * Una hoja con dos renglones y un cheque: lo que queda escrito y lo que se
+ * borra al amanecer.
+ */
+export function Slate({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect
+        x="3.5"
+        y="3.5"
+        width="17"
+        height="17"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M7.6 9.4h5.2M7.6 13.2h3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      <path
+        d="m13.4 16.1 2 2 3.4-4"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Amanecer — el corte de las 00:00, cuando la lista vuelve a estar limpia. */
+export function Sunrise({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M4 17.5h16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7.2 13.6a4.8 4.8 0 0 1 9.6 0"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 3.5v2.4M5.4 6.4 7 8M18.6 6.4 17 8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+    </svg>
+  );
+}
+
+/** Pulso — el ritmo del mes, que no es una racha sino una frecuencia. */
+export function Pulse({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M3 12.5h3.6L9 6.5l3.2 11 2.3-5h6.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Chincheta — lo que se queda fijo arriba hasta que lo resolvés. */
+export function Pin({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M9 3.5h6l-.8 5.2 3.1 3.1H6.7l3.1-3.1z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 11.8v8.7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Menos — restar una caída del día. */
+export function Minus({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M5 12h14"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Gota — el hábito malo. No es una calavera ni un pulgar abajo: es algo que
+ * cae y se cuenta, sin moral encima.
+ */
+export function Drop({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 3.5c3.4 4 5.6 6.8 5.6 9.6a5.6 5.6 0 0 1-11.2 0c0-2.8 2.2-5.6 5.6-9.6Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

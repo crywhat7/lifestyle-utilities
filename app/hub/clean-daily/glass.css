@@ -1,0 +1,670 @@
+/* ==========================================================================
+   Clean Daily — el ambiente de vidrio.
+
+   El resto de la app es una placa mecanizada: metal, bisel, sombra dura, un
+   acento lima. Este módulo es lo contrario a propósito, y la razón no es
+   decorativa: acá no hay nada que se acumule. Los hábitos no dejan deuda, la
+   pizarra se borra sola a las 00:00. Un material sin peso —vidrio esmerilado
+   flotando sobre una aurora lenta— dice eso antes de que se lea una palabra.
+
+   Todo cuelga de `.glass`, así que nada de esto existe fuera de esta ruta:
+   el módulo importa esta hoja en su layout y el vocabulario mecanizado sigue
+   intacto en las otras dos herramientas.
+
+   Colores en OKLCH: el lila y el aqua de la aurora tienen que sentirse a la
+   misma altura de luz, y en HSL un lila al 70% se ve mucho más oscuro que un
+   aqua al 70%. OKLCH es perceptualmente parejo, así que la mezcla no se
+   ensucia y los degradados no viran de tono a mitad de camino.
+   ========================================================================== */
+
+.glass {
+  /* ── Tinta ───────────────────────────────────────────────────────────── */
+  --g-ink: light-dark(oklch(28% 0.03 265), oklch(97% 0.008 250));
+  --g-ink-2: light-dark(oklch(45% 0.025 265), oklch(82% 0.015 250));
+  --g-ink-3: light-dark(oklch(58% 0.02 265), oklch(66% 0.02 255));
+
+  /* ── Los dos polos ───────────────────────────────────────────────────────
+     Aqua = lo que quiero sostener. Coral = lo que quiero contar para bajarlo.
+     Nunca verde/rojo de semáforo: esto no aprueba ni reprueba a nadie.
+     `-ink` es tinta sobre vidrio y `-lit` es relleno con luz propia; sobre
+     papel el aqua claro no se lee, así que la tinta baja de luminosidad. */
+  --g-good-ink: light-dark(oklch(52% 0.11 205), oklch(84% 0.12 195));
+  --g-good-lit: light-dark(oklch(64% 0.13 200), oklch(78% 0.14 195));
+  --g-bad-ink: light-dark(oklch(54% 0.16 30), oklch(80% 0.13 35));
+  --g-bad-lit: light-dark(oklch(62% 0.19 30), oklch(72% 0.16 33));
+
+  /* ── Cantos del vidrio ───────────────────────────────────────────────── */
+  --g-edge: light-dark(oklch(30% 0.03 265 / 0.12), oklch(100% 0 0 / 0.12));
+  --g-edge-lit: light-dark(oklch(30% 0.03 265 / 0.2), oklch(100% 0 0 / 0.22));
+  --g-hair: light-dark(oklch(30% 0.03 265 / 0.08), oklch(100% 0 0 / 0.08));
+
+  /*
+     El riel vacío de todo lo que se llena: la barra del día, el anillo del
+     mes, el día que no tocaba en la tira. Tiene que ser una sombra sobre
+     papel y una luz sobre la noche — un blanco al 12% sobre vidrio claro
+     simplemente no existe, y el riel desaparecía dejando la barra flotando.
+  */
+  --g-track: light-dark(oklch(30% 0.03 265 / 0.14), oklch(100% 0 0 / 0.12));
+
+  /* ── Recetas que `light-dark()` no alcanza ──────────────────────────────
+     Un degradado y una sombra no son colores, así que estas cinco van
+     duplicadas en los dos bloques de abajo. Es la misma decisión que ya toma
+     `globals.css` con el bisel de la placa. */
+  --pane-face: linear-gradient(
+    148deg,
+    oklch(100% 0 0 / 0.1) 0%,
+    oklch(100% 0 0 / 0.035) 46%,
+    oklch(100% 0 0 / 0.015) 100%
+  );
+  --pane-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.16),
+    inset 0 -1px 0 oklch(0% 0 0 / 0.12),
+    0 18px 40px -22px oklch(0% 0 0 / 0.85);
+  --pane-shadow-lit:
+    inset 0 1px 0 oklch(100% 0 0 / 0.24),
+    0 22px 50px -22px oklch(0% 0 0 / 0.9);
+  --sunk-face: oklch(0% 0 0 / 0.16);
+  --sky:
+    radial-gradient(58% 42% at 12% 2%, oklch(58% 0.19 292 / 0.5) 0%, transparent 62%),
+    radial-gradient(52% 38% at 92% 12%, oklch(62% 0.14 205 / 0.42) 0%, transparent 64%),
+    radial-gradient(70% 50% at 50% 108%, oklch(50% 0.13 250 / 0.55) 0%, transparent 70%),
+    linear-gradient(180deg, oklch(15% 0.035 268) 0%, oklch(11% 0.03 262) 100%);
+
+  /* ── Movimiento ──────────────────────────────────────────────────────── */
+  --g-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --g-ease-soft: cubic-bezier(0.25, 1, 0.5, 1);
+
+  color: var(--g-ink);
+}
+
+/* La luz de arriba: el vidrio deja de brillar solo y pasa a reflejar. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .glass {
+    --pane-face: linear-gradient(
+      148deg,
+      oklch(100% 0 0 / 0.78) 0%,
+      oklch(100% 0 0 / 0.55) 52%,
+      oklch(100% 0 0 / 0.42) 100%
+    );
+    --pane-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.9),
+      0 14px 30px -20px oklch(35% 0.04 265 / 0.5);
+    --pane-shadow-lit:
+      inset 0 1px 0 oklch(100% 0 0 / 0.95),
+      0 18px 36px -18px oklch(35% 0.04 265 / 0.55);
+    --sunk-face: oklch(30% 0.03 265 / 0.06);
+    --sky:
+      radial-gradient(58% 42% at 12% 2%, oklch(78% 0.11 292 / 0.55) 0%, transparent 62%),
+      radial-gradient(52% 38% at 92% 12%, oklch(84% 0.1 200 / 0.6) 0%, transparent 64%),
+      radial-gradient(70% 50% at 50% 108%, oklch(80% 0.08 250 / 0.6) 0%, transparent 70%),
+      linear-gradient(180deg, oklch(97% 0.012 250) 0%, oklch(94% 0.018 245) 100%);
+  }
+}
+
+:root[data-theme="light"] .glass {
+  --pane-face: linear-gradient(
+    148deg,
+    oklch(100% 0 0 / 0.78) 0%,
+    oklch(100% 0 0 / 0.55) 52%,
+    oklch(100% 0 0 / 0.42) 100%
+  );
+  --pane-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.9),
+    0 14px 30px -20px oklch(35% 0.04 265 / 0.5);
+  --pane-shadow-lit:
+    inset 0 1px 0 oklch(100% 0 0 / 0.95),
+    0 18px 36px -18px oklch(35% 0.04 265 / 0.55);
+  --sunk-face: oklch(30% 0.03 265 / 0.06);
+  --sky:
+    radial-gradient(58% 42% at 12% 2%, oklch(78% 0.11 292 / 0.55) 0%, transparent 62%),
+    radial-gradient(52% 38% at 92% 12%, oklch(84% 0.1 200 / 0.6) 0%, transparent 64%),
+    radial-gradient(70% 50% at 50% 108%, oklch(80% 0.08 250 / 0.6) 0%, transparent 70%),
+    linear-gradient(180deg, oklch(97% 0.012 250) 0%, oklch(94% 0.018 245) 100%);
+}
+
+@layer components {
+  /* ------------------------------------------------------------------------
+     El cielo — tapa el fondo mecanizado de la app mientras dure la ruta
+     ------------------------------------------------------------------------ */
+
+  .sky {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--sky);
+    background-attachment: fixed;
+  }
+
+  /*
+     Dos manchas que respiran fuera de fase. No son adorno: son lo único que
+     se mueve solo en toda la pantalla, y esa deriva lentísima —40 y 52
+     segundos— es lo que hace que el vidrio parezca vidrio y no un PNG.
+     Solo `transform`, así que viven en la GPU y no tocan el layout.
+  */
+  .sky::before,
+  .sky::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    will-change: transform;
+  }
+
+  .sky::before {
+    top: -18vh;
+    left: -20vw;
+    width: 78vw;
+    height: 78vw;
+    background: radial-gradient(circle, oklch(62% 0.2 300 / 0.42), transparent 70%);
+    animation: drift-a 44s var(--g-ease-soft) infinite alternate;
+  }
+
+  .sky::after {
+    right: -26vw;
+    bottom: -12vh;
+    width: 86vw;
+    height: 86vw;
+    background: radial-gradient(circle, oklch(66% 0.15 200 / 0.38), transparent 70%);
+    animation: drift-b 56s var(--g-ease-soft) infinite alternate;
+  }
+
+  /* ------------------------------------------------------------------------
+     Superficies
+     ------------------------------------------------------------------------ */
+
+  .pane {
+    position: relative;
+    isolation: isolate;
+    border-radius: 24px;
+    border: 1px solid var(--g-edge);
+    background: var(--pane-face);
+    /* `saturate` es la mitad del truco: sin él la aurora se ve gris detrás
+       del vidrio y el material parece plástico esmerilado. */
+    backdrop-filter: blur(22px) saturate(175%);
+    -webkit-backdrop-filter: blur(22px) saturate(175%);
+    box-shadow: var(--pane-shadow);
+  }
+
+  /* El canto agarrando la luz: una diagonal de brillo que muere al tercio. */
+  .pane::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      152deg,
+      oklch(100% 0 0 / 0.16) 0%,
+      oklch(100% 0 0 / 0.04) 26%,
+      transparent 52%
+    );
+  }
+
+  /* La tarea vencida no cambia de color: se enciende. */
+  .pane[data-alert="true"] {
+    border-color: color-mix(in oklch, var(--g-bad-lit) 42%, transparent);
+    box-shadow:
+      var(--pane-shadow-lit),
+      0 0 0 1px color-mix(in oklch, var(--g-bad-lit) 18%, transparent),
+      0 20px 46px -26px color-mix(in oklch, var(--g-bad-lit) 60%, transparent);
+  }
+
+  .sunk {
+    border-radius: 18px;
+    background: var(--sunk-face);
+    border: 1px solid var(--g-hair);
+  }
+
+  /* ------------------------------------------------------------------------
+     Tipografía — el serif es la firma del ambiente
+     ------------------------------------------------------------------------ */
+
+  /*
+     Bricolage manda en el resto de la app. Acá el titular es Instrument
+     Serif: el contraste de trazo y las gotas de la itálica son lo que hace
+     que se sienta otra habitación en cuanto entrás, incluso antes de ver el
+     vidrio. Va con tracking negativo porque a este tamaño el serif se abre.
+  */
+  .glass-display {
+    font-family: var(--font-instrument), ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 0.9;
+    text-wrap: balance;
+  }
+
+  .glass-eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--g-ink-3);
+  }
+
+  /* ------------------------------------------------------------------------
+     Controles
+     ------------------------------------------------------------------------ */
+
+  .gkey {
+    position: relative;
+    border-radius: 999px;
+    border: 1px solid var(--g-edge);
+    background: var(--pane-face);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.18);
+    color: var(--g-ink-2);
+    transition:
+      transform 0.22s var(--g-ease),
+      border-color 0.22s var(--g-ease),
+      color 0.22s var(--g-ease);
+  }
+
+  .gkey:active {
+    transform: scale(0.96);
+    border-color: var(--g-edge-lit);
+  }
+
+  .gkey-lit {
+    border-color: color-mix(in oklch, var(--g-good-lit) 45%, transparent);
+    color: var(--g-good-ink);
+  }
+
+  .gfield {
+    width: 100%;
+    min-width: 0;
+    border-radius: 16px;
+    border: 1px solid var(--g-edge);
+    background: var(--sunk-face);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--g-ink);
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 0.875rem 1rem;
+    appearance: none;
+    transition:
+      border-color 0.22s var(--g-ease),
+      box-shadow 0.22s var(--g-ease);
+  }
+
+  .gfield::placeholder {
+    color: var(--g-ink-3);
+  }
+
+  .gfield:focus {
+    outline: none;
+    border-color: color-mix(in oklch, var(--g-good-lit) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--g-good-lit) 18%, transparent);
+  }
+
+  .glass select.gfield {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%238a93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    padding-right: 2.25rem;
+  }
+
+  .glass select.gfield option {
+    /* El menú nativo no hereda el vidrio: sin esto sale texto claro sobre
+       fondo claro en los sistemas que pintan el popup con el color del padre. */
+    background: light-dark(oklch(98% 0.01 250), oklch(20% 0.03 265));
+    color: var(--g-ink);
+  }
+
+  .gpill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    border: 1px solid var(--g-hair);
+    background: color-mix(in oklch, var(--g-track) 55%, transparent);
+    padding: 0.3125rem 0.6875rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--g-ink-3);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------------------
+     El toque del día — el momento firma del módulo
+
+     Marcar no es "poner un cheque": es que la pieza de vidrio se encienda por
+     dentro. El trazo del cheque se dibuja solo (dasharray), el aro se llena y
+     la fila entera cambia de temperatura. Es la única animación de la
+     pantalla que dispara una persona, y por eso se puede gastar en ella.
+     ------------------------------------------------------------------------ */
+
+  .tick {
+    position: relative;
+    flex: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--g-edge-lit);
+    background: var(--sunk-face);
+    color: var(--g-ink-3);
+    display: grid;
+    place-items: center;
+    transition:
+      transform 0.24s var(--g-ease),
+      background-color 0.3s var(--g-ease),
+      border-color 0.3s var(--g-ease),
+      color 0.3s var(--g-ease),
+      box-shadow 0.3s var(--g-ease);
+  }
+
+  .tick:active {
+    transform: scale(0.9);
+  }
+
+  .tick[data-done="true"] {
+    border-color: transparent;
+    background: var(--g-good-lit);
+    color: light-dark(oklch(99% 0 0), oklch(18% 0.04 240));
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--g-good-lit) 40%, transparent),
+      0 10px 24px -10px color-mix(in oklch, var(--g-good-lit) 75%, transparent);
+  }
+
+  .tick-mark {
+    stroke-dasharray: 26;
+    stroke-dashoffset: 26;
+    transition: stroke-dashoffset 0.42s var(--g-ease) 0.06s;
+  }
+
+  .tick[data-done="true"] .tick-mark {
+    stroke-dashoffset: 0;
+  }
+
+  /* La fila marcada baja de intensidad: ya no te pide nada. */
+  .habit[data-done="true"] .habit-name {
+    color: var(--g-ink-3);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in oklch, var(--g-ink-3) 60%, transparent);
+    text-decoration-thickness: 1px;
+  }
+
+  .habit[data-done="true"][data-polarity="good"] {
+    border-color: color-mix(in oklch, var(--g-good-lit) 34%, transparent);
+  }
+
+  /* El malo registrado sí levanta la voz: es el único que quiere molestar. */
+  .habit[data-done="true"][data-polarity="bad"] {
+    border-color: color-mix(in oklch, var(--g-bad-lit) 40%, transparent);
+  }
+
+  .habit[data-done="true"][data-polarity="bad"] .habit-name {
+    color: var(--g-bad-ink);
+    text-decoration: none;
+  }
+
+  /* ------------------------------------------------------------------------
+     La hora del hábito
+     ------------------------------------------------------------------------ */
+
+  .hour {
+    flex: none;
+    border-radius: 999px;
+    border: 1px solid var(--g-hair);
+    padding: 0.25rem 0.5625rem;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--g-ink-3);
+    white-space: nowrap;
+    transition:
+      color 0.3s var(--g-ease),
+      border-color 0.3s var(--g-ease);
+  }
+
+  /* Ya pasó: se apaga, pero sigue ahí. */
+  .hour[data-when="passed"] {
+    opacity: 0.5;
+  }
+
+  /* Es ahora — lo único de la pantalla que se enciende solo. */
+  .hour[data-when="now"] {
+    border-color: color-mix(in oklch, var(--g-good-lit) 50%, transparent);
+    color: var(--g-good-ink);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    animation: hour-pulse 2.6s var(--g-ease-soft) infinite;
+  }
+
+  /*
+     La fila en curso se levanta del vidrio. Es el único empujón visual que se
+     permite la pantalla, y por eso funciona: si cada hábito pendiente
+     brillara, mirar la lista no diría nada sobre qué hacer ahora.
+  */
+  .habit[data-when="now"] {
+    border-color: color-mix(in oklch, var(--g-good-lit) 38%, transparent);
+    box-shadow:
+      var(--pane-shadow-lit),
+      0 0 0 1px color-mix(in oklch, var(--g-good-lit) 16%, transparent);
+  }
+
+  /* El contador de caídas: un botón partido en menos, número y más. */
+  .tally {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid var(--g-hair);
+    background: var(--sunk-face);
+    overflow: hidden;
+  }
+
+  .tally-key {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    color: var(--g-ink-3);
+    transition:
+      color 0.2s var(--g-ease),
+      background-color 0.2s var(--g-ease);
+  }
+
+  .tally-key:active {
+    background: var(--g-track);
+    color: var(--g-bad-ink);
+  }
+
+  .tally-key:disabled {
+    opacity: 0.35;
+  }
+
+  .tally-count {
+    min-width: 1.75rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9375rem;
+    color: var(--g-ink-2);
+  }
+
+  .tally[data-hot="true"] .tally-count {
+    color: var(--g-bad-ink);
+  }
+
+  /* ------------------------------------------------------------------------
+     El anillo de consistencia — el porcentaje, sin racha
+     ------------------------------------------------------------------------ */
+
+  .ring {
+    position: relative;
+    border-radius: 999px;
+    background: conic-gradient(
+      from -90deg,
+      var(--ring-color, var(--g-good-lit)) calc(var(--p, 0) * 1%),
+      var(--g-track) 0
+    );
+    mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 5px),
+      #000 calc(100% - 5px)
+    );
+    -webkit-mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 5px),
+      #000 calc(100% - 5px)
+    );
+  }
+
+  /* La barra del día: cuánto de lo de hoy ya está resuelto. */
+  .bar {
+    position: relative;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--g-track);
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--g-good-lit) 55%, transparent),
+      var(--g-good-lit)
+    );
+    transform-origin: left center;
+    animation: bar-in 0.9s var(--g-ease) 0.25s both;
+  }
+
+  /* ------------------------------------------------------------------------
+     Coreografía de entrada — el vidrio se condensa, no aparece
+     ------------------------------------------------------------------------ */
+
+  .settle {
+    opacity: 0;
+    animation: settle 0.55s var(--g-ease) forwards;
+    animation-delay: var(--d, 0ms);
+  }
+
+  /*
+     El velo de "ya te escuché" que monta `NavLink` nace del acento lima de
+     la app. Adentro del vidrio ese lima es de otra casa: se reescribe al
+     aqua sin tocar el componente, que sigue sirviendo a las tres
+     herramientas.
+  */
+  .glass .link-veil {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklch, var(--g-good-lit) 32%, transparent) 50%,
+      transparent 100%
+    );
+  }
+
+  /*
+     Esqueleto: la misma pieza de vidrio, todavía sin nada adentro. No es un
+     spinner tapando la pantalla — es la pantalla real con las cajas puestas,
+     así que cuando llegan los datos nada salta de lugar.
+  */
+  .ghost {
+    display: block;
+    border-radius: 18px;
+    background: var(--sunk-face);
+    border: 1px solid var(--g-hair);
+    animation: ghost-breathe 1.6s var(--g-ease-soft) infinite alternate;
+    animation-delay: var(--d, 0ms);
+  }
+
+  .glass ::selection {
+    background: var(--g-good-lit);
+    color: light-dark(oklch(99% 0 0), oklch(18% 0.04 240));
+  }
+
+  .glass :focus-visible {
+    outline: 2px solid var(--g-good-lit);
+    outline-offset: 3px;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes bar-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes hour-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes ghost-breathe {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(12vw, 8vh, 0) scale(1.15);
+  }
+}
+
+@keyframes drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-14vw, -10vh, 0) scale(1);
+  }
+}
+
+/*
+   Sin movimiento: la aurora se queda quieta y todo entra sin desplazarse.
+   El cheque sigue dibujándose porque es la confirmación de un toque, no
+   decoración — pero instantáneo.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .sky::before,
+  .sky::after {
+    animation: none;
+  }
+
+  .settle {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+    opacity: 1;
+  }
+
+  .bar-fill,
+  .ghost,
+  .hour[data-when="now"] {
+    animation: none;
+  }
+
+  .tick-mark {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms;
+  }
+}

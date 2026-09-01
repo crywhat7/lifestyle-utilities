@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Space_Grotesk } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Instrument_Serif,
+  Space_Grotesk,
+} from "next/font/google";
 import { absoluteUrl, site } from "@/lib/site";
 import { THEME_BOOT_SCRIPT, THEME_COLOR } from "@/lib/theme";
 import "./globals.css";
@@ -13,6 +17,21 @@ const bricolage = Bricolage_Grotesque({
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space",
   subsets: ["latin"],
+  display: "swap",
+});
+
+/**
+ * La voz de Clean Daily y de nadie más.
+ *
+ * El módulo de hábitos es otro ambiente —vidrio sobre aurora, no placa
+ * mecanizada— y el serif es lo primero que lo delata al entrar. Se declara
+ * acá porque `next/font` tiene que verlo en el módulo raíz para preargar el
+ * archivo, pero la variable solo la usa `.glass-display`.
+ */
+const instrument = Instrument_Serif({
+  variable: "--font-instrument",
+  subsets: ["latin"],
+  weight: "400",
   display: "swap",
 });
 
@@ -202,7 +221,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang={site.lang}
       dir="ltr"
-      className={`${bricolage.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${spaceGrotesk.variable} ${instrument.variable} h-full antialiased`}
       /* El script de abajo le escribe `data-theme` a este mismo nodo antes de
          que React lo vea, así que el servidor y el cliente no coinciden. */
       suppressHydrationWarning

@@ -45,6 +45,12 @@ export default function manifest(): MetadataRoute.Manifest {
         url: "/hub/my-pocket",
       },
       {
+        name: "Clean Daily",
+        short_name: "Hoy",
+        description: "Tus hábitos del día y lo que quedó pendiente",
+        url: "/hub/clean-daily",
+      },
+      {
         name: "Nuevo egreso",
         short_name: "Egreso",
         description: "Registrá un gasto",

@@ -9,6 +9,7 @@ detrás de un login con Google:
 | --- | --- |
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
+| **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
 
 ---
 
@@ -22,6 +23,12 @@ detrás de un login con Google:
 
 El diseño es un sistema propio: superficies mecanizadas oscuras, tipografía
 grabada y un único acento (`#c6f24e`). Vive en [`app/globals.css`](app/globals.css).
+
+Clean Daily es la excepción deliberada: usa su propio ambiente de vidrio
+esmerilado sobre una aurora, en OKLCH y con serif de titular, aislado en
+[`app/hub/clean-daily/glass.css`](app/hub/clean-daily/glass.css). Todo cuelga de
+la clase `.glass`, así que nada de ese vocabulario se filtra a las otras dos
+herramientas.
 
 ---
 
@@ -56,6 +63,9 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
 
 1. [`supabase/migrations/0001_lifestyle_utilities.sql`](supabase/migrations/0001_lifestyle_utilities.sql)
 2. [`supabase/migrations/0002_my_pocket.sql`](supabase/migrations/0002_my_pocket.sql)
+3. …y el resto en orden numérico. La última,
+   [`supabase/migrations/0008_clean_daily.sql`](supabase/migrations/0008_clean_daily.sql),
+   crea las tablas de Clean Daily.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de
@@ -66,6 +76,58 @@ npm run dev     # http://localhost:3000
 npm run build   # build de producción
 npm run lint
 ```
+
+---
+
+## Trabajos programados
+
+Tres endpoints pensados para [cron-job.org](https://cron-job.org). Todos piden
+`CRON_SECRET` como `Authorization: Bearer <secreto>` —o `?secret=` para los
+programadores que no dejan poner cabeceras— y responden JSON con lo que
+hicieron. Agregando `?dry=1` calculan todo pero no mandan nada: es la forma de
+probar sin despertar a nadie.
+
+| Endpoint | Cada cuánto | Qué hace |
+| --- | --- | --- |
+| `/api/cron/salarios` | 1 vez al día | Registra los pagos que caen hoy. |
+| `/api/cron/recordatorio` | 13:00 y 19:00 | Pide registrar gastos y avisa lo que vence. |
+| `/api/cron/habitos` | **cada 15 min** | Recordatorios de Clean Daily. |
+
+### El de hábitos
+
+```
+https://TU-DOMINIO/api/cron/habitos
+```
+
+Configuralo **cada 15 minutos** (`*/15 * * * *`). Cada corrida cubre solo los
+15 minutos desde la anterior, así que un hábito de las 07:07 lo agarra la
+pasada de las 07:15 y ninguna otra. Si cambiás el intervalo del cron, pasale
+`?window=N` con los mismos minutos.
+
+Manda dos tipos de aviso, y nunca más de uno por persona a la vez aunque
+tenga tres hábitos a la misma hora:
+
+- **Apertura** — llegó la hora del hábito y todavía no está marcado. El texto
+  repite la señal y el resultado que la persona escribió: el aviso *es* la
+  señal.
+- **Última llamada** — el hábito tiene ventana (`07:00–09:00`), está por
+  cerrarse y sigue sin marcarse.
+
+Que no se repita no lo garantiza el reloj sino la tabla `clean_habit_nudges`:
+cada aviso reclama su fila con una constraint única, y solo quien la insertó
+manda el push. Dos corridas superpuestas no pueden avisar dos veces lo mismo.
+
+Las horas se interpretan en `POCKET_TIMEZONE` (por defecto
+`America/Tegucigalpa`), no en la del servidor. Para probar una hora puntual
+sin esperarla:
+
+```bash
+curl "https://TU-DOMINIO/api/cron/habitos?dry=1&at=07:00" -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Los push necesitan las llaves VAPID (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`) y que cada persona los active en su dispositivo desde
+**Clean Daily → Mis hábitos → Recordatorios**.
 
 ---
 

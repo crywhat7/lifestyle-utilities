@@ -36,3 +36,26 @@ export function todayIn(timeZone: string) {
     day: "2-digit",
   }).format(new Date());
 }
+
+/**
+ * La hora de pared en la zona del bolsillo, en minutos desde medianoche.
+ *
+ * Los hábitos se agendan a las 07:00 de quien los escribió, no a las 07:00
+ * UTC. Convertir con `getHours()` daría la hora del servidor —que en Vercel
+ * es UTC— y el aviso saldría con seis horas de corrimiento.
+ *
+ * `hour12: false` con `hourCycle: "h23"` porque en algunos locales las 00:xx
+ * se formatean como "24:xx" y el número se iría un día entero al futuro.
+ */
+export function minutesIn(timeZone: string) {
+  const clock = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  }).format(new Date());
+
+  const [hours, minutes] = clock.split(":").map(Number);
+  return hours * 60 + minutes;
+}
