@@ -7,7 +7,16 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Check, Cross, Drop, PlusSlot, Power, Trash } from "@/components/icons";
+import {
+  Check,
+  Chevron,
+  Cross,
+  Drop,
+  PlusSlot,
+  Power,
+  Spark,
+  Trash,
+} from "@/components/icons";
 import {
   WEEKDAY_NAMES,
   WEEKDAY_SHORT,
@@ -176,13 +185,21 @@ function HabitRow({
         className="min-w-0 flex-1 text-left"
         aria-label={`Editar ${habit.name}`}
       >
-        <span className="flex items-center gap-2">
+        {/* El glifo se alinea con el PRIMER renglón, no con el centro del
+            bloque: con un nombre de dos líneas quedaba flotando en el medio,
+            apuntando a ninguna de las dos. */}
+        <span className="flex items-start gap-2">
           {bad ? (
-            <Drop className="size-3.5 shrink-0 text-[var(--g-bad-ink)]" />
+            <Drop className="mt-[0.2rem] size-3.5 shrink-0 text-[var(--g-bad-ink)]" />
           ) : (
-            <Check className="size-3.5 shrink-0 text-[var(--g-good-ink)]" />
+            <Check className="mt-[0.2rem] size-3.5 shrink-0 text-[var(--g-good-ink)]" />
           )}
-          <span className="truncate text-[1.0625rem]">{habit.name}</span>
+          {/* Dos renglones antes de cortar: los nombres reales son frases
+              ("Beber algo que contenga azúcar"), no etiquetas de una palabra,
+              y el nombre es lo único que no se puede dejar de leer. */}
+          <span className="line-clamp-2 min-w-0 text-[1.0625rem] leading-snug">
+            {habit.name}
+          </span>
         </span>
         <span className="mt-1 block truncate text-[0.75rem] text-[var(--g-ink-3)]">
           {[
@@ -196,8 +213,10 @@ function HabitRow({
 
         {/* La intención escrita, que es lo que la persona quiere releer al
             volver acá: la regla ya la dice la línea de arriba. */}
+        {/* Entera, sin recortar: es la frase que la persona viene a releer, y
+            cortada a la mitad no sirve para nada. Cuesta un renglón más. */}
         {habit.cue ? (
-          <span className="mt-1.5 line-clamp-2 text-[0.75rem] leading-relaxed text-[var(--g-ink-2)] italic">
+          <span className="mt-1.5 block text-[0.75rem] leading-relaxed text-[var(--g-ink-2)] italic">
             {intention(habit)}
           </span>
         ) : null}
@@ -255,6 +274,20 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const [reward, setReward] = useState(habit?.reward ?? "");
   const [start, setStart] = useState(hhmm(habit?.start_time) ?? "");
   const [end, setEnd] = useState(hhmm(habit?.end_time) ?? "");
+
+  /*
+    Cerrado al crear, abierto al editar algo que ya tiene esos datos.
+
+    Abrir un hábito con señal y hora y ver solo el nombre da la impresión de
+    que se perdieron. Si nunca se completaron, en cambio, no hay nada que
+    mostrar y el formulario arranca corto.
+  */
+  const [open, setOpen] = useState(
+    Boolean(
+      habit &&
+        (habit.cue || habit.reward || habit.start_time || habit.freq !== "daily")
+    )
+  );
 
   const sentence = intention({
     ...(habit ?? EMPTY_HABIT),
@@ -328,176 +361,231 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         />
       </div>
 
-      {polarity === "bad" ? (
-        <label className="block">
-          <span className="glass-eyebrow">Qué se cuenta</span>
-          <input
-            name="unit_label"
-            maxLength={20}
-            defaultValue={habit?.unit_label ?? ""}
-            placeholder="vasos, panes, cigarros…"
-            className="gfield mt-2"
-          />
-        </label>
-      ) : null}
-
       {/*
-        Las tres patas que le faltan al hábito solo.
+        Todo lo demás vive detrás de este botón.
 
-        Señal, hora y resultado no son metadatos decorativos: son el ciclo
-        completo. El campo de la señal va antes que la hora a propósito —una
-        señal encadenada a algo que ya hacés todos los días es más confiable
-        que un horario, y quien la escribe primero suele poner una mejor.
+        Pedir señal, hora, resultado y frecuencia de entrada es pedirle a
+        alguien que complete cuatro campos cuyo sentido todavía no conoce: o
+        los llena de cualquier cosa o abandona el formulario. Con nombre y
+        polaridad ya hay un hábito que funciona; el resto es lo que lo hace
+        sostenerse, y quien quiera saber por qué lo abre y se lo explican.
       */}
-      <div className="flex flex-col gap-2">
-        <span className="glass-eyebrow">La señal · cuando…</span>
-        <input
-          name="cue"
-          maxLength={80}
-          value={cue}
-          onChange={(event) => setCue(event.target.value)}
-          placeholder="Termine de desayunar"
-          className="gfield"
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <span className="glass-eyebrow">La hora</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="time"
-            name="start_time"
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-            aria-label="Hora de inicio"
-            className="gfield flex-1 text-center"
-          />
-          <span className="text-[0.8125rem] text-[var(--g-ink-3)]">hasta</span>
-          <input
-            type="time"
-            name="end_time"
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            disabled={!start}
-            aria-label="Cierre de la ventana (opcional)"
-            className="gfield flex-1 text-center disabled:opacity-45"
-          />
-        </div>
-        <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
-          {start
-            ? end
-              ? "Tenés esa ventana entera. Si se está por cerrar y no lo marcaste, te llega una última llamada."
-              : "Dejá el cierre vacío si es un momento puntual."
-            : "Sin hora aparece igual en la lista de hoy, pero nadie te va a avisar."}
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <span className="glass-eyebrow">El resultado</span>
-        <input
-          name="reward"
-          maxLength={80}
-          value={reward}
-          onChange={(event) => setReward(event.target.value)}
-          placeholder={
-            polarity === "good"
-              ? "Arrancar el día despierto"
-              : "Dormir mal y despertar hinchado"
-          }
-          className="gfield"
-        />
-      </div>
-
-      {/*
-        El aviso solo existe si hay hora. Con el interruptor deshabilitado y
-        el texto explicando por qué, nadie queda esperando un push que el
-        servidor no tiene cuándo mandar.
-      */}
-      <label
-        className="sunk flex items-center gap-3 p-3.5"
-        style={{ opacity: start ? 1 : 0.5 }}
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="gkey flex h-12 items-center gap-2.5 px-4 text-left"
       >
-        <input
-          type="checkbox"
-          name="remind"
-          disabled={!start}
-          defaultChecked={habit ? habit.remind : true}
-          className="size-5 shrink-0 accent-[var(--g-good-lit)]"
-        />
+        <Spark className="size-4 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[0.875rem]">Avisarme a esa hora</span>
-          <span className="mt-0.5 block text-[0.75rem] text-[var(--g-ink-3)]">
-            {start
-              ? "El teléfono dice la señal aunque la app esté cerrada."
-              : "Necesita una hora."}
+          <span className="block text-[0.8125rem]">La ciencia del hábito</span>
+          <span className="block truncate text-[0.6875rem] text-[var(--g-ink-3)]">
+            Señal, hora, resultado y frecuencia
           </span>
         </span>
-      </label>
+        {/* El giro va en un envoltorio: los glifos de `components/icons`
+            solo aceptan `className`, y no vale ensuciar ese contrato
+            compartido por una animación de una sola pantalla. */}
+        <span
+          aria-hidden="true"
+          className="shrink-0 transition-transform duration-300 [transition-timing-function:var(--g-ease)]"
+          style={{ transform: open ? "rotate(180deg)" : undefined }}
+        >
+          <Chevron className="size-4" />
+        </span>
+      </button>
 
-      {/* La intención completa, armándose mientras se escribe. */}
-      {sentence ? (
-        <p className="sunk px-3.5 py-3 text-[0.875rem] leading-relaxed text-[var(--g-ink-2)]">
-          {sentence}
-        </p>
-      ) : null}
+      {/*
+        Colapsado se esconde con `display: none`, NO desmontando los campos.
 
-      <div>
-        <span className="glass-eyebrow">Cada cuánto aparece</span>
-        <div className="mt-2 flex gap-2">
-          <Segment
-            active={freq === "daily"}
-            onClick={() => setFreq("daily")}
-            label="Diario"
-          />
-          <Segment
-            active={freq === "weekdays"}
-            onClick={() => setFreq("weekdays")}
-            label="Días"
-          />
-          <Segment
-            active={freq === "interval"}
-            onClick={() => setFreq("interval")}
-            label="Cada N"
-          />
-        </div>
-      </div>
+        Un campo desmontado no viaja en el `FormData`, y la acción lo leería
+        como vacío: editar un hábito con señal y hora, guardarlo sin abrir
+        esto, y perderlas las dos sin enterarte. Oculto, sale del orden de
+        tabulación igual y sigue mandando su valor.
 
-      {freq === "weekdays" ? (
-        <div className="flex justify-between gap-1.5">
-          {WEEKDAY_SHORT.map((letter, day) => {
-            const on = weekdays.includes(day);
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => toggleDay(day)}
-                aria-pressed={on}
-                aria-label={WEEKDAY_NAMES[day]}
-                className={`gkey flex size-10 items-center justify-center text-[0.8125rem] ${
-                  on ? "gkey-lit" : ""
-                }`}
-              >
-                {letter}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+        La clase se elige entera en vez de sumar `hidden` a `flex` porque las
+        dos son utilidades de `display` y cuál gana depende del orden en que
+        Tailwind las emita.
+      */}
+      <div className={open ? "flex flex-col gap-4" : "hidden"}>
+        <Science polarity={polarity} />
 
-      {freq === "interval" ? (
-        <label className="flex items-center gap-3">
-          <span className="text-[0.875rem] text-[var(--g-ink-2)]">Cada</span>
+        {polarity === "bad" ? (
+          <label className="block">
+            <span className="glass-eyebrow">Qué se cuenta</span>
+            <input
+              name="unit_label"
+              maxLength={20}
+              defaultValue={habit?.unit_label ?? ""}
+              placeholder="vasos, panes, cigarros…"
+              className="gfield mt-2"
+            />
+            <span className="mt-2 block text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+              Vacío cuenta en veces. Dos coca-colas no son una, y ese es el
+              número que querés ver bajar.
+            </span>
+          </label>
+        ) : null}
+
+        <div className="flex flex-col gap-2">
+          <span className="glass-eyebrow">La señal · cuando…</span>
           <input
-            type="number"
-            name="interval_days"
-            min={2}
-            max={60}
-            defaultValue={habit?.interval_days ?? 2}
-            className="gfield w-24 text-center"
+            name="cue"
+            maxLength={80}
+            value={cue}
+            onChange={(event) => setCue(event.target.value)}
+            placeholder="Termine de desayunar"
+            className="gfield"
           />
-          <span className="text-[0.875rem] text-[var(--g-ink-2)]">días</span>
+          <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+            Encadenala a algo que ya hacés sin pensar. «Después de servir el
+            café» funciona; «en la mañana» no le dice nada a nadie.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="glass-eyebrow">La hora</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              name="start_time"
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
+              aria-label="Hora de inicio"
+              className="gfield flex-1 text-center"
+            />
+            <span className="text-[0.8125rem] text-[var(--g-ink-3)]">hasta</span>
+            <input
+              type="time"
+              name="end_time"
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+              disabled={!start}
+              aria-label="Cierre de la ventana (opcional)"
+              className="gfield flex-1 text-center disabled:opacity-45"
+            />
+          </div>
+          <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+            {start
+              ? end
+                ? "Tenés esa ventana entera. Si se está por cerrar y no lo marcaste, te llega una última llamada."
+                : "Dejá el cierre vacío si es un momento puntual."
+              : "Una intención sin hora es un deseo. Sin ella aparece igual en la lista, pero nadie te va a avisar."}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="glass-eyebrow">El resultado</span>
+          <input
+            name="reward"
+            maxLength={80}
+            value={reward}
+            onChange={(event) => setReward(event.target.value)}
+            placeholder={
+              polarity === "good"
+                ? "Arrancar el día despierto"
+                : "Dormir mal y despertar hinchado"
+            }
+            className="gfield"
+          />
+          <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+            {polarity === "good"
+              ? "Nombrar lo que ganás es lo que hace que mañana la señal vuelva a funcionar."
+              : "Nombrar lo que te cuesta es lo que le quita el atractivo."}
+          </p>
+        </div>
+
+        {/*
+          El aviso solo existe si hay hora. Con el interruptor deshabilitado y
+          el texto explicando por qué, nadie queda esperando un push que el
+          servidor no tiene cuándo mandar.
+        */}
+        <label
+          className="sunk flex items-center gap-3 p-3.5"
+          style={{ opacity: start ? 1 : 0.5 }}
+        >
+          <input
+            type="checkbox"
+            name="remind"
+            disabled={!start}
+            defaultChecked={habit ? habit.remind : true}
+            className="size-5 shrink-0 accent-[var(--g-good-lit)]"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.875rem]">Avisarme a esa hora</span>
+            <span className="mt-0.5 block text-[0.75rem] text-[var(--g-ink-3)]">
+              {start
+                ? "El teléfono dice la señal aunque la app esté cerrada."
+                : "Necesita una hora."}
+            </span>
+          </span>
         </label>
-      ) : null}
+
+        {/* La intención completa, armándose mientras se escribe. */}
+        {sentence ? (
+          <p className="sunk px-3.5 py-3 text-[0.875rem] leading-relaxed text-[var(--g-ink-2)]">
+            {sentence}
+          </p>
+        ) : null}
+
+        <div>
+          <span className="glass-eyebrow">Cada cuánto aparece</span>
+          <div className="mt-2 flex gap-2">
+            <Segment
+              active={freq === "daily"}
+              onClick={() => setFreq("daily")}
+              label="Diario"
+            />
+            <Segment
+              active={freq === "weekdays"}
+              onClick={() => setFreq("weekdays")}
+              label="Días"
+            />
+            <Segment
+              active={freq === "interval"}
+              onClick={() => setFreq("interval")}
+              label="Cada N"
+            />
+          </div>
+        </div>
+
+        {freq === "weekdays" ? (
+          <div className="flex justify-between gap-1.5">
+            {WEEKDAY_SHORT.map((letter, day) => {
+              const on = weekdays.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleDay(day)}
+                  aria-pressed={on}
+                  aria-label={WEEKDAY_NAMES[day]}
+                  className={`gkey flex size-10 items-center justify-center text-[0.8125rem] ${
+                    on ? "gkey-lit" : ""
+                  }`}
+                >
+                  {letter}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {freq === "interval" ? (
+          <label className="flex items-center gap-3">
+            <span className="text-[0.875rem] text-[var(--g-ink-2)]">Cada</span>
+            <input
+              type="number"
+              name="interval_days"
+              min={2}
+              max={60}
+              defaultValue={habit?.interval_days ?? 2}
+              className="gfield w-24 text-center"
+            />
+            <span className="text-[0.875rem] text-[var(--g-ink-2)]">días</span>
+          </label>
+        ) : null}
+      </div>
 
       {state.status === "error" ? (
         <p role="alert" className="text-center text-[0.8125rem] text-[var(--g-bad-ink)]">
@@ -523,6 +611,63 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* El porqué                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Los cuatro pasos del ciclo, cada uno señalando el campo que le toca.
+ *
+ * No es un texto de ayuda: es la razón por la que el formulario pide lo que
+ * pide. Alguien que nunca escuchó hablar del ciclo ve cuatro campos
+ * opcionales y los saltea —o peor, los llena de cualquier cosa—. Viéndolo
+ * mapeado entiende que el nombre del hábito es UN paso de cuatro, y que los
+ * otros tres son justamente los que hacen que no dependa de acordarse.
+ *
+ * El anhelo es el único que no tiene campo, y decirlo explícitamente evita la
+ * pregunta obvia de "¿y ese dónde se escribe?".
+ */
+function Science({ polarity }: { polarity: Polarity }) {
+  const steps = [
+    { n: 1, name: "Señal", text: "Lo que lo dispara.", field: "el campo de abajo" },
+    { n: 2, name: "Anhelo", text: "Las ganas que aparecen.", field: null },
+    { n: 3, name: "Respuesta", text: "El hábito en sí.", field: "el nombre de arriba" },
+    { n: 4, name: "Recompensa", text: "Lo que te deja.", field: "el resultado" },
+  ];
+
+  return (
+    <div className="sunk flex flex-col gap-3 p-3.5">
+      <p className="text-[0.8125rem] leading-relaxed text-[var(--g-ink-2)]">
+        Un hábito no se sostiene por fuerza de voluntad. Es un circuito de
+        cuatro pasos que se refuerza solo:
+      </p>
+
+      <ol className="flex flex-col gap-2">
+        {steps.map((step) => (
+          <li key={step.n} className="flex items-start gap-2.5">
+            <span className="step">{step.n}</span>
+            <span className="min-w-0 flex-1 text-[0.75rem] leading-relaxed">
+              <span className="text-[var(--g-ink-2)]">{step.name}</span>
+              <span className="text-[var(--g-ink-3)]"> — {step.text}</span>
+              {step.field ? (
+                <span className="text-[var(--g-good-ink)]"> Es {step.field}.</span>
+              ) : (
+                <span className="text-[var(--g-ink-3)]"> No se escribe: aparece solo.</span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+        {polarity === "good"
+          ? "Escribir solo el nombre es escribir el paso 3, el único que cuesta. Lo de acá abajo son los otros tres: mientras más obvia la señal y más claro el resultado, menos esfuerzo hace falta."
+          : "Con un hábito malo el mismo circuito juega en tu contra. Contarlo es el primer paso: lo que se mide se vuelve visible, y recién ahí se puede cambiar."}
+      </p>
+    </div>
   );
 }
 

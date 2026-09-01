@@ -181,17 +181,18 @@ export function TodayBoard({
                 </button>
 
                 <span className="min-w-0 flex-1">
-                  <span className="habit-name block truncate text-[1.0625rem] transition-colors">
+                  <span className="habit-name block text-[1.0625rem] leading-snug transition-colors">
                     {habit.name}
                   </span>
-                  <span className="mt-0.5 block truncate text-[0.75rem] text-[var(--g-ink-3)]">
+                  <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
+                    <HourMark habit={habit} state={done ? "passed" : when} />
                     {/* La señal desplaza a la frecuencia: cuando existe, es lo
                         que de verdad dispara el hábito. */}
-                    {habit.cue ? `Cuando ${habit.cue.toLowerCase()}` : freqLabel(habit)}
+                    <span className="truncate">
+                      {habit.cue ? `Cuando ${habit.cue.toLowerCase()}` : freqLabel(habit)}
+                    </span>
                   </span>
                 </span>
-
-                <HourMark habit={habit} state={done ? "passed" : when} />
               </article>
             );
           })}
@@ -230,15 +231,16 @@ export function TodayBoard({
                 }
               >
                 <span className="min-w-0 flex-1">
-                  <span className="habit-name block truncate text-[1.0625rem] transition-colors">
+                  <span className="habit-name block text-[1.0625rem] leading-snug transition-colors">
                     {habit.name}
                   </span>
-                  <span className="mt-0.5 block truncate text-[0.75rem] text-[var(--g-ink-3)]">
-                    {times > 0 ? `${times} ${unit} hoy` : freqLabel(habit)}
+                  <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
+                    <HourMark habit={habit} state={windowState(habit, nowMinutes)} />
+                    <span className="truncate">
+                      {times > 0 ? `${times} ${unit} hoy` : freqLabel(habit)}
+                    </span>
                   </span>
                 </span>
-
-                <HourMark habit={habit} state={windowState(habit, nowMinutes)} />
 
                 <span className="tally" data-hot={times > 0}>
                   <button
