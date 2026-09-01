@@ -42,10 +42,13 @@ export function TodayBoard({
   logs,
   dayLabel,
   nowMinutes,
+  names,
 }: {
   habits: Habit[];
   logs: HabitLog[];
   dayLabel: string;
+  /** id → nombre, de todos los hábitos. Para nombrar al padre ausente. */
+  names: Record<string, string>;
   /**
    * La hora del servidor, en minutos desde medianoche y en la zona del
    * bolsillo. Viene por props y no de `new Date()` acá adentro porque el
@@ -226,13 +229,17 @@ export function TodayBoard({
                       <HourMark habit={habit} state={done ? "passed" : when} />
                     )}
                     {/* La señal desplaza a la frecuencia: cuando existe, es lo
-                        que de verdad dispara el hábito. */}
+                        que de verdad dispara el hábito. Y si el padre no se
+                        dibuja hoy, igual se nombra: decir "todos los días" de
+                        algo que sigue a otro hábito sería mentir. */}
                     <span className="truncate">
                       {row.after
                         ? `de ${row.after.name.toLowerCase()}`
-                        : habit.cue
-                          ? `Cuando ${habit.cue.toLowerCase()}`
-                          : freqLabel(habit)}
+                        : habit.after_habit_id
+                          ? `Después de ${(names[habit.after_habit_id] ?? "otro hábito").toLowerCase()}`
+                          : habit.cue
+                            ? `Cuando ${habit.cue.toLowerCase()}`
+                            : freqLabel(habit)}
                     </span>
                   </span>
                 </span>
@@ -283,8 +290,12 @@ export function TodayBoard({
                     <span className="truncate">
                       {times > 0
                         ? `${times} ${unit} hoy`
-                        : row.after
-                          ? `Después de ${row.after.name.toLowerCase()}`
+                        : habit.after_habit_id
+                          ? `Después de ${(
+                              row.after?.name ??
+                              names[habit.after_habit_id] ??
+                              "otro hábito"
+                            ).toLowerCase()}`
                           : freqLabel(habit)}
                     </span>
                   </span>

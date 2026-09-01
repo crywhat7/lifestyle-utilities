@@ -4,6 +4,7 @@ import { ArrowBack, Pulse, Sliders } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
   consistency,
+  indexById,
   longDayLabel,
   monthRange,
   scheduledFor,
@@ -99,6 +100,9 @@ export default async function CleanDailyPage() {
         logs={todayLogs}
         dayLabel={longDayLabel(day)}
         nowMinutes={clock()}
+        /* Para poder nombrar al hábito anterior aunque hoy no se dibuje —el
+           padre puede estar en pausa, o ser de la otra polaridad—. */
+        names={Object.fromEntries(habits.map((item) => [item.id, item.name]))}
       />
 
       <MonthPulse habits={habits} logs={logs} from={from} day={day} />
@@ -127,9 +131,11 @@ function MonthPulse({
   const active = habits.filter((habit) => habit.active);
   if (active.length === 0) return null;
 
+  const byId = indexById(habits);
+
   const totals = active.reduce(
     (acc, habit) => {
-      const stat = consistency(habit, logs, from, day, day);
+      const stat = consistency(habit, logs, from, day, day, byId);
       return { good: acc.good + stat.good, scheduled: acc.scheduled + stat.scheduled };
     },
     { good: 0, scheduled: 0 }

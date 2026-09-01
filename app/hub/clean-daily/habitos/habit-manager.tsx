@@ -658,6 +658,22 @@ function HabitForm({
           </p>
         ) : null}
 
+        {/*
+          Encadenado, la frecuencia propia no manda: el hábito aparece los
+          días que aparece el que lo dispara. Mostrar igual el selector sería
+          ofrecer una decisión que el sistema va a ignorar.
+        */}
+        {stacked && afterName ? (
+          <div className="flex flex-col gap-2">
+            <span className="glass-eyebrow">Cada cuánto aparece</span>
+            <p className="sunk px-3.5 py-3 text-[0.8125rem] leading-relaxed text-[var(--g-ink-2)]">
+              Los días que aparezca «{afterName}». Un hábito que va después de
+              otro no tiene calendario propio: si ese día no toca, este
+              tampoco.
+            </p>
+          </div>
+        ) : (
+        <>
         <div>
           <span className="glass-eyebrow">Cada cuánto aparece</span>
           <div className="mt-2 flex gap-2">
@@ -715,6 +731,8 @@ function HabitForm({
             <span className="text-[0.875rem] text-[var(--g-ink-2)]">días</span>
           </label>
         ) : null}
+        </>
+        )}
       </div>
 
       {state.status === "error" ? (

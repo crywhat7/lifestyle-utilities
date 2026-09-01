@@ -173,8 +173,9 @@ export async function saveHabit(
   const polarity: Polarity =
     String(formData.get("polarity")) === "bad" ? "bad" : "good";
 
+  // Se valida más abajo, y solo si el hábito no va encadenado: en ese caso su
+  // regla propia no se usa y rechazar el formulario por ella sería absurdo.
   const rule = toRule(formData);
-  if ("error" in rule) return { status: "error", error: rule.error };
 
   // La unidad solo tiene sentido en lo que se cuenta hacia abajo.
   const unit = polarity === "bad" ? toText(formData.get("unit_label"), 20) : "";
@@ -239,11 +240,26 @@ export async function saveHabit(
     }
   }
 
+  /*
+    Encadenado no hay regla propia que guardar: el calendario es el del padre
+    y `occursOn` ni siquiera mira estas columnas. Dejar la vieja adentro sería
+    dejar una bomba para el día que alguien desencadene el hábito y se
+    encuentre con una frecuencia que no eligió.
+  */
+  if (!afterId && "error" in rule) {
+    return { status: "error", error: rule.error };
+  }
+
+  const schedule =
+    afterId || "error" in rule
+      ? { freq: "daily" as const, weekdays: null, interval_days: null }
+      : rule;
+
   const payload = {
     user_id: user.id,
     name,
     polarity,
-    ...rule,
+    ...schedule,
     unit_label: unit || null,
     after_habit_id: afterId,
     // Encadenado, el hábito anterior ES la señal: guardar además un texto

@@ -6,6 +6,7 @@ import {
   consistency,
   consistencyLabel,
   freqLabel,
+  indexById,
   lastDays,
   monthLabel,
   monthRange,
@@ -38,10 +39,14 @@ export default async function RhythmPage() {
     loadLogs(supabase, user.id, since, day),
   ]);
 
+  // Un hábito encadenado se mide sobre los días de su padre: contarle en
+  // contra los días que el disparador no ocurrió sería inventarle fallas.
+  const byId = indexById(habits);
+
   const active = habits.filter((habit) => habit.active);
   const stats = active.map((habit) => ({
     habit,
-    stat: consistency(habit, logs, from, day, day),
+    stat: consistency(habit, logs, from, day, day, byId),
   }));
 
   const totals = stats.reduce(
@@ -130,7 +135,7 @@ export default async function RhythmPage() {
               </span>
             </div>
 
-            <DayStrip habit={habit} logs={logs} days={strip} />
+            <DayStrip habit={habit} logs={logs} days={strip} byId={byId} />
 
             <p className="text-[0.75rem] text-[var(--g-ink-3)]">
               {freqLabel(habit)}
@@ -157,10 +162,12 @@ function DayStrip({
   habit,
   logs,
   days,
+  byId,
 }: {
   habit: Habit;
   logs: HabitLog[];
   days: string[];
+  byId: Map<string, Habit>;
 }) {
   const hits = new Set(
     logs.filter((log) => log.habit_id === habit.id).map((log) => log.done_on)
@@ -169,7 +176,7 @@ function DayStrip({
   return (
     <div className="flex items-end gap-[3px]" aria-hidden="true">
       {days.map((iso) => {
-        const scheduled = occursOn(habit, iso);
+        const scheduled = occursOn(habit, iso, byId);
         const hit = hits.has(iso);
         const favorable = habit.polarity === "good" ? hit : !hit;
 

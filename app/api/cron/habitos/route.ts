@@ -161,12 +161,21 @@ async function run(request: NextRequest) {
   /** Para poder nombrar al hábito anterior en el texto del aviso. */
   const nameById = new Map(all.map((row) => [String(row.id), String(row.name)]));
 
+  /*
+    El mismo mapa que usa la pantalla, para que `occursOn` pueda heredar el
+    calendario del padre. Sin esto el cron avisaría de un hábito encadenado un
+    día que su disparador no ocurre — justo lo que la lista de hoy no muestra.
+  */
+  const byId = new Map(
+    all.map((row) => [String(row.id), row as unknown as Habit])
+  );
+
   // Solo avisa lo que tiene hora propia y el aviso encendido. Un hábito
   // encadenado sin hora no recibe push: su señal es terminar el anterior, y
   // el teléfono no tiene forma de saber cuándo pasó eso.
   const scheduled = all
     .filter((row) => row.remind && row.start_time)
-    .filter((row) => occursOn(row as unknown as Habit, today));
+    .filter((row) => occursOn(row as unknown as Habit, today, byId));
 
   if (scheduled.length === 0) {
     return NextResponse.json({ ...base, users: byUser.size, pushed: 0 });

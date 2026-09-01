@@ -153,9 +153,28 @@ export function monthLabel(iso: string) {
  * Antes del `anchor_date` la respuesta es siempre no: un hábito creado hoy no
  * puede haberse fallado la semana pasada, y las métricas se apoyan en esto
  * para no arrancar con un porcentaje deprimente que nadie se ganó.
+ *
+ * Encadenado, el calendario es el del padre y su propia frecuencia no se
+ * mira. «Después de estudiar» no quiere decir nada un día que no estudiás:
+ * si el disparador no pasa, el hábito tampoco. Pasar `byId` es lo que activa
+ * esa herencia — sin el mapa no hay cómo mirar hacia arriba, y cada hábito
+ * responde por su propia regla.
  */
-export function occursOn(habit: Habit, iso: string) {
+export function occursOn(
+  habit: Habit,
+  iso: string,
+  byId?: Map<string, Habit>,
+  seen = new Set<string>()
+): boolean {
   if (iso < habit.anchor_date) return false;
+
+  if (habit.after_habit_id && byId && !seen.has(habit.id)) {
+    const parent = byId.get(habit.after_habit_id);
+    if (parent) {
+      seen.add(habit.id);
+      return occursOn(parent, iso, byId, seen);
+    }
+  }
 
   if (habit.freq === "weekdays") {
     const weekday = fromIsoDay(iso).getDay();
@@ -317,7 +336,11 @@ export function chainOrder(habits: Habit[]): ChainRow[] {
  * se ve en la lista de hoy tiene que ser lo mismo que se ve al editarlos.
  */
 export function scheduledFor(habits: Habit[], iso: string) {
-  return habits.filter((habit) => habit.active && occursOn(habit, iso));
+  // El mapa se arma con TODOS —incluidos los pausados y los de la otra
+  // polaridad—: un hijo tiene que poder mirar a su padre aunque el padre no
+  // vaya a dibujarse en la misma lista.
+  const byId = indexById(habits);
+  return habits.filter((habit) => habit.active && occursOn(habit, iso, byId));
 }
 
 /** Cómo se lee una regla en una línea. */
@@ -557,13 +580,15 @@ export function consistency(
   logs: HabitLog[],
   from: string,
   to: string,
-  today: string
+  today: string,
+  /** Necesario para que un hábito encadenado mida sobre los días del padre. */
+  byId?: Map<string, Habit>
 ): Consistency {
   const last = to < today ? to : today;
 
   let scheduled = 0;
   for (let day = from; day <= last; day = addDays(day, 1)) {
-    if (occursOn(habit, day)) scheduled += 1;
+    if (occursOn(habit, day, byId)) scheduled += 1;
   }
 
   const mine = logs.filter(
@@ -571,7 +596,7 @@ export function consistency(
       log.habit_id === habit.id &&
       log.done_on >= from &&
       log.done_on <= last &&
-      occursOn(habit, log.done_on)
+      occursOn(habit, log.done_on, byId)
   );
 
   const hit = mine.length;
