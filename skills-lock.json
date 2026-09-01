@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "modern-frontend-design": {
+      "source": "deveshpunjabi/modern-frontend-skill",
+      "sourceType": "github",
+      "skillPath": "skills/modern-frontend-design/SKILL.md",
+      "computedHash": "c4fbca92e9f36edbb23bb1bdd7fba1895c6cefedee6f13d73c4e3533ee6be0a2"
+    }
+  }
+}
