@@ -400,6 +400,25 @@
     text-decoration: none;
   }
 
+  /*
+     El brazo que ata un hábito al anterior.
+
+     Sale del canto izquierdo de la ficha y se va hacia la de arriba: sin él
+     la sangría se lee como un margen raro, y con él la cadena se ve como una
+     sola rutina colgando de su primer hábito.
+  */
+  .link-arm {
+    position: absolute;
+    left: -0.75rem;
+    top: -0.4rem;
+    width: 0.75rem;
+    height: 1.9rem;
+    pointer-events: none;
+    border-left: 1px solid var(--g-edge);
+    border-bottom: 1px solid var(--g-edge);
+    border-bottom-left-radius: 10px;
+  }
+
   /* El número de cada paso del ciclo, en el explicador del formulario. */
   .step {
     flex: none;

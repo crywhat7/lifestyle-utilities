@@ -49,7 +49,7 @@ export async function cleanClient() {
 type Client = Awaited<ReturnType<typeof createClient>>;
 
 export const HABIT_COLUMNS =
-  "id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,start_time,end_time,remind";
+  "id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,start_time,end_time,remind,after_habit_id";
 
 /** Todos los hábitos, activos y archivados: la pantalla decide cuáles muestra. */
 export async function loadHabits(client: Client, userId: string) {

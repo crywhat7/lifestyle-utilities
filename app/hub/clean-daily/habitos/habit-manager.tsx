@@ -4,6 +4,7 @@ import {
   Fragment,
   startTransition,
   useActionState,
+  useMemo,
   useState,
   type CSSProperties,
 } from "react";
@@ -20,11 +21,13 @@ import {
 import {
   WEEKDAY_NAMES,
   WEEKDAY_SHORT,
+  chainOrder,
+  descendantsOf,
   freqLabel,
   hhmm,
   intention,
-  sortByHour,
   timeLabel,
+  type ChainRow,
   type Habit,
   type HabitFreq,
   type Polarity,
@@ -53,6 +56,7 @@ const EMPTY_HABIT: Habit = {
   start_time: null,
   end_time: null,
   remind: true,
+  after_habit_id: null,
   active: true,
   sort_order: 0,
 };
@@ -61,14 +65,18 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
   // `null` = cerrado, `"new"` = alta, un id = edición de ese hábito.
   const [editing, setEditing] = useState<string | null>(null);
 
-  // El mismo orden que la lista de hoy: por hora. Ver `byHour`.
-  const active = sortByHour(habits.filter((habit) => habit.active));
-  const paused = sortByHour(habits.filter((habit) => !habit.active));
+  /*
+    El mismo orden que la lista de hoy: por hora, con cada cadena junta.
+    Activos y pausados se ordenan por separado, así una cadena a medio pausar
+    no arrastra a la fila de al lado a una sección que no le toca.
+  */
+  const active = chainOrder(habits.filter((habit) => habit.active));
+  const paused = chainOrder(habits.filter((habit) => !habit.active));
 
   return (
     <section className="flex flex-col gap-2.5">
       {editing === "new" ? (
-        <HabitForm onClose={() => setEditing(null)} />
+        <HabitForm habits={habits} onClose={() => setEditing(null)} />
       ) : (
         <button
           type="button"
@@ -82,7 +90,8 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
       )}
 
       <HabitList
-        habits={active}
+        rows={active}
+        all={habits}
         baseDelay={260}
         editing={editing}
         onEdit={setEditing}
@@ -93,7 +102,8 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
         <>
           <p className="glass-eyebrow mt-4">En pausa</p>
           <HabitList
-            habits={paused}
+            rows={paused}
+            all={habits}
             baseDelay={320}
             editing={editing}
             onEdit={setEditing}
@@ -120,23 +130,28 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
  * encabezado "Sin hora" arriba de todo es una etiqueta que no distingue nada.
  */
 function HabitList({
-  habits,
+  rows,
+  all,
   baseDelay,
   editing,
   onEdit,
   onClose,
 }: {
-  habits: Habit[];
+  rows: ChainRow[];
+  /** Todos los hábitos: el formulario los necesita para elegir el anterior. */
+  all: Habit[];
   baseDelay: number;
   editing: string | null;
   onEdit: (id: string) => void;
   onClose: () => void;
 }) {
-  const firstUntimed = habits.findIndex((habit) => !hhmm(habit.start_time));
+  // La hora que decide el corte es la efectiva: un hábito encadenado hereda
+  // la de su cadena, así que se queda arriba con el resto de la agenda.
+  const firstUntimed = rows.findIndex((row) => row.startsAt == null);
   const mixed = firstUntimed > 0;
 
-  return habits.map((habit, index) => (
-    <Fragment key={habit.id}>
+  return rows.map((row, index) => (
+    <Fragment key={row.habit.id}>
       {mixed && index === firstUntimed ? (
         <p
           className="glass-eyebrow settle mt-3"
@@ -146,13 +161,13 @@ function HabitList({
         </p>
       ) : null}
 
-      {editing === habit.id ? (
-        <HabitForm habit={habit} onClose={onClose} />
+      {editing === row.habit.id ? (
+        <HabitForm habit={row.habit} habits={all} onClose={onClose} />
       ) : (
         <HabitRow
-          habit={habit}
+          row={row}
           delay={baseDelay + index * 55}
-          onEdit={() => onEdit(habit.id)}
+          onEdit={() => onEdit(row.habit.id)}
         />
       )}
     </Fragment>
@@ -164,21 +179,31 @@ function HabitList({
 /* -------------------------------------------------------------------------- */
 
 function HabitRow({
-  habit,
+  row,
   delay,
   onEdit,
 }: {
-  habit: Habit;
+  row: ChainRow;
   delay: number;
   onEdit: () => void;
 }) {
+  const { habit, after } = row;
   const bad = habit.polarity === "bad";
 
   return (
     <article
       className="pane settle flex items-center gap-3 p-3.5"
-      style={{ "--d": `${delay}ms`, opacity: habit.active ? 1 : 0.62 } as CSSProperties}
+      style={
+        {
+          "--d": `${delay}ms`,
+          opacity: habit.active ? 1 : 0.62,
+          // Sangría por nivel: la cadena se ve como lo que es, una rutina
+          // colgando de su primer hábito.
+          marginLeft: row.depth > 0 ? `${Math.min(row.depth, 3) * 1.25}rem` : undefined,
+        } as CSSProperties
+      }
     >
+      {row.depth > 0 ? <span aria-hidden="true" className="link-arm" /> : null}
       <button
         type="button"
         onClick={onEdit}
@@ -203,7 +228,7 @@ function HabitRow({
         </span>
         <span className="mt-1 block truncate text-[0.75rem] text-[var(--g-ink-3)]">
           {[
-            timeLabel(habit),
+            after ? `Después de ${after.name.toLowerCase()}` : timeLabel(habit),
             freqLabel(habit),
             bad ? `se cuenta en ${habit.unit_label ?? "veces"}` : null,
           ]
@@ -215,9 +240,9 @@ function HabitRow({
             volver acá: la regla ya la dice la línea de arriba. */}
         {/* Entera, sin recortar: es la frase que la persona viene a releer, y
             cortada a la mitad no sirve para nada. Cuesta un renglón más. */}
-        {habit.cue ? (
+        {habit.cue || after ? (
           <span className="mt-1.5 block text-[0.75rem] leading-relaxed text-[var(--g-ink-2)] italic">
-            {intention(habit)}
+            {intention(habit, after?.name)}
           </span>
         ) : null}
       </button>
@@ -258,7 +283,16 @@ function HabitRow({
 /* El formulario                                                               */
 /* -------------------------------------------------------------------------- */
 
-function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
+function HabitForm({
+  habit,
+  habits,
+  onClose,
+}: {
+  habit?: Habit;
+  /** Todos, para poder elegir cuál dispara a este. */
+  habits: Habit[];
+  onClose: () => void;
+}) {
   const [polarity, setPolarity] = useState<Polarity>(habit?.polarity ?? "good");
   const [freq, setFreq] = useState<HabitFreq>(habit?.freq ?? "daily");
   const [weekdays, setWeekdays] = useState<number[]>(habit?.weekdays ?? [1, 3, 5]);
@@ -274,6 +308,41 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const [reward, setReward] = useState(habit?.reward ?? "");
   const [start, setStart] = useState(hhmm(habit?.start_time) ?? "");
   const [end, setEnd] = useState(hhmm(habit?.end_time) ?? "");
+  const [afterId, setAfterId] = useState(habit?.after_habit_id ?? "");
+
+  /*
+    El modo va aparte de la elección, y no derivado de ella.
+
+    Si "encadenado" fuera simplemente "hay un padre elegido", tocar «Después
+    de otro» tendría que elegir uno solo para que el modo se active — y
+    elegirlo por la persona, alfabéticamente, es meterle un hábito que no
+    pidió. Con el modo separado, el select puede arrancar vacío esperando una
+    decisión.
+  */
+  const [mode, setMode] = useState<"cue" | "after">(
+    habit?.after_habit_id ? "after" : "cue"
+  );
+
+  /*
+    Qué hábitos puede tener adelante.
+
+    Fuera quedan él mismo y todo lo que ya cuelga de él: elegir a un
+    descendiente cerraría un círculo. El servidor lo vuelve a verificar —esto
+    solo evita ofrecer una opción que va a ser rechazada—, y los hábitos en
+    pausa siguen adentro porque la cadena se define aunque hoy no corra.
+  */
+  const options = useMemo(() => {
+    const forbidden = habit
+      ? new Set([habit.id, ...descendantsOf(habits, habit.id)])
+      : new Set<string>();
+
+    return habits
+      .filter((candidate) => !forbidden.has(candidate.id))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  }, [habits, habit]);
+
+  const stacked = mode === "after";
+  const afterName = options.find((option) => option.id === afterId)?.name ?? null;
 
   /*
     Cerrado al crear, abierto al editar algo que ya tiene esos datos.
@@ -285,19 +354,28 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const [open, setOpen] = useState(
     Boolean(
       habit &&
-        (habit.cue || habit.reward || habit.start_time || habit.freq !== "daily")
+        (habit.cue ||
+          habit.reward ||
+          habit.start_time ||
+          habit.after_habit_id ||
+          habit.freq !== "daily")
     )
   );
 
-  const sentence = intention({
-    ...(habit ?? EMPTY_HABIT),
-    name: name || (polarity === "good" ? "el hábito" : "eso"),
-    polarity,
-    cue: cue || null,
-    reward: reward || null,
-    start_time: start || null,
-    end_time: end || null,
-  });
+  const sentence = intention(
+    {
+      ...(habit ?? EMPTY_HABIT),
+      name: name || (polarity === "good" ? "el hábito" : "eso"),
+      polarity,
+      // Encadenado no hay texto de señal, igual que en lo que se guarda: la
+      // frase de arriba no puede prometer algo distinto de lo que se manda.
+      cue: stacked ? null : cue || null,
+      reward: reward || null,
+      start_time: start || null,
+      end_time: end || null,
+    },
+    stacked ? afterName : null
+  );
 
   /*
     Cerrar es parte de guardar, así que vive adentro de la acción y no en un
@@ -427,20 +505,72 @@ function HabitForm({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
           </label>
         ) : null}
 
+        {/*
+          La señal, de dos maneras posibles y nunca de las dos a la vez.
+
+          Encadenarla a otro hábito es la versión más confiable: el hábito
+          anterior ya pasa todos los días sin que nadie tenga que acordarse.
+          Por eso va primero en el orden de lectura cuando hay con qué.
+        */}
         <div className="flex flex-col gap-2">
-          <span className="glass-eyebrow">La señal · cuando…</span>
-          <input
-            name="cue"
-            maxLength={80}
-            value={cue}
-            onChange={(event) => setCue(event.target.value)}
-            placeholder="Termine de desayunar"
-            className="gfield"
-          />
-          <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
-            Encadenala a algo que ya hacés sin pensar. «Después de servir el
-            café» funciona; «en la mañana» no le dice nada a nadie.
-          </p>
+          <span className="glass-eyebrow">La señal</span>
+
+          {options.length > 0 ? (
+            <div className="flex gap-2">
+              <Segment
+                active={!stacked}
+                onClick={() => setMode("cue")}
+                label="Escribirla"
+              />
+              <Segment
+                active={stacked}
+                onClick={() => setMode("after")}
+                label="Después de otro"
+              />
+            </div>
+          ) : null}
+
+          {stacked ? (
+            <>
+              <select
+                name="after_habit_id"
+                value={afterId}
+                onChange={(event) => setAfterId(event.target.value)}
+                aria-label="Hábito que lo dispara"
+                className="gfield"
+              >
+                <option value="">Elegí el hábito anterior…</option>
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+                Va a aparecer pegado a ese hábito en la lista de hoy, y se
+                enciende en cuanto lo marques. Podés encadenar varios: así se
+                arma una rutina entera.
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Sin `after_habit_id` el select no existe, y un campo que no
+                  se envía se leería como "sin padre" — que es justo lo que
+                  hay que guardar acá. */}
+              <input
+                name="cue"
+                maxLength={80}
+                value={cue}
+                onChange={(event) => setCue(event.target.value)}
+                placeholder="Termine de desayunar"
+                className="gfield"
+              />
+              <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+                Encadenala a algo que ya hacés sin pensar. «Después de servir
+                el café» funciona; «en la mañana» no le dice nada a nadie.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

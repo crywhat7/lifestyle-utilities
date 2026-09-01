@@ -50,6 +50,14 @@ export type Habit = {
   end_time: string | null;
   /** Si el teléfono lo dice en voz alta cuando llegue la hora. */
   remind: boolean;
+  /**
+   * El hábito que lo dispara — la acumulación del libro.
+   *
+   * Cuando está puesto, ES la señal y `cue` no se usa: un hábito tiene una
+   * señal, no dos. Es la más confiable que existe porque el hábito anterior
+   * ya pasa todos los días sin que nadie tenga que acordarse.
+   */
+  after_habit_id: string | null;
   /** Qué se cuenta en un hábito malo: "vasos", "panes". Nulo = veces. */
   unit_label: string | null;
   active: boolean;
@@ -163,43 +171,153 @@ export function occursOn(habit: Habit, iso: string) {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
+/* La cadena: acumulación de hábitos                                           */
+/* -------------------------------------------------------------------------- */
+
+export function indexById(habits: Habit[]) {
+  return new Map(habits.map((habit) => [habit.id, habit]));
+}
+
 /**
- * El orden del día: por hora, y lo que no tiene hora al final.
+ * A qué hora cae de verdad, siguiendo la cadena hacia arriba.
  *
- * Es el mismo criterio en la lista de hoy y en la pantalla donde se editan,
- * porque son la misma lista vista de dos maneras. Que en un lado estén por
- * hora y en el otro por fecha de creación obliga a buscar dos veces el mismo
- * hábito.
+ * Un hábito encadenado normalmente no tiene hora propia —pasa cuando termina
+ * el anterior—, así que sin esto caería al fondo de la lista, lejos del
+ * hábito que lo dispara. Hereda la del padre y la cadena se mantiene junta.
  *
- * Lo que no tiene hora vale "después de cualquier hora posible", así que
- * nunca le gana a una cita concreta sin necesidad de una rama aparte.
+ * `seen` corta cualquier círculo que se haya colado en los datos: `saveHabit`
+ * no deja crearlos, pero una fila editada a mano en Supabase colgaría la
+ * pantalla, y eso no puede pasar por leer.
  */
-export function byHour(a: Habit, b: Habit) {
-  const at = startMinutes(a) ?? MINUTES_IN_DAY;
-  const bt = startMinutes(b) ?? MINUTES_IN_DAY;
-  if (at !== bt) return at - bt;
+export function effectiveStart(
+  habit: Habit,
+  byId: Map<string, Habit>,
+  seen = new Set<string>()
+): number | null {
+  const own = startMinutes(habit);
+  if (own != null) return own;
 
-  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-  return a.name.localeCompare(b.name, "es");
+  if (!habit.after_habit_id || seen.has(habit.id)) return null;
+  seen.add(habit.id);
+
+  const parent = byId.get(habit.after_habit_id);
+  return parent ? effectiveStart(parent, byId, seen) : null;
 }
 
-export function sortByHour(habits: Habit[]) {
-  return [...habits].sort(byHour);
+/** Todo lo que cuelga de un hábito, para no ofrecerlo como su propio padre. */
+export function descendantsOf(habits: Habit[], id: string) {
+  const out = new Set<string>();
+  const pending = [id];
+
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    for (const habit of habits) {
+      if (habit.after_habit_id === current && !out.has(habit.id)) {
+        out.add(habit.id);
+        pending.push(habit.id);
+      }
+    }
+  }
+
+  return out;
+}
+
+export type ChainRow = {
+  habit: Habit;
+  /** 0 = arranca la cadena. 1+ = cuelga del de arriba. */
+  depth: number;
+  /** El hábito que lo dispara, si está en esta misma lista. */
+  after: Habit | null;
+  /** La hora que le toca, propia o heredada. Nula = en cualquier momento. */
+  startsAt: number | null;
+};
+
+/**
+ * La lista en el orden en que va a pasar el día, con las cadenas armadas.
+ *
+ * Cada hijo se dibuja pegado a su padre en vez de en su propio lugar por
+ * hora: la cadena es una sola rutina —«después de estudiar, cepillarme los
+ * dientes»— y partirla en dos filas separadas es perder justamente lo que la
+ * hace funcionar.
+ *
+ * Un hábito cuyo padre no está en esta lista —porque hoy no toca, o está en
+ * pausa, o es de la otra polaridad— arranca cadena él mismo. No desaparece
+ * por depender de algo que hoy no existe.
+ */
+export function chainOrder(habits: Habit[]): ChainRow[] {
+  const byId = indexById(habits);
+
+  const children = new Map<string, Habit[]>();
+  const roots: Habit[] = [];
+
+  for (const habit of habits) {
+    const parentId = habit.after_habit_id;
+    if (parentId && byId.has(parentId)) {
+      children.set(parentId, [...(children.get(parentId) ?? []), habit]);
+    } else {
+      roots.push(habit);
+    }
+  }
+
+  const bySortOrder = (a: Habit, b: Habit) =>
+    a.sort_order !== b.sort_order
+      ? a.sort_order - b.sort_order
+      : a.name.localeCompare(b.name, "es");
+
+  roots.sort((a, b) => {
+    const at = effectiveStart(a, byId) ?? MINUTES_IN_DAY;
+    const bt = effectiveStart(b, byId) ?? MINUTES_IN_DAY;
+    return at !== bt ? at - bt : bySortOrder(a, b);
+  });
+
+  const out: ChainRow[] = [];
+  const visited = new Set<string>();
+
+  const walk = (habit: Habit, depth: number, after: Habit | null) => {
+    // El mismo seguro que `effectiveStart`: leer datos torcidos no puede
+    // colgar la pantalla.
+    if (visited.has(habit.id)) return;
+    visited.add(habit.id);
+
+    out.push({
+      habit,
+      depth,
+      after,
+      startsAt: effectiveStart(habit, byId),
+    });
+
+    for (const child of (children.get(habit.id) ?? []).sort(bySortOrder)) {
+      walk(child, depth + 1, habit);
+    }
+  };
+
+  for (const root of roots) walk(root, 0, null);
+
+  /*
+    Lo que quedó sin dibujar está en un círculo: cada uno cuelga del otro, así
+    que ninguno es raíz y el recorrido de arriba no llega a ninguno. No
+    debería existir —`saveHabit` no deja crearlos— pero si una fila se editó a
+    mano en Supabase, el error no puede ser que esos hábitos DESAPAREZCAN de
+    la pantalla. Se muestran sueltos, sin cadena, que es lo peor que puede
+    pasarles: seguir estando.
+  */
+  for (const habit of habits) {
+    if (!visited.has(habit.id)) walk(habit, 0, null);
+  }
+
+  return out;
 }
 
 /**
- * Los hábitos activos que toca ver hoy, en el orden en que va a pasar el día.
+ * Los hábitos activos que toca ver hoy.
  *
- * Buenos antes que malos porque van en secciones distintas, y adentro de cada
- * uno por hora: la lista tiene que leerse como una agenda.
+ * Solo filtra. El orden lo pone `chainOrder`, que es la única autoridad sobre
+ * el tema: dos criterios de orden conviviendo terminan divergiendo, y lo que
+ * se ve en la lista de hoy tiene que ser lo mismo que se ve al editarlos.
  */
 export function scheduledFor(habits: Habit[], iso: string) {
-  return habits
-    .filter((habit) => habit.active && occursOn(habit, iso))
-    .sort((a, b) => {
-      if (a.polarity !== b.polarity) return a.polarity === "good" ? -1 : 1;
-      return byHour(a, b);
-    });
+  return habits.filter((habit) => habit.active && occursOn(habit, iso));
 }
 
 /** Cómo se lee una regla en una línea. */
@@ -291,15 +409,25 @@ export function windowState(habit: Habit, nowMinutes: number): WindowState {
  * "quiero leer más" en algo que el cerebro puede ejecutar sin decidir. Si no
  * hay ni señal ni hora, devuelve nulo en vez de una frase a medias.
  */
-export function intention(habit: Habit) {
+export function intention(habit: Habit, afterName?: string | null) {
   const time = hhmm(habit.start_time);
   const cue = habit.cue?.trim();
-  if (!time && !cue) return null;
+  const after = afterName?.trim();
+  if (!time && !cue && !after) return null;
 
   const verb = habit.polarity === "good" ? "voy a" : "suelo";
-  const when = [cue ? `Cuando ${lowerFirst(cue)}` : null, time ? `a las ${time}` : null]
-    .filter(Boolean)
-    .join(", ");
+
+  /*
+    Encadenado, la frase es la fórmula del libro y nada más: «Después de X,
+    voy a Y». La hora no entra aunque esté puesta —la señal es el hábito
+    anterior, no el reloj— y meterla sería darle dos disparadores a algo que
+    tiene uno solo.
+  */
+  const when = after
+    ? `Después de ${lowerFirst(after)}`
+    : [cue ? `Cuando ${lowerFirst(cue)}` : null, time ? `a las ${time}` : null]
+        .filter(Boolean)
+        .join(", ");
 
   const base = `${when}, ${verb} ${lowerFirst(habit.name)}.`;
   const reward = habit.reward?.trim();

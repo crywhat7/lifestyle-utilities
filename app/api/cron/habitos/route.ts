@@ -118,14 +118,18 @@ async function run(request: NextRequest) {
 
   const userIds = [...byUser.keys()];
 
+  /*
+    Se piden todos los activos y no solo los que avisan: un hábito encadenado
+    no tiene texto de señal, tiene un hábito anterior, y para escribir
+    «Después de estudiar» hace falta tener también al padre a mano aunque él
+    no genere ningún aviso. Son unas pocas filas por persona.
+  */
   const { data: habitRows, error: habitError } = await supabase
     .from("clean_habits")
     .select(
-      "id,user_id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,start_time,end_time,remind"
+      "id,user_id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,start_time,end_time,remind,after_habit_id"
     )
     .eq("active", true)
-    .eq("remind", true)
-    .not("start_time", "is", null)
     .in("user_id", userIds);
 
   /*
@@ -149,8 +153,19 @@ async function run(request: NextRequest) {
     El aviso y lo que la persona ve al abrir la app salen de la misma regla:
     si alguna vez difieren, es un bug en un solo lugar.
   */
-  const scheduled = (habitRows ?? [])
-    .map((row) => ({ ...row, start_time: hhmm(row.start_time as string) }))
+  const all = (habitRows ?? []).map((row) => ({
+    ...row,
+    start_time: hhmm(row.start_time as string),
+  }));
+
+  /** Para poder nombrar al hábito anterior en el texto del aviso. */
+  const nameById = new Map(all.map((row) => [String(row.id), String(row.name)]));
+
+  // Solo avisa lo que tiene hora propia y el aviso encendido. Un hábito
+  // encadenado sin hora no recibe push: su señal es terminar el anterior, y
+  // el teléfono no tiene forma de saber cuándo pasó eso.
+  const scheduled = all
+    .filter((row) => row.remind && row.start_time)
     .filter((row) => occursOn(row as unknown as Habit, today));
 
   if (scheduled.length === 0) {
@@ -246,10 +261,18 @@ async function run(request: NextRequest) {
     const userId = String(row.user_id);
     const lines = linesByUser.get(userId) ?? [];
 
+    const parent = row.after_habit_id
+      ? nameById.get(String(row.after_habit_id))
+      : null;
+
     lines.push({
       name: String(row.name),
       polarity: row.polarity === "bad" ? "bad" : "good",
-      cue: (row.cue as string | null) ?? null,
+      // Encadenado, la señal es el hábito anterior. Es la misma frase que se
+      // ve en la pantalla, así que el aviso no dice una cosa y la app otra.
+      cue: parent
+        ? `después de ${parent.toLowerCase()}`
+        : ((row.cue as string | null) ?? null),
       reward: (row.reward as string | null) ?? null,
       time: hhmm(row.start_time as string),
       endTime: hhmm(row.end_time as string),

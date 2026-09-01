@@ -195,13 +195,60 @@ export async function saveHabit(
     return { status: "error", error: "El cierre tiene que ser después del inicio." };
   }
 
+  /*
+    La acumulación: «después de X, voy a Y».
+
+    Que el select no ofrezca opciones inválidas no alcanza —una Server Action
+    se alcanza por POST directo—, así que la cadena se recorre acá antes de
+    guardar. Un círculo (A después de B, B después de A) no lo puede ver el
+    CHECK de la base, que solo mira una fila, y dejaría la pantalla girando
+    para siempre al dibujar la cadena.
+  */
+  const afterId = toText(formData.get("after_habit_id"), 40) || null;
+
+  if (afterId) {
+    const { data: links } = await supabase
+      .from("clean_habits")
+      .select("id,after_habit_id")
+      .eq("user_id", user.id);
+
+    const parents = new Map(
+      (links ?? []).map((row) => [String(row.id), row.after_habit_id as string | null])
+    );
+
+    if (!parents.has(afterId)) {
+      return { status: "error", error: "Ese hábito no existe." };
+    }
+
+    if (id) {
+      // Subir desde el padre elegido: si se llega a este mismo hábito, la
+      // cadena se muerde la cola.
+      const seen = new Set<string>();
+      let cursor: string | null = afterId;
+
+      while (cursor && !seen.has(cursor)) {
+        if (cursor === id) {
+          return {
+            status: "error",
+            error: "Eso armaría un círculo: ese hábito ya va después de este.",
+          };
+        }
+        seen.add(cursor);
+        cursor = parents.get(cursor) ?? null;
+      }
+    }
+  }
+
   const payload = {
     user_id: user.id,
     name,
     polarity,
     ...rule,
     unit_label: unit || null,
-    cue: toText(formData.get("cue"), 80) || null,
+    after_habit_id: afterId,
+    // Encadenado, el hábito anterior ES la señal: guardar además un texto
+    // libre dejaría dos disparadores compitiendo y una frase contradictoria.
+    cue: afterId ? null : toText(formData.get("cue"), 80) || null,
     reward: toText(formData.get("reward"), 80) || null,
     start_time: startTime,
     end_time: endTime,

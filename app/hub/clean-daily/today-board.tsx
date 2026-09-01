@@ -4,6 +4,7 @@ import { startTransition, useOptimistic, type CSSProperties } from "react";
 import { Check, Drop, Minus, PlusSlot, Sunrise } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
+  chainOrder,
   freqLabel,
   timeLabel,
   windowState,
@@ -76,14 +77,22 @@ export function TodayBoard({
     })
   );
 
-  const good = habits.filter((habit) => habit.polarity === "good");
-  const bad = habits.filter((habit) => habit.polarity === "bad");
+  /*
+    Cada polaridad arma sus cadenas por separado, porque van en secciones
+    distintas de la pantalla: un hábito bueno colgado de uno malo empieza
+    cadena propia acá arriba en vez de desaparecer.
+  */
+  const good = chainOrder(habits.filter((habit) => habit.polarity === "good"));
+  const bad = chainOrder(habits.filter((habit) => habit.polarity === "bad"));
 
-  const doneCount = good.filter((habit) => (state[habit.id] ?? 0) > 0).length;
+  const doneCount = good.filter((row) => (state[row.habit.id] ?? 0) > 0).length;
   const clear = good.length > 0 && doneCount === good.length;
   const progress = good.length === 0 ? 0 : (doneCount / good.length) * 100;
 
-  const slips = bad.reduce((total, habit) => total + (state[habit.id] ?? 0), 0);
+  const slips = bad.reduce(
+    (total, row) => total + (state[row.habit.id] ?? 0),
+    0
+  );
 
   function toggle(habit: Habit) {
     const done = (state[habit.id] ?? 0) > 0;
@@ -154,9 +163,22 @@ export function TodayBoard({
       {/* ── Lo que quiero sostener ───────────────────────────────────────── */}
       {good.length > 0 ? (
         <div className="flex flex-col gap-2.5">
-          {good.map((habit, index) => {
+          {good.map((row, index) => {
+            const habit = row.habit;
             const done = (state[habit.id] ?? 0) > 0;
-            const when = windowState(habit, nowMinutes);
+
+            /*
+              Acá está el pago de la acumulación: el hijo no espera al reloj,
+              espera al padre. En cuanto se marca el hábito anterior, el
+              siguiente se enciende — que es exactamente la señal que el libro
+              dice que hay que fabricar, solo que dibujada.
+            */
+            const armed = row.after ? (state[row.after.id] ?? 0) > 0 : false;
+            const when = row.after
+              ? armed
+                ? "now"
+                : "soon"
+              : windowState(habit, nowMinutes);
 
             return (
               <article
@@ -167,8 +189,19 @@ export function TodayBoard({
                 /* Marcado ya no es "ahora": una vez hecho, la fila deja de
                    reclamar la atención aunque el reloj siga adentro. */
                 data-when={done ? "passed" : when}
-                style={{ "--d": `${300 + index * 55}ms` } as CSSProperties}
+                style={
+                  {
+                    "--d": `${300 + index * 55}ms`,
+                    marginLeft:
+                      row.depth > 0
+                        ? `${Math.min(row.depth, 3) * 1.25}rem`
+                        : undefined,
+                  } as CSSProperties
+                }
               >
+                {row.depth > 0 ? (
+                  <span aria-hidden="true" className="link-arm" />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => toggle(habit)}
@@ -185,11 +218,21 @@ export function TodayBoard({
                     {habit.name}
                   </span>
                   <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
-                    <HourMark habit={habit} state={done ? "passed" : when} />
+                    {row.after ? (
+                      <span className="hour" data-when={done ? "passed" : when}>
+                        {armed && !done ? "te toca" : "después"}
+                      </span>
+                    ) : (
+                      <HourMark habit={habit} state={done ? "passed" : when} />
+                    )}
                     {/* La señal desplaza a la frecuencia: cuando existe, es lo
                         que de verdad dispara el hábito. */}
                     <span className="truncate">
-                      {habit.cue ? `Cuando ${habit.cue.toLowerCase()}` : freqLabel(habit)}
+                      {row.after
+                        ? `de ${row.after.name.toLowerCase()}`
+                        : habit.cue
+                          ? `Cuando ${habit.cue.toLowerCase()}`
+                          : freqLabel(habit)}
                     </span>
                   </span>
                 </span>
@@ -216,7 +259,8 @@ export function TodayBoard({
             )}
           </p>
 
-          {bad.map((habit, index) => {
+          {bad.map((row, index) => {
+            const habit = row.habit;
             const times = state[habit.id] ?? 0;
             const unit = habit.unit_label ?? (times === 1 ? "vez" : "veces");
 
@@ -237,7 +281,11 @@ export function TodayBoard({
                   <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
                     <HourMark habit={habit} state={windowState(habit, nowMinutes)} />
                     <span className="truncate">
-                      {times > 0 ? `${times} ${unit} hoy` : freqLabel(habit)}
+                      {times > 0
+                        ? `${times} ${unit} hoy`
+                        : row.after
+                          ? `Después de ${row.after.name.toLowerCase()}`
+                          : freqLabel(habit)}
                     </span>
                   </span>
                 </span>
