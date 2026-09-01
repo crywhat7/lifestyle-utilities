@@ -296,6 +296,50 @@ export async function loadTransactions(
   })) as PocketTransaction[];
 }
 
+/**
+ * Los egresos de una categoría, para abrirla desde el reparto.
+ *
+ * `categoryId` en `null` es la bolsa de los que no tienen ninguna: en la base
+ * eso es un `IS NULL`, no un `=`. El rango llega abierto por la derecha, así
+ * que el día 1 del mes siguiente queda afuera y no hay que saber cuántos días
+ * tiene el mes.
+ */
+export async function loadCategoryTransactions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  categoryId: string | null,
+  range: { from: string; to: string } | null,
+  limit = 200
+): Promise<PocketTransaction[]> {
+  let query = supabase
+    .from("pocket_transactions")
+    .select(
+      "id,kind,description,amount,currency,amount_base,base_currency,fx_rate,category_id,source,ai_categorized,occurred_at,created_at"
+    )
+    .eq("user_id", userId)
+    .eq("kind", "expense");
+
+  query = categoryId
+    ? query.eq("category_id", categoryId)
+    : query.is("category_id", null);
+
+  if (range) {
+    query = query.gte("occurred_at", range.from).lt("occurred_at", range.to);
+  }
+
+  const { data } = await query
+    .order("occurred_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    amount: Number(row.amount),
+    amount_base: Number(row.amount_base),
+    fx_rate: Number(row.fx_rate),
+  })) as PocketTransaction[];
+}
+
 /** Un solo movimiento — para su pantalla de detalle. */
 export async function loadTransaction(
   supabase: Awaited<ReturnType<typeof createClient>>,

@@ -116,6 +116,20 @@ export function monthLabel(date = new Date()) {
   return date.toLocaleDateString("es-GT", { month: "long", year: "numeric" });
 }
 
+/**
+ * El tramo de un mes, con `0` como el actual y `-1` como el anterior.
+ *
+ * `hasta` es exclusivo —el día 1 del mes siguiente— porque así la consulta se
+ * escribe igual para febrero que para julio, sin averiguar cuántos días tiene
+ * ninguno.
+ */
+export function monthRange(offset = 0, today = new Date()) {
+  const start = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const end = new Date(today.getFullYear(), today.getMonth() + offset + 1, 1);
+
+  return { from: isoDate(start), to: isoDate(end), label: monthLabel(start) };
+}
+
 /* -------------------------------------------------------------------------- */
 /* El motor: cuándo cae una regla                                              */
 /* -------------------------------------------------------------------------- */

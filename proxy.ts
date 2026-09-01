@@ -47,13 +47,63 @@ export async function proxy(request: NextRequest) {
       }
     : null;
 
+  /*
+    La otra mitad del mismo bug: "no pude verificarte" no es "no sos nadie".
+
+    El router dispara varios prefetch a la vez y cada uno corre aislado. Si el
+    token estaba por vencer, todos intentan refrescarlo con el mismo refresh
+    token; Supabase lo rota, el primero gana y a los demás les contesta que ya
+    no vale. Esa negativa pasajera se leía como sesión cerrada y mandaba a la
+    pantalla de acceso a alguien perfectamente logueado.
+
+    Con cookie de sesión encima, entonces, no se decide nada acá: la petición
+    pasa sin la cabecera de identidad y la página lo resuelve con `getUser()`,
+    que le pregunta al servidor de Auth y sí es concluyente.
+  */
+  const hasSessionCookie = request.cookies
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")
+    );
+  const unverified = !user && hasSessionCookie;
+
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 
-  if (!user && isProtected) return redirectTo(request, cookiesToSet, "/");
-  if (user && pathname === "/") return redirectTo(request, cookiesToSet, "/hub");
+  /*
+    Acá vivía el bug de "toco una vez y no pasa nada, a la segunda sí".
+
+    El router pide cada pantalla por adelantado con una petición RSC. Si el
+    proxy le contestaba con un redirect, `fetch` lo seguía solo y el router
+    terminaba guardando, bajo la dirección de My Pocket, el contenido de la
+    pantalla de acceso —un 200 de `text/x-component`, sin nada que le avisara
+    que lo habían mandado a otro lado—. Al tocar el botón aplicaba esa entrada
+    envenenada: la URL cambiaba, la pantalla no, y no salía ni una petición.
+    Recién el segundo toque la descartaba y navegaba de verdad.
+
+    Así que el redirect se reserva para lo único que un redirect sabe
+    manejar: la navegación de verdad, la que escribe una página en el
+    navegador. Eso se reconoce porque pide HTML —Next borra la cabecera `RSC`
+    y el parámetro `_rsc` antes de llegar hasta acá, pero el `accept` del
+    navegador sobrevive—. Todo lo demás pasa de largo, y si no hay sesión la
+    propia página llama a `redirect()`: eso Next lo manda dentro de la
+    respuesta, en el formato que el router entiende.
+
+    El portero real, igual, no es este archivo: es que cada pantalla de /hub
+    resuelve su sesión y redirige sola, y que RLS no le da una fila a nadie
+    sin su JWT.
+  */
+  const wantsHtml = (request.headers.get("accept") ?? "").includes("text/html");
+
+  if (wantsHtml && !unverified) {
+    if (!user && isProtected) return redirectTo(request, cookiesToSet, "/");
+    if (user && pathname === "/") {
+      return redirectTo(request, cookiesToSet, "/hub");
+    }
+  }
 
   /*
     Se copian las cabeceras recién ahora: si Supabase refrescó el token,
@@ -65,10 +115,13 @@ export async function proxy(request: NextRequest) {
     saliendo con el JWT de la sesión y RLS no devolvería filas ajenas.
   */
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(
-    IDENTITY_HEADER,
-    user ? encodeIdentity(user) : ANONYMOUS
-  );
+
+  if (unverified) {
+    // Se borra a mano: sin cabecera, `currentUser()` va a preguntar de verdad.
+    requestHeaders.delete(IDENTITY_HEADER);
+  } else {
+    requestHeaders.set(IDENTITY_HEADER, user ? encodeIdentity(user) : ANONYMOUS);
+  }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   cookiesToSet.forEach(({ name, value, options }) => {
