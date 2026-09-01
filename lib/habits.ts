@@ -164,24 +164,41 @@ export function occursOn(habit: Habit, iso: string) {
 }
 
 /**
+ * El orden del día: por hora, y lo que no tiene hora al final.
+ *
+ * Es el mismo criterio en la lista de hoy y en la pantalla donde se editan,
+ * porque son la misma lista vista de dos maneras. Que en un lado estén por
+ * hora y en el otro por fecha de creación obliga a buscar dos veces el mismo
+ * hábito.
+ *
+ * Lo que no tiene hora vale "después de cualquier hora posible", así que
+ * nunca le gana a una cita concreta sin necesidad de una rama aparte.
+ */
+export function byHour(a: Habit, b: Habit) {
+  const at = startMinutes(a) ?? MINUTES_IN_DAY;
+  const bt = startMinutes(b) ?? MINUTES_IN_DAY;
+  if (at !== bt) return at - bt;
+
+  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+  return a.name.localeCompare(b.name, "es");
+}
+
+export function sortByHour(habits: Habit[]) {
+  return [...habits].sort(byHour);
+}
+
+/**
  * Los hábitos activos que toca ver hoy, en el orden en que va a pasar el día.
  *
  * Buenos antes que malos porque van en secciones distintas, y adentro de cada
- * uno por hora: la lista tiene que leerse como una agenda. Los que no tienen
- * hora caen al final — no compiten con una cita concreta.
+ * uno por hora: la lista tiene que leerse como una agenda.
  */
 export function scheduledFor(habits: Habit[], iso: string) {
   return habits
     .filter((habit) => habit.active && occursOn(habit, iso))
     .sort((a, b) => {
       if (a.polarity !== b.polarity) return a.polarity === "good" ? -1 : 1;
-
-      const at = startMinutes(a);
-      const bt = startMinutes(b);
-      if (at !== bt) return (at ?? 1441) - (bt ?? 1441);
-
-      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-      return a.name.localeCompare(b.name, "es");
+      return byHour(a, b);
     });
 }
 
@@ -297,6 +314,84 @@ function lowerFirst(text: string) {
   // una oración: bajarle la primera letra a "IA" la rompe.
   if (clean.length > 1 && clean[1] === clean[1].toUpperCase()) return clean;
   return clean.charAt(0).toLowerCase() + clean.slice(1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* El empujón: qué avisar y cuándo                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cuánta anticipación tiene la última llamada.
+ *
+ * Es fijo y no depende de cada cuánto corra el cron: quince minutos son los
+ * que alcanzan para levantarse y hacer algo. Si esto colgara del intervalo,
+ * poner el cron cada cinco minutos —que solo debería dar más puntería—
+ * encogería el aviso a cinco minutos antes del cierre, que es cuando ya no
+ * sirve de nada.
+ */
+export const LAST_CALL_LEAD = 15;
+
+const MINUTES_IN_DAY = 1440;
+
+/**
+ * ¿Este instante pasó durante la franja que cubre esta corrida?
+ *
+ * `width` es el intervalo del cron. El límite de arriba es cerrado y el de
+ * abajo abierto, así que dos corridas consecutivas nunca se pisan y ningún
+ * minuto queda sin cubrir.
+ */
+function crossed(instant: number, now: number, width: number) {
+  return instant > now - width && instant <= now;
+}
+
+export type NudgeKind = "start" | "last_call";
+
+/**
+ * Qué aviso corresponde mandar en esta corrida, si alguno.
+ *
+ * Vive acá y no adentro del route para poder probarla contra un reloj
+ * inventado, sin base de datos ni push de por medio: es la única parte del
+ * cron donde puede esconderse un error de aritmética, y es justo la que no se
+ * ve fallar —un aviso que no salió no deja rastro—.
+ *
+ * No decide si el hábito toca hoy ni si ya está marcado: eso lo resuelve
+ * `occursOn` y los registros del día, antes de llegar acá.
+ */
+export function nudgeKind(
+  habit: Habit,
+  nowMinutes: number,
+  width: number
+): NudgeKind | null {
+  const start = startMinutes(habit);
+  if (start == null) return null;
+
+  if (crossed(start, nowMinutes, width)) return "start";
+
+  /*
+    La última corrida del día barre lo que queda hasta la medianoche.
+
+    Sin esto, un hábito a las 23:50 no se avisaba nunca: la corrida de las
+    23:45 todavía no lo alcanza y la siguiente ya es otro día —con la pizarra
+    reiniciada—, así que su franja se perdía entre las dos. El agujero medía
+    exactamente el intervalo del cron y no dejaba rastro, porque un aviso que
+    no salió no aparece en ningún log.
+
+    Avisar unos minutos antes es peor que a la hora exacta y muchísimo mejor
+    que no avisar.
+  */
+  if (nowMinutes + width >= MINUTES_IN_DAY && start > nowMinutes) return "start";
+
+  const end = endMinutes(habit);
+  if (end == null) return null;
+
+  /*
+    Una ventana más corta que la anticipación no lleva última llamada: el
+    aviso caería encima del de apertura —o antes— y serían dos globos
+    diciendo lo mismo. Con diez minutos de ventana, con el de apertura basta.
+  */
+  if (end - start <= LAST_CALL_LEAD) return null;
+
+  return crossed(end - LAST_CALL_LEAD, nowMinutes, width) ? "last_call" : null;
 }
 
 /* -------------------------------------------------------------------------- */

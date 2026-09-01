@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   startTransition,
   useActionState,
   useState,
@@ -13,6 +14,7 @@ import {
   freqLabel,
   hhmm,
   intention,
+  sortByHour,
   timeLabel,
   type Habit,
   type HabitFreq,
@@ -50,8 +52,9 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
   // `null` = cerrado, `"new"` = alta, un id = edición de ese hábito.
   const [editing, setEditing] = useState<string | null>(null);
 
-  const active = habits.filter((habit) => habit.active);
-  const paused = habits.filter((habit) => !habit.active);
+  // El mismo orden que la lista de hoy: por hora. Ver `byHour`.
+  const active = sortByHour(habits.filter((habit) => habit.active));
+  const paused = sortByHour(habits.filter((habit) => !habit.active));
 
   return (
     <section className="flex flex-col gap-2.5">
@@ -69,46 +72,82 @@ export function HabitManager({ habits }: { habits: Habit[] }) {
         </button>
       )}
 
-      {active.map((habit, index) =>
-        editing === habit.id ? (
-          <HabitForm
-            key={habit.id}
-            habit={habit}
-            onClose={() => setEditing(null)}
-          />
-        ) : (
-          <HabitRow
-            key={habit.id}
-            habit={habit}
-            delay={260 + index * 55}
-            onEdit={() => setEditing(habit.id)}
-          />
-        )
-      )}
+      <HabitList
+        habits={active}
+        baseDelay={260}
+        editing={editing}
+        onEdit={setEditing}
+        onClose={() => setEditing(null)}
+      />
 
       {paused.length > 0 ? (
         <>
           <p className="glass-eyebrow mt-4">En pausa</p>
-          {paused.map((habit, index) =>
-            editing === habit.id ? (
-              <HabitForm
-                key={habit.id}
-                habit={habit}
-                onClose={() => setEditing(null)}
-              />
-            ) : (
-              <HabitRow
-                key={habit.id}
-                habit={habit}
-                delay={320 + index * 55}
-                onEdit={() => setEditing(habit.id)}
-              />
-            )
-          )}
+          <HabitList
+            habits={paused}
+            baseDelay={320}
+            editing={editing}
+            onEdit={setEditing}
+            onClose={() => setEditing(null)}
+          />
         </>
       ) : null}
     </section>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* La lista                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Los hábitos ya ordenados por hora, con un corte donde se termina la agenda.
+ *
+ * Sin ese corte, pasar de "22:00" a un hábito sin hora se lee como un error
+ * de orden. Con él, la lista dice lo que es: primero el día en orden, después
+ * lo que se puede hacer en cualquier momento.
+ *
+ * El rótulo solo aparece cuando la lista es mixta: si ninguno tiene hora, un
+ * encabezado "Sin hora" arriba de todo es una etiqueta que no distingue nada.
+ */
+function HabitList({
+  habits,
+  baseDelay,
+  editing,
+  onEdit,
+  onClose,
+}: {
+  habits: Habit[];
+  baseDelay: number;
+  editing: string | null;
+  onEdit: (id: string) => void;
+  onClose: () => void;
+}) {
+  const firstUntimed = habits.findIndex((habit) => !hhmm(habit.start_time));
+  const mixed = firstUntimed > 0;
+
+  return habits.map((habit, index) => (
+    <Fragment key={habit.id}>
+      {mixed && index === firstUntimed ? (
+        <p
+          className="glass-eyebrow settle mt-3"
+          style={{ "--d": `${baseDelay + index * 55}ms` } as CSSProperties}
+        >
+          Sin hora
+        </p>
+      ) : null}
+
+      {editing === habit.id ? (
+        <HabitForm habit={habit} onClose={onClose} />
+      ) : (
+        <HabitRow
+          habit={habit}
+          delay={baseDelay + index * 55}
+          onEdit={() => onEdit(habit.id)}
+        />
+      )}
+    </Fragment>
+  ));
 }
 
 /* -------------------------------------------------------------------------- */

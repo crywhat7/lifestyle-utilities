@@ -91,7 +91,7 @@ probar sin despertar a nadie.
 | --- | --- | --- |
 | `/api/cron/salarios` | 1 vez al día | Registra los pagos que caen hoy. |
 | `/api/cron/recordatorio` | 13:00 y 19:00 | Pide registrar gastos y avisa lo que vence. |
-| `/api/cron/habitos` | **cada 15 min** | Recordatorios de Clean Daily. |
+| `/api/cron/habitos` | **cada 5 min** | Recordatorios de Clean Daily. |
 
 ### El de hábitos
 
@@ -99,10 +99,20 @@ probar sin despertar a nadie.
 https://TU-DOMINIO/api/cron/habitos
 ```
 
-Configuralo **cada 15 minutos** (`*/15 * * * *`). Cada corrida cubre solo los
-15 minutos desde la anterior, así que un hábito de las 07:07 lo agarra la
-pasada de las 07:15 y ninguna otra. Si cambiás el intervalo del cron, pasale
-`?window=N` con los mismos minutos.
+Configuralo **cada 5 minutos** (`*/5 * * * *`), sin parámetros. El intervalo
+del cron es lo único que define la puntería: un hábito de las 07:07 recibe su
+aviso en la primera corrida a partir de esa hora, o sea 07:10 con cinco
+minutos y 07:15 con quince.
+
+`?window=N` es otra cosa y casi nunca hay que tocarlo: son los minutos hacia
+atrás que mira cada corrida, 15 por defecto. **De más nunca hace daño** —los
+minutos cubiertos dos veces los absorbe el candado, y esa superposición es lo
+que salva a un hábito cuando una corrida se pierde—. De menos sí: lo que caiga
+en el hueco no se avisa nunca. Con el cron a 5 minutos y `window` en 15, cada
+minuto queda cubierto por tres corridas seguidas y solo la primera manda algo.
+
+La anticipación de la última llamada es fija en 15 minutos y no depende del
+intervalo, así que bajar el cron te da más puntería sin encogerte el aviso.
 
 Manda dos tipos de aviso, y nunca más de uno por persona a la vez aunque
 tenga tres hábitos a la misma hora:
@@ -110,8 +120,9 @@ tenga tres hábitos a la misma hora:
 - **Apertura** — llegó la hora del hábito y todavía no está marcado. El texto
   repite la señal y el resultado que la persona escribió: el aviso *es* la
   señal.
-- **Última llamada** — el hábito tiene ventana (`07:00–09:00`), está por
-  cerrarse y sigue sin marcarse.
+- **Última llamada** — el hábito tiene ventana (`07:00–09:00`) y faltan 15
+  minutos para que cierre sin que se haya marcado. Las ventanas de 15 minutos
+  o menos no la llevan: caería encima del aviso de apertura.
 
 Que no se repita no lo garantiza el reloj sino la tabla `clean_habit_nudges`:
 cada aviso reclama su fila con una constraint única, y solo quien la insertó

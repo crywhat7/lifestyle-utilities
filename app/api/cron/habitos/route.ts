@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeCron, minutesIn, todayIn, TIMEZONE } from "@/lib/cron";
 import {
-  endMinutes,
   hhmm,
+  nudgeKind,
   occursOn,
-  startMinutes,
   type Habit,
+  type NudgeKind,
 } from "@/lib/habits";
 import { habitPayload, type HabitNudge } from "@/lib/notifications";
 import {
@@ -40,7 +40,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Minutos que cubre cada corrida. Tiene que igualar al intervalo del cron. */
+/**
+ * Minutos que cubre cada corrida.
+ *
+ * Debería igualar al intervalo del cron, pero de más nunca hace daño: los
+ * minutos cubiertos dos veces los absorbe el candado de `clean_habit_nudges`,
+ * y esa superposición es justamente lo que salva a un hábito cuando una
+ * corrida se pierde. De menos sí: lo que caiga en el hueco no se avisa nunca.
+ */
 const DEFAULT_WINDOW = 15;
 
 export async function GET(request: NextRequest) {
@@ -162,31 +169,18 @@ async function run(request: NextRequest) {
 
   const done = new Set((logs ?? []).map((row) => String(row.habit_id)));
 
-  type Candidate = { row: (typeof scheduled)[number]; kind: "start" | "last_call" };
+  type Candidate = { row: (typeof scheduled)[number]; kind: NudgeKind };
   const candidates: Candidate[] = [];
 
+  /*
+    Qué avisar lo decide `nudgeKind`, que es pura y está probada contra un
+    reloj inventado. Acá solo se recorre: lo ya marcado hoy no se recuerda.
+  */
   for (const row of scheduled) {
     if (done.has(String(row.id))) continue;
 
-    const habit = row as unknown as Habit;
-    const start = startMinutes(habit);
-    if (start == null) continue;
-
-    // Se abrió la ventana dentro de la franja que cubre esta corrida.
-    if (start > now - width && start <= now) {
-      candidates.push({ row, kind: "start" });
-      continue;
-    }
-
-    /*
-      Última llamada: la ventana cierra dentro de la próxima franja y el
-      hábito sigue sin marcarse. Va antes del cierre y no después — avisar de
-      algo que ya no se puede hacer es puro reproche.
-    */
-    const end = endMinutes(habit);
-    if (end != null && end > now && end <= now + width) {
-      candidates.push({ row, kind: "last_call" });
-    }
+    const kind = nudgeKind(row as unknown as Habit, now, width);
+    if (kind) candidates.push({ row, kind });
   }
 
   if (candidates.length === 0) {
