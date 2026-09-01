@@ -62,19 +62,39 @@ function systemTheme(): ResolvedTheme {
     : "light";
 }
 
+/** Marca del `<meta>` que este componente sí puede tocar. */
+const OWN_META = "data-lu-theme-color";
+
 /**
  * La barra del navegador no lee CSS: hay que decirle el color a mano, o en
  * el tema claro queda una franja negra arriba de una pantalla de papel.
+ *
+ * Los dos `<meta name="theme-color">` con `media` los pone `viewport` en el
+ * layout raíz, así que son de React y NO se tocan. Antes esta función los
+ * borraba a todos: React se quedaba con referencias a nodos sin padre y en la
+ * siguiente navegación —cuando reconcilia el metadata de la ruta nueva—
+ * reventaba con `removeChild` de null. La app quedaba congelada con la URL ya
+ * cambiada, y recién el segundo toque la movía, porque para entonces React
+ * estaba muerto y el enlace navegaba como un `<a>` cualquiera.
+ *
+ * Este mete uno propio, marcado, y lo reusa. Va al principio del `<head>`
+ * porque el navegador se queda con el primer `theme-color` cuyo `media`
+ * aplique: sin `media`, aplica siempre, y así le gana a los dos de React sin
+ * necesidad de sacarlos del documento.
  */
 function paintBrowserChrome(resolved: ResolvedTheme) {
-  document
-    .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
-    .forEach((meta) => meta.remove());
+  let meta = document.head.querySelector<HTMLMetaElement>(
+    `meta[${OWN_META}]`
+  );
 
-  const meta = document.createElement("meta");
-  meta.name = "theme-color";
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.setAttribute(OWN_META, "");
+    document.head.prepend(meta);
+  }
+
   meta.content = THEME_COLOR[resolved];
-  document.head.appendChild(meta);
 }
 
 /**
