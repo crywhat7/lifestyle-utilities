@@ -69,6 +69,7 @@ export type HabitNudge = {
   polarity: "good" | "bad";
   cue: string | null;
   reward: string | null;
+  place: string | null;
   /** "HH:MM" en la zona del bolsillo. */
   time: string | null;
   endTime: string | null;
@@ -125,8 +126,14 @@ export function habitPayload(lines: HabitNudge[]): PushPayload {
     };
   }
 
+  /*
+    El orden importa porque el sistema operativo corta el cuerpo: primero lo
+    que dispara, después dónde, y último la recompensa. Si algo se pierde por
+    el corte, que sea lo menos accionable.
+  */
   const detail = [
     line.cue ? `Señal: ${line.cue}` : null,
+    line.place ? `En ${line.place.toLowerCase()}` : null,
     line.reward ? `Resultado: ${line.reward}` : null,
   ].filter(Boolean);
 

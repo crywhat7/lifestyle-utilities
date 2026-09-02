@@ -63,11 +63,13 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
 
 1. [`supabase/migrations/0001_lifestyle_utilities.sql`](supabase/migrations/0001_lifestyle_utilities.sql)
 2. [`supabase/migrations/0002_my_pocket.sql`](supabase/migrations/0002_my_pocket.sql)
-3. …y el resto en orden numérico. Las tres últimas
+3. …y el resto en orden numérico. Las cuatro últimas
    ([`0008`](supabase/migrations/0008_clean_daily.sql),
-   [`0009`](supabase/migrations/0009_clean_daily_intentions.sql) y
-   [`0010`](supabase/migrations/0010_habit_stacking.sql)) son las de Clean
-   Daily: tablas, intenciones de implementación y acumulación de hábitos.
+   [`0009`](supabase/migrations/0009_clean_daily_intentions.sql),
+   [`0010`](supabase/migrations/0010_habit_stacking.sql) y
+   [`0011`](supabase/migrations/0011_habit_place.sql)) son las de Clean
+   Daily: tablas, intenciones de implementación, acumulación de hábitos y el
+   lugar.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de

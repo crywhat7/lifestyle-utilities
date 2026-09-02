@@ -44,6 +44,8 @@ export type Habit = {
    */
   cue: string | null;
   reward: string | null;
+  /** Dónde pasa. La tercera pata de «lo haré a tal hora en tal lugar». */
+  place: string | null;
   /** "HH:MM" en la zona del bolsillo. Nulo = en cualquier momento del día. */
   start_time: string | null;
   /** Fin de la ventana. Nulo = momento puntual, sin última llamada. */
@@ -435,27 +437,41 @@ export function windowState(habit: Habit, nowMinutes: number): WindowState {
 export function intention(habit: Habit, afterName?: string | null) {
   const time = hhmm(habit.start_time);
   const cue = habit.cue?.trim();
+  const place = habit.place?.trim();
   const after = afterName?.trim();
-  if (!time && !cue && !after) return null;
+  if (!time && !cue && !after && !place) return null;
 
   const verb = habit.polarity === "good" ? "voy a" : "suelo";
 
   /*
-    Encadenado, la frase es la fórmula del libro y nada más: «Después de X,
-    voy a Y». La hora no entra aunque esté puesta —la señal es el hábito
-    anterior, no el reloj— y meterla sería darle dos disparadores a algo que
-    tiene uno solo.
-  */
-  const when = after
-    ? `Después de ${lowerFirst(after)}`
-    : [cue ? `Cuando ${lowerFirst(cue)}` : null, time ? `a las ${time}` : null]
-        .filter(Boolean)
-        .join(", ");
+    Encadenado, el disparador es el hábito anterior y nada más: la hora no
+    entra aunque esté puesta, porque darle dos señales a algo que tiene una
+    sola es lo que hace que ninguna funcione.
 
-  const base = `${when}, ${verb} ${lowerFirst(habit.name)}.`;
+    El lugar sí entra en los dos casos — es contexto, no disparador— y va
+    último, que es donde lo pone el libro: «a tal hora en tal lugar».
+  */
+  const when = [
+    after
+      ? `Después de ${lowerFirst(after)}`
+      : [cue ? `Cuando ${lowerFirst(cue)}` : null, time ? `a las ${time}` : null]
+          .filter(Boolean)
+          .join(", "),
+    place ? `en ${lowerFirst(place)}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // Un hábito que solo tiene lugar arranca la frase con «en …», así que la
+  // mayúscula se pone acá y no al armar cada pedazo.
+  const base = `${upperFirst(when)}, ${verb} ${lowerFirst(habit.name)}.`;
   const reward = habit.reward?.trim();
 
   return reward ? `${base} Resultado: ${lowerFirst(reward)}.` : base;
+}
+
+function upperFirst(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** "Servir el café" → "servir el café", para que la frase no tenga saltos. */

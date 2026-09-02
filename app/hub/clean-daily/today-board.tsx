@@ -220,7 +220,10 @@ export function TodayBoard({
                   <span className="habit-name block text-[1.0625rem] leading-snug transition-colors">
                     {habit.name}
                   </span>
-                  <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
+                  {/* `items-start` porque la línea puede envolver: con la
+                      señal y el lugar juntos, centrar la píldora contra dos
+                      renglones la deja flotando en el medio. */}
+                  <span className="mt-1.5 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
                     {row.after ? (
                       <span className="hour" data-when={done ? "passed" : when}>
                         {armed && !done ? "te toca" : "después"}
@@ -232,14 +235,21 @@ export function TodayBoard({
                         que de verdad dispara el hábito. Y si el padre no se
                         dibuja hoy, igual se nombra: decir "todos los días" de
                         algo que sigue a otro hábito sería mentir. */}
-                    <span className="truncate">
-                      {row.after
-                        ? `de ${row.after.name.toLowerCase()}`
-                        : habit.after_habit_id
-                          ? `Después de ${(names[habit.after_habit_id] ?? "otro hábito").toLowerCase()}`
-                          : habit.cue
-                            ? `Cuando ${habit.cue.toLowerCase()}`
-                            : freqLabel(habit)}
+                    <span className="line-clamp-2">
+                      {[
+                        row.after
+                          ? `de ${row.after.name.toLowerCase()}`
+                          : habit.after_habit_id
+                            ? `Después de ${(names[habit.after_habit_id] ?? "otro hábito").toLowerCase()}`
+                            : habit.cue
+                              ? `Cuando ${habit.cue.toLowerCase()}`
+                              : freqLabel(habit),
+                        // El lugar va último y se corta primero si no entra:
+                        // saber QUÉ dispara el hábito importa más que dónde.
+                        habit.place ? `en ${habit.place.toLowerCase()}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </span>
                 </span>
@@ -285,9 +295,12 @@ export function TodayBoard({
                   <span className="habit-name block text-[1.0625rem] leading-snug transition-colors">
                     {habit.name}
                   </span>
-                  <span className="mt-1.5 flex items-center gap-2 text-[0.75rem] text-[var(--g-ink-3)]">
+                  {/* `items-start` porque la línea puede envolver: con la
+                      señal y el lugar juntos, centrar la píldora contra dos
+                      renglones la deja flotando en el medio. */}
+                  <span className="mt-1.5 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
                     <HourMark habit={habit} state={windowState(habit, nowMinutes)} />
-                    <span className="truncate">
+                    <span className="line-clamp-2">
                       {times > 0
                         ? `${times} ${unit} hoy`
                         : habit.after_habit_id

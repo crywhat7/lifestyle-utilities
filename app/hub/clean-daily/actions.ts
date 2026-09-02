@@ -265,6 +265,7 @@ export async function saveHabit(
     // Encadenado, el hábito anterior ES la señal: guardar además un texto
     // libre dejaría dos disparadores compitiendo y una frase contradictoria.
     cue: afterId ? null : toText(formData.get("cue"), 80) || null,
+    place: toText(formData.get("place"), 60) || null,
     reward: toText(formData.get("reward"), 80) || null,
     start_time: startTime,
     end_time: endTime,
@@ -471,7 +472,7 @@ export async function sendHabitTestPush(): Promise<FormState> {
       .eq("user_id", user.id),
     supabase
       .from("clean_habits")
-      .select("name,polarity,cue,reward,start_time,end_time")
+      .select("name,polarity,cue,reward,place,start_time,end_time")
       .eq("user_id", user.id)
       .eq("active", true)
       .order("start_time", { ascending: true, nullsFirst: false })
@@ -494,6 +495,7 @@ export async function sendHabitTestPush(): Promise<FormState> {
       polarity: sample?.polarity === "bad" ? "bad" : "good",
       cue: sample?.cue ?? "termine de desayunar",
       reward: sample?.reward ?? "arrancar el día despierto",
+      place: sample?.place ?? "la cocina",
       time: hhmm(sample?.start_time) ?? "07:00",
       endTime: hhmm(sample?.end_time),
       kind: "start",

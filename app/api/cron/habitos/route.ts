@@ -127,7 +127,7 @@ async function run(request: NextRequest) {
   const { data: habitRows, error: habitError } = await supabase
     .from("clean_habits")
     .select(
-      "id,user_id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,start_time,end_time,remind,after_habit_id"
+      "id,user_id,name,polarity,freq,weekdays,interval_days,anchor_date,unit_label,active,sort_order,cue,reward,place,start_time,end_time,remind,after_habit_id"
     )
     .eq("active", true)
     .in("user_id", userIds);
@@ -141,7 +141,8 @@ async function run(request: NextRequest) {
   if (habitError) {
     return NextResponse.json(
       {
-        error: "No se pudieron leer los hábitos. ¿Corriste las migraciones 0008 y 0009?",
+        error:
+          "No se pudieron leer los hábitos. ¿Corriste todas las migraciones de Clean Daily (0008 a 0011)?",
         detail: habitError.message,
       },
       { status: 500 }
@@ -282,6 +283,7 @@ async function run(request: NextRequest) {
       cue: parent
         ? `después de ${parent.toLowerCase()}`
         : ((row.cue as string | null) ?? null),
+      place: (row.place as string | null) ?? null,
       reward: (row.reward as string | null) ?? null,
       time: hhmm(row.start_time as string),
       endTime: hhmm(row.end_time as string),

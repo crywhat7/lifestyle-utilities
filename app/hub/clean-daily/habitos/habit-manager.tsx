@@ -53,6 +53,7 @@ const EMPTY_HABIT: Habit = {
   unit_label: null,
   cue: null,
   reward: null,
+  place: null,
   start_time: null,
   end_time: null,
   remind: true,
@@ -240,7 +241,7 @@ function HabitRow({
             volver acá: la regla ya la dice la línea de arriba. */}
         {/* Entera, sin recortar: es la frase que la persona viene a releer, y
             cortada a la mitad no sirve para nada. Cuesta un renglón más. */}
-        {habit.cue || after ? (
+        {habit.cue || habit.place || after ? (
           <span className="mt-1.5 block text-[0.75rem] leading-relaxed text-[var(--g-ink-2)] italic">
             {intention(habit, after?.name)}
           </span>
@@ -306,6 +307,7 @@ function HabitForm({
   const [name, setName] = useState(habit?.name ?? "");
   const [cue, setCue] = useState(habit?.cue ?? "");
   const [reward, setReward] = useState(habit?.reward ?? "");
+  const [place, setPlace] = useState(habit?.place ?? "");
   const [start, setStart] = useState(hhmm(habit?.start_time) ?? "");
   const [end, setEnd] = useState(hhmm(habit?.end_time) ?? "");
   const [afterId, setAfterId] = useState(habit?.after_habit_id ?? "");
@@ -356,6 +358,7 @@ function HabitForm({
       habit &&
         (habit.cue ||
           habit.reward ||
+          habit.place ||
           habit.start_time ||
           habit.after_habit_id ||
           habit.freq !== "daily")
@@ -371,6 +374,7 @@ function HabitForm({
       // frase de arriba no puede prometer algo distinto de lo que se manda.
       cue: stacked ? null : cue || null,
       reward: reward || null,
+      place: place || null,
       start_time: start || null,
       end_time: end || null,
     },
@@ -604,6 +608,31 @@ function HabitForm({
           </p>
         </div>
 
+        {/*
+          La tercera pata de la intención: «a tal hora EN TAL LUGAR».
+
+          Va pegado a la hora porque son la misma idea —el contexto— y separar
+          uno del otro haría que se completara solo la mitad. Un lugar
+          concreto le da al cerebro un ambiente que reconocer; sin él, la
+          señal vuelve a depender de acordarse.
+        */}
+        <div className="flex flex-col gap-2">
+          <span className="glass-eyebrow">El lugar · en…</span>
+          <input
+            name="place"
+            maxLength={60}
+            value={place}
+            onChange={(event) => setPlace(event.target.value)}
+            placeholder={polarity === "good" ? "La cocina" : "El comedor"}
+            className="gfield"
+          />
+          <p className="text-[0.75rem] leading-relaxed text-[var(--g-ink-3)]">
+            {polarity === "good"
+              ? "Mientras más concreto, mejor: «el sillón» le dice algo al cerebro que «la casa» no."
+              : "Dónde caés casi siempre. Saber el lugar es lo que después te deja cambiarlo."}
+          </p>
+        </div>
+
         <div className="flex flex-col gap-2">
           <span className="glass-eyebrow">El resultado</span>
           <input
@@ -780,7 +809,12 @@ function HabitForm({
  */
 function Science({ polarity }: { polarity: Polarity }) {
   const steps = [
-    { n: 1, name: "Señal", text: "Lo que lo dispara.", field: "el campo de abajo" },
+    {
+      n: 1,
+      name: "Señal",
+      text: "Lo que lo dispara.",
+      field: "la señal, la hora y el lugar de abajo",
+    },
     { n: 2, name: "Anhelo", text: "Las ganas que aparecen.", field: null },
     { n: 3, name: "Respuesta", text: "El hábito en sí.", field: "el nombre de arriba" },
     { n: 4, name: "Recompensa", text: "Lo que te deja.", field: "el resultado" },
