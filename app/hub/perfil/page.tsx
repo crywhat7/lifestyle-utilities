@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack, Chevron, Power, Slate, Wallet } from "@/components/icons";
+import { ArrowBack, Cap, Chevron, Power, Slate, Wallet } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { currentUser } from "@/lib/auth";
@@ -157,6 +157,12 @@ export default async function ProfilePage() {
             title="My Pocket"
             note="Ingreso, fechas de pago, gastos fijos y categorías."
             icon={<Wallet className="size-5" />}
+          />
+          <SettingsLink
+            href="/hub/canvas/conexion"
+            title="Canvas Studio"
+            note="Tu llave de acceso y qué cursos seguir."
+            icon={<Cap className="size-5" />}
           />
           <SettingsLink
             href="/hub/clean-daily/habitos"

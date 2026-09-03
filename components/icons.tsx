@@ -477,3 +477,53 @@ export function Drop({ className }: IconProps) {
     </Stroke>
   );
 }
+
+/** Birrete — el glifo de Canvas Studio. */
+export function Cap({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M22 9l-10 -4l-10 4l10 4l10 -4v6" />
+      <path d="M6 10.6v5.4a6 3 0 0 0 12 0v-5.4" />
+    </Stroke>
+  );
+}
+
+/** Clip — los archivos que acompañan a un borrador. */
+export function Clip({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5" />
+    </Stroke>
+  );
+}
+
+/** Dos hojas — copiar el LaTeX al portapapeles. */
+export function Copy({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+      <path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+    </Stroke>
+  );
+}
+
+/** Flecha a la bandeja — bajar el .tex al teléfono. */
+export function Download({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+      <path d="M7 11l5 5l5 -5" />
+      <path d="M12 4l0 12" />
+    </Stroke>
+  );
+}
+
+/** Flecha circular — volver a pedirle a Canvas lo que ya cambió. */
+export function Refresh({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+      <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+    </Stroke>
+  );
+}

@@ -1,0 +1,388 @@
+/* ==========================================================================
+   Canvas Studio — el ambiente de papel blanco.
+
+   La app tiene dos materiales: la placa mecanizada del hub y el vidrio de
+   Clean Daily. Este módulo es un tercero y la razón no es capricho: acá se
+   lee un enunciado largo, se escribe un prompt y se revisa un documento de
+   varias pantallas. Nada de eso quiere bisel, grano ni acento lima
+   compitiendo con el texto.
+
+   La referencia es la web de Apple: fondo casi blanco, una sola tinta, un
+   azul que solo aparece en lo que se toca, titulares enormes con tracking
+   negativo y muchísimo aire. El texto es el objeto; todo lo demás desaparece.
+
+   Todo cuelga de `.studio`, así que nada de esto existe fuera de esta ruta.
+
+   Sobre la tipografía: se pide SF —la fuente del sistema en iPhone y Mac,
+   que es donde esta herramienta se va a usar— y no se descarga nada. No es
+   pereza de "system-ui": es la única forma de tener SF de verdad, y en la
+   web de Apple es exactamente lo que está pasando.
+   ========================================================================== */
+
+.studio {
+  /* ── Papel y tinta ───────────────────────────────────────────────────── */
+  --s-paper: light-dark(#fbfbfd, #0a0a0c);
+  --s-surface: light-dark(#f5f5f7, #151517);
+  --s-raised: light-dark(#ffffff, #1c1c1f);
+
+  --s-ink: light-dark(#1d1d1f, #f5f5f7);
+  --s-ink-2: light-dark(#6e6e73, #a1a1a6);
+  --s-ink-3: light-dark(#86868b, #6e6e73);
+
+  /* Una sola línea, finísima: la separación la hace el aire, no el borde. */
+  --s-hair: light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.11));
+  --s-hair-strong: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.2));
+
+  /* ── El azul: solo en lo que se toca ─────────────────────────────────── */
+  --s-blue: light-dark(#0071e3, #2997ff);
+  --s-blue-press: light-dark(#0077ed, #47a9ff);
+  --s-on-blue: #ffffff;
+  --s-blue-soft: light-dark(rgba(0, 113, 227, 0.1), rgba(41, 151, 255, 0.16));
+
+  /* ── Los dos avisos ──────────────────────────────────────────────────── */
+  --s-late: light-dark(#d93025, #ff6961);
+  --s-soon: light-dark(#b25000, #ff9f0a);
+  --s-done: light-dark(#1d7a3e, #30d158);
+
+  /* Expo out. Nada acá usa `ease` ni `linear`. */
+  --s-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --s-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
+  --s-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  position: relative;
+  isolation: isolate;
+  background: var(--s-paper);
+  color: var(--s-ink);
+  font-family: var(--s-font);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.012em;
+}
+
+/*
+  El papel tapa el suelo mecanizado del `body`, que es fijo y cubre toda la
+  pantalla. Sin esto, el grano y el degradado verde del resto de la app se
+  verían por detrás de un módulo que se define justamente por no tenerlos.
+*/
+.studio::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--s-paper);
+}
+
+.studio ::selection {
+  background: var(--s-blue-soft);
+  color: var(--s-ink);
+}
+
+.studio :focus-visible {
+  outline: 3px solid var(--s-blue-soft);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@layer components {
+  /* ------------------------------------------------------------------------
+     Tipografía — el titular ES el diseño
+     ------------------------------------------------------------------------ */
+
+  /* El número gigante de la portada: 15vw y peso 600, como un keynote. */
+  .s-hero {
+    font-size: clamp(3.25rem, 17vw, 5.5rem);
+    font-weight: 600;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  .s-title {
+    font-size: clamp(1.75rem, 7.5vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+
+  .s-head {
+    font-size: 1.3125rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.024em;
+  }
+
+  /* 17px es el cuerpo de Apple, y 1.47 su interlínea. No es casualidad que
+     sea lo más cómodo de leer en un teléfono a un brazo de distancia. */
+  .s-body {
+    font-size: 1.0625rem;
+    line-height: 1.47;
+    letter-spacing: -0.012em;
+    color: var(--s-ink-2);
+  }
+
+  .s-caption {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    letter-spacing: 0;
+    color: var(--s-ink-3);
+  }
+
+  /* El rótulo de sección: chico, en mayúsculas, nunca gritado. */
+  .s-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--s-ink-3);
+  }
+
+  /* ------------------------------------------------------------------------
+     Superficies — sin sombra, sin bisel: solo un cambio de valor
+     ------------------------------------------------------------------------ */
+
+  .s-card {
+    background: var(--s-surface);
+    border-radius: 18px;
+  }
+
+  .s-sheet {
+    background: var(--s-raised);
+    border: 1px solid var(--s-hair);
+    border-radius: 18px;
+  }
+
+  .s-rule {
+    height: 1px;
+    background: var(--s-hair);
+    border: 0;
+  }
+
+  /* ------------------------------------------------------------------------
+     Controles
+     ------------------------------------------------------------------------ */
+
+  .s-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.875rem;
+    padding: 0 1.375rem;
+    border-radius: 980px;
+    background: var(--s-blue);
+    color: var(--s-on-blue);
+    font-size: 1.0625rem;
+    font-weight: 500;
+    letter-spacing: -0.012em;
+    border: 0;
+    transition:
+      transform 0.4s var(--s-ease),
+      background-color 0.4s var(--s-ease),
+      opacity 0.4s var(--s-ease);
+  }
+
+  .s-pill:active {
+    transform: scale(0.97);
+    background: var(--s-blue-press);
+  }
+
+  .s-pill:disabled {
+    opacity: 0.42;
+    transform: none;
+  }
+
+  /* El mismo botón, en secundario: el azul se queda solo en la tinta. */
+  .s-pill-ghost {
+    background: var(--s-surface);
+    color: var(--s-blue);
+  }
+
+  .s-pill-ghost:active {
+    background: var(--s-surface);
+  }
+
+  /* El enlace de Apple: texto azul y un chevron que se despega al tocarlo. */
+  .s-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    color: var(--s-blue);
+    font-size: 1.0625rem;
+    letter-spacing: -0.012em;
+  }
+
+  .s-link svg {
+    transition: transform 0.4s var(--s-ease);
+  }
+
+  .s-link:active svg {
+    transform: translateX(3px);
+  }
+
+  /* Campos: una caja de papel con una hairline, nada más. Al enfocar, el
+     borde se vuelve azul — es el único momento en que un contorno importa. */
+  .s-field {
+    width: 100%;
+    min-width: 0;
+    background: var(--s-raised);
+    border: 1px solid var(--s-hair-strong);
+    border-radius: 12px;
+    padding: 0.8125rem 0.9375rem;
+    color: var(--s-ink);
+    font-family: inherit;
+    font-size: 1.0625rem;
+    letter-spacing: -0.012em;
+    appearance: none;
+    transition:
+      border-color 0.3s var(--s-ease),
+      box-shadow 0.3s var(--s-ease);
+  }
+
+  .s-field::placeholder {
+    color: var(--s-ink-3);
+  }
+
+  .s-field:focus {
+    outline: none;
+    border-color: var(--s-blue);
+    box-shadow: 0 0 0 4px var(--s-blue-soft);
+  }
+
+  .s-field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--s-ink-2);
+    margin-bottom: 0.4375rem;
+  }
+
+  /* La casilla: un círculo vacío que se llena de azul. Sin `input` visible,
+     porque el nativo trae su propio color y su propio radio. */
+  .s-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 1.5px solid var(--s-hair-strong);
+    background: transparent;
+    color: transparent;
+    transition:
+      background-color 0.32s var(--s-ease),
+      border-color 0.32s var(--s-ease),
+      color 0.32s var(--s-ease),
+      transform 0.32s var(--s-ease);
+  }
+
+  .s-check[data-on="true"] {
+    background: var(--s-blue);
+    border-color: var(--s-blue);
+    color: var(--s-on-blue);
+  }
+
+  .s-check:active {
+    transform: scale(0.88);
+  }
+
+  /* Píldora de estado: sin borde, solo un fondo lavado del propio color. */
+  .s-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    border-radius: 999px;
+    padding: 0.1875rem 0.5625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    background: color-mix(in oklab, currentColor 12%, transparent);
+  }
+
+  /* ------------------------------------------------------------------------
+     El documento — LaTeX en monoespaciada, sobre papel
+     ------------------------------------------------------------------------ */
+
+  .s-code {
+    font-family: var(--s-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    tab-size: 2;
+  }
+
+  /* ------------------------------------------------------------------------
+     Coreografía — cada pieza entra sola, de abajo, con expo out
+     ------------------------------------------------------------------------ */
+
+  .s-rise {
+    opacity: 0;
+    animation: s-rise 0.72s var(--s-ease) forwards;
+    animation-delay: var(--d, 0ms);
+  }
+
+  @keyframes s-rise {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 22px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* La barra que corre mientras la IA escribe: no es una barra de progreso
+     —no sabemos cuánto falta— es una señal de que algo está pasando. */
+  .s-thinking {
+    position: relative;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--s-hair);
+    overflow: hidden;
+  }
+
+  .s-thinking::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 38%;
+    border-radius: inherit;
+    background: var(--s-blue);
+    animation: s-sweep 1.15s var(--s-ease) infinite;
+  }
+
+  @keyframes s-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(320%);
+    }
+  }
+}
+
+/*
+  Quien pidió menos movimiento ve la misma pantalla, quieta. Nada de esto
+  aporta información: todo es entrada y ritmo.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .studio .s-rise {
+    animation: none;
+    opacity: 1;
+  }
+
+  .studio .s-thinking::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}

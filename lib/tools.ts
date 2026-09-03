@@ -6,7 +6,7 @@ export type Tool = {
   tagline: string;
   description: string;
   href: string;
-  iconKey: "cart" | "spark" | "wallet" | "slate";
+  iconKey: "cart" | "spark" | "wallet" | "slate" | "cap";
   status: ToolStatus;
 };
 
@@ -39,6 +39,16 @@ export const TOOLS: Tool[] = [
       "Convierte el precio de lo que querés comprar en el tiempo que te cuesta ganarlo.",
     href: "/hub/should-i-buy-it",
     iconKey: "cart",
+    status: "live",
+  },
+  {
+    slug: "canvas",
+    name: "Canvas Studio",
+    tagline: "Tus entregas, traídas y empezadas",
+    description:
+      "Trae de Canvas lo que no entregaste, lo deja como recordatorio y escribe el borrador en LaTeX para que lo termines.",
+    href: "/hub/canvas",
+    iconKey: "cap",
     status: "live",
   },
   {

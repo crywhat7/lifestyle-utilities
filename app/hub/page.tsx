@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import {
   ArrowOut,
+  Cap,
   CartTag,
   Slate,
   Sliders,
@@ -173,6 +174,7 @@ function ToolGlyph({
   if (iconKey === "cart") return <CartTag className={size} />;
   if (iconKey === "wallet") return <Wallet className={size} />;
   if (iconKey === "slate") return <Slate className={size} />;
+  if (iconKey === "cap") return <Cap className={size} />;
   return <Spark className={wide ? "size-6" : "size-5"} />;
 }
 
