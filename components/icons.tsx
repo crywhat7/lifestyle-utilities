@@ -1,6 +1,52 @@
+import type { ReactNode } from "react";
+
+/*
+  Los glifos de la app.
+  --------------------------------------------------------------------------
+  Casi todos toman su geometría de Tabler Icons (MIT, tabler.io/icons), que
+  está dibujada sobre una retícula de 24 y con un grosor único: eso es lo que
+  hace que un carrito y una billetera se vean de la misma familia, algo que
+  dibujando a mano uno por uno se pierde enseguida.
+
+  No entra como dependencia. Son treinta glifos de los casi seis mil que trae
+  el paquete, así que viven acá adentro: pesan lo que pesan sus trazos, se
+  editan como cualquier otro componente y nadie tiene que confiar en que el
+  bundler sepa descartar el resto.
+
+  Lo que sí es nuestro se queda nuestro: la mano que saluda, la chispa de la
+  marca y el logotipo de Google. Un producto no se reconoce por su papelera.
+*/
+
 type IconProps = {
   className?: string;
 };
+
+/**
+ * El chasis común de los glifos de trazo.
+ *
+ * 24 de lado, grosor 2, puntas y uniones redondas: la receta de Tabler. Vive
+ * en un solo lugar para que ningún icono se desalinee del resto por su cuenta,
+ * y el tamaño real siempre lo pone quien lo usa con una clase `size-*`.
+ */
+function Stroke({
+  className,
+  children,
+}: IconProps & { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      {children}
+    </svg>
+  );
+}
 
 /** Mano saludando — dibujada a medida, sin emoji. */
 export function WaveHand({ className }: IconProps) {
@@ -60,27 +106,16 @@ export function GoogleMark({ className }: IconProps) {
   );
 }
 
-/** Carrito con etiqueta de precio — icono de "Should I Buy It". */
+/** Carrito con el signo del precio — el glifo de "Should I Buy It". */
 export function CartTag({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 7h4.4a2 2 0 0 1 1.95 1.55L11 11m0 0 3.6 15.6a3 3 0 0 0 2.92 2.3h15.1a3 3 0 0 0 2.92-2.28L39 15H11z" />
-        <circle cx="18.5" cy="39" r="3" />
-        <circle cx="33" cy="39" r="3" />
-        <path d="M24 18.5v7.5M21 20.8c0-1.3 1.34-2.3 3-2.3s3 1 3 2.3-1.34 2.3-3 2.3-3 1-3 2.3 1.34 2.3 3 2.3 3-1 3-2.3" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path d="M13 17h-7v-14h-2" />
+      <path d="M6 5l14 1l-.575 4.022m-4.925 2.978h-8.5" />
+      <path d="M21 15h-2.5a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 1 0 3h-2.5" />
+      <path d="M19 21v1m0 -8v1" />
+    </Stroke>
   );
 }
 
@@ -106,655 +141,339 @@ export function Spark({ className }: IconProps) {
   );
 }
 
-/** Signo de más para los espacios vacíos del bento. */
+/** Signo de más: sumar una fila, abrir un formulario. */
 export function PlusSlot({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M12 5v14M5 12h14"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M12 5l0 14" />
+      <path d="M5 12l14 0" />
+    </Stroke>
   );
 }
 
 /** Botón de encendido — cerrar sesión. */
 export function Power({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 3v9" />
-        <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M7 6a7.75 7.75 0 1 0 10 0" />
+      <path d="M12 4l0 8" />
+    </Stroke>
   );
 }
 
-/** Flecha diagonal para las tarjetas accionables. */
+/** Flecha diagonal para las placas accionables. */
 export function ArrowOut({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M7 17 17 7M9 7h8v8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M17 7l-10 10" />
+      <path d="M8 7l9 0l0 9" />
+    </Stroke>
   );
 }
 
 /** Lupa del buscador de productos. */
 export function Search({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="10.5" cy="10.5" r="6.5" />
-        <path d="m15.5 15.5 4.5 4.5" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+      <path d="M21 21l-6 -6" />
+    </Stroke>
   );
 }
 
 /** Flecha de regreso. */
 export function ArrowBack({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M15 5 8 12l7 7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M15 6l-6 6l6 6" />
+    </Stroke>
   );
 }
 
-/** Tuerca de ajustes. */
+/** Controles deslizantes — los ajustes. */
 export function Sliders({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 8h10M18 8h2M4 16h4M12 16h8" />
-        <circle cx="16" cy="8" r="2" />
-        <circle cx="10" cy="16" r="2" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M14 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M4 6l8 0" />
+      <path d="M16 6l4 0" />
+      <path d="M8 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M4 12l2 0" />
+      <path d="M10 12l10 0" />
+      <path d="M17 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M4 18l11 0" />
+      <path d="M19 18l1 0" />
+    </Stroke>
   );
 }
 
 /** Papelera para borrar del historial. */
 export function Trash({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 7h16M10 7V5h4v2M6 7l1 12h10l1-12" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 7l16 0" />
+      <path d="M10 11l0 6" />
+      <path d="M14 11l0 6" />
+      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+      <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+    </Stroke>
   );
 }
 
-/** Marca de verificación — argumentos a favor. */
+/** Marca de verificación — argumentos a favor, tareas hechas. */
 export function Check({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="m5 12.5 4.5 4.5L19 7"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M5 12l5 5l10 -10" />
+    </Stroke>
   );
 }
 
-/** Aspa — argumentos en contra. */
+/** Aspa — argumentos en contra, cerrar un aviso. */
 export function Cross({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M6 6l12 12M18 6 6 18"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M18 6l-12 12" />
+      <path d="M6 6l12 12" />
+    </Stroke>
   );
 }
 
 /** Galón que gira al abrir un ítem del historial. */
 export function Chevron({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="m7 10 5 5 5-5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M6 9l6 6l6 -6" />
+    </Stroke>
   );
 }
 
-/** Billetera — icono de "My Pocket". */
+/** Billetera — el glifo de "My Pocket". */
 export function Wallet({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M6 14a4 4 0 0 1 4-4h24a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" />
-        <path d="M6 16.5V13a3 3 0 0 1 2.3-2.9l19-4.6A2.5 2.5 0 0 1 30.5 8v2" />
-        <path d="M42 20.5h-8a3.5 3.5 0 0 0 0 7h8z" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M17 8v-3a1 1 0 0 0 -1 -1h-10a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1 -1 1h-12a2 2 0 0 1 -2 -2v-12" />
+      <path d="M20 12v4h-4a2 2 0 0 1 0 -4h4" />
+    </Stroke>
   );
 }
 
-/** Flecha que entra — un ingreso. */
+/** Flecha que baja hasta la línea — un ingreso, algo que entra. */
 export function ArrowIn({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 4v13" />
-        <path d="m6.5 11.5 5.5 5.5 5.5-5.5" />
-        <path d="M5 20h14" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 20l16 0" />
+      <path d="M12 14l0 -10" />
+      <path d="M12 14l4 -4" />
+      <path d="M12 14l-4 -4" />
+    </Stroke>
   );
 }
 
-/** Flecha que sale — un egreso. */
+/** Flecha que sube hasta la línea — un egreso, algo que sale. */
 export function ArrowUpRight({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 20V7" />
-        <path d="m6.5 12.5 5.5-5.5 5.5 5.5" />
-        <path d="M5 4h14" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M12 10l0 10" />
+      <path d="M12 10l4 4" />
+      <path d="M12 10l-4 4" />
+      <path d="M4 4l16 0" />
+    </Stroke>
   );
 }
 
 /** Calendario — fechas de pago. */
 export function Calendar({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-        <path d="M3.5 10h17M8 3.5V6M16 3.5V6" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+      <path d="M16 3v4" />
+      <path d="M8 3v4" />
+      <path d="M4 11h16" />
+      <path d="M11 15h1" />
+      <path d="M12 15v3" />
+    </Stroke>
   );
 }
 
 /** Ciclo — gastos fijos que vuelven cada mes. */
 export function Repeat({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5" />
-        <path d="M20 4.5v4h-4" />
-        <path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.5" />
-        <path d="M4 19.5v-4h4" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3" />
+      <path d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3" />
+    </Stroke>
   );
 }
 
 /** Cuadrícula — el desglose por categoría. */
 export function Grid({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
-        <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
-        <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
-        <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
-        <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+      <path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+      <path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+      <path d="M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+    </Stroke>
   );
 }
 
 /** El botón Compartir de iOS — la puerta a "Agregar a inicio". */
 export function Share({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 15V3" />
-        <path d="m8 7 4-4 4 4" />
-        <path d="M6 11H5v10h14V11h-1" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M13 4v4c-6.575 1.028 -9.02 6.788 -10 12c-.037 .206 5.384 -5.962 10 -6v4l8 -7l-8 -7z" />
+    </Stroke>
   );
 }
 
-/** Un teléfono con la app adentro — instalar en la pantalla de inicio. */
+/** Un teléfono con un más — instalar en la pantalla de inicio. */
 export function Phone({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="6" y="2.5" width="12" height="19" rx="3" />
-        <path d="M12 9v6M9 12h6" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M12.5 21h-4.5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v7" />
+      <path d="M16 19h6" />
+      <path d="M19 16v6" />
+      <path d="M11 4h2" />
+      <path d="M12 17v.01" />
+    </Stroke>
   );
 }
 
 /** Marco de escaneo: cuatro esquinas y la línea que barre. */
 export function Scan({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 8.5V5a2 2 0 0 1 2-2h3.5" />
-        <path d="M15.5 3H19a2 2 0 0 1 2 2v3.5" />
-        <path d="M21 15.5V19a2 2 0 0 1-2 2h-3.5" />
-        <path d="M8.5 21H5a2 2 0 0 1-2-2v-3.5" />
-        <path d="M6 12h12" opacity="0.55" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M4 7v-1a2 2 0 0 1 2 -2h2" />
+      <path d="M4 17v1a2 2 0 0 0 2 2h2" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v1" />
+      <path d="M16 20h2a2 2 0 0 0 2 -2v-1" />
+      <path d="M5 12l14 0" />
+    </Stroke>
   );
 }
 
 /** Cámara — para adjuntar la captura del banco. */
 export function Camera({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7a1 1 0 0 0 .84-.46l.92-1.42A1 1 0 0 1 9.8 3.7h4.4a1 1 0 0 1 .84.42l.92 1.42a1 1 0 0 0 .84.46h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z" />
-        <circle cx="12" cy="13" r="3.6" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2" />
+      <path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+    </Stroke>
   );
 }
 
 /** Micrófono — dictar un gasto en vez de escribirlo. */
 export function Mic({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <g
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="9" y="2.5" width="6" height="11.5" rx="3" />
-        <path d="M5 11.5a7 7 0 0 0 14 0" />
-        <path d="M12 18.5V21.5" />
-      </g>
-    </svg>
+    <Stroke className={className}>
+      <path d="M9 2m0 3a3 3 0 0 1 3 -3h0a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3h0a3 3 0 0 1 -3 -3z" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <path d="M8 21l8 0" />
+      <path d="M12 17l0 4" />
+    </Stroke>
   );
 }
 
 /** Cuadrado de detener — el par del micrófono mientras graba. */
 export function Stop({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        d="M17 4h-10a3 3 0 0 0 -3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3 -3v-10a3 3 0 0 0 -3 -3z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
 
-/** Sol — tema claro. Ocho rayos cortos, ninguno tocando el disco. */
+/** Sol — tema claro. */
 export function Sun({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="4.1" stroke="currentColor" strokeWidth="1.9" />
-      <path
-        d="M12 2.6v2.1M12 19.3v2.1M21.4 12h-2.1M4.7 12H2.6M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5M18.6 18.6l-1.5-1.5M6.9 6.9 5.4 5.4"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+      <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />
+    </Stroke>
   );
 }
 
-/** Luna — tema oscuro. Una sola curva: el creciente es el recorte, no un relleno. */
+/** Luna — tema oscuro. */
 export function Moon({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M20.2 14.4A8.6 8.6 0 0 1 9.6 3.8a8.7 8.7 0 1 0 10.6 10.6Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </Stroke>
   );
 }
 
-/**
- * Automático — el mismo disco partido al medio: mitad llena, mitad vacía.
- * Dice "las dos" sin recurrir a la letra A ni a un engranaje de ajustes.
- */
+/** Automático — el disco partido al medio dice "las dos" sin escribirlo. */
 export function Auto({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="8.4" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor" />
-    </svg>
+    <Stroke className={className}>
+      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+      <path d="M12 17a5 5 0 0 0 0 -10v10" />
+    </Stroke>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Clean Daily                                                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Pizarra — el glifo de la herramienta.
- * Una hoja con dos renglones y un cheque: lo que queda escrito y lo que se
- * borra al amanecer.
- */
+/** Pizarra con su cheque — el glifo de Clean Daily. */
 export function Slate({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <rect
-        x="3.5"
-        y="3.5"
-        width="17"
-        height="17"
-        rx="5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M7.6 9.4h5.2M7.6 13.2h3"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        opacity="0.55"
-      />
-      <path
-        d="m13.4 16.1 2 2 3.4-4"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+      <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+      <path d="M9 14h.01" />
+      <path d="M9 17h.01" />
+      <path d="M12 16l1 1l3 -3" />
+    </Stroke>
   );
 }
 
 /** Amanecer — el corte de las 00:00, cuando la lista vuelve a estar limpia. */
 export function Sunrise({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M4 17.5h16"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M7.2 13.6a4.8 4.8 0 0 1 9.6 0"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 3.5v2.4M5.4 6.4 7 8M18.6 6.4 17 8"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        opacity="0.55"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M3 17h1m16 0h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7m-9.7 5.7a4 4 0 0 1 8 0" />
+      <path d="M3 21l18 0" />
+      <path d="M12 9v-6l3 3m-6 0l3 -3" />
+    </Stroke>
   );
 }
 
 /** Pulso — el ritmo del mes, que no es una racha sino una frecuencia. */
 export function Pulse({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M3 12.5h3.6L9 6.5l3.2 11 2.3-5h6.5"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M3 12h4.5l1.5 -6l4 12l2 -9l1.5 3h4.5" />
+    </Stroke>
   );
 }
 
 /** Chincheta — lo que se queda fijo arriba hasta que lo resolvés. */
 export function Pin({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M9 3.5h6l-.8 5.2 3.1 3.1H6.7l3.1-3.1z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 11.8v8.7"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M15 4.5l-4 4l-4 1.5l-1.5 1.5l7 7l1.5 -1.5l1.5 -4l4 -4" />
+      <path d="M9 15l-4.5 4.5" />
+      <path d="M14.5 4l5.5 5.5" />
+    </Stroke>
   );
 }
 
 /** Menos — restar una caída del día. */
 export function Minus({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M5 12h14"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M5 12l14 0" />
+    </Stroke>
   );
 }
 
-/**
- * Gota — el hábito malo. No es una calavera ni un pulgar abajo: es algo que
- * cae y se cuenta, sin moral encima.
- */
+/** Gota — el hábito malo: algo que cae y se cuenta. */
 export function Drop({ className }: IconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M12 3.5c3.4 4 5.6 6.8 5.6 9.6a5.6 5.6 0 0 1-11.2 0c0-2.8 2.2-5.6 5.6-9.6Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <Stroke className={className}>
+      <path d="M7.502 19.423c2.602 2.105 6.395 2.105 8.996 0c2.602 -2.105 3.262 -5.708 1.566 -8.546l-4.89 -7.26c-.42 -.625 -1.287 -.803 -1.936 -.397a1.376 1.376 0 0 0 -.41 .397l-4.893 7.26c-1.695 2.838 -1.035 6.441 1.567 8.546z" />
+    </Stroke>
   );
 }
