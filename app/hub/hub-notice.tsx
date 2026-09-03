@@ -135,7 +135,7 @@ export function HubNotice() {
     },
     push: {
       title: "Avisos apagados",
-      hint: "Te avisamos del salario y de lo que vence.",
+      hint: "Salario, gastos que vencen y tus hábitos del día.",
       action: "Activar",
     },
   }[notice];
