@@ -422,3 +422,19 @@ export function weightLabel(bytes: number | null) {
   if (bytes < 1_000_000) return `${Math.round(bytes / 1000)} KB`;
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
+
+/**
+ * El "origen" con el que se guarda el PDF compilado de un borrador.
+ *
+ * Los archivos del material se identifican por la dirección de donde
+ * salieron; un PDF que compilamos nosotros no viene de ninguna, así que usa
+ * el borrador como origen. Sirve de clave: una compilación por versión.
+ */
+export function draftSourceUrl(draftId: string) {
+  return `draft:${draftId}`;
+}
+
+/** Si esta fila del material es el PDF de un borrador y no un recurso de Canvas. */
+export function isDraftPdf(sourceUrl: string) {
+  return sourceUrl.startsWith("draft:");
+}

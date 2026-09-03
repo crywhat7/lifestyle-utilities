@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { ArrowBack, ArrowUpRight } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
-import { longDue, readDue, type DueTone } from "@/lib/canvas";
+import {
+  draftSourceUrl,
+  isDraftPdf,
+  longDue,
+  readDue,
+  type DueTone,
+} from "@/lib/canvas";
 import { isDraftConfigured } from "@/lib/ai/draft";
 import {
   CANVAS_PATH,
@@ -50,6 +56,20 @@ export default async function AssignmentPage({
       assignment.task_id ? [assignment.task_id] : []
     ),
   ]);
+
+  /*
+    El PDF de un borrador vive en la misma tabla que el material —son bytes
+    en el mismo bucket— pero no es un recurso del curso: es nuestro. Va
+    adentro de la tarjeta del borrador que lo produjo, no en la lista de lo
+    que trajimos de Canvas.
+  */
+  const compiled = new Map(
+    material
+      .filter((file) => isDraftPdf(file.source_url))
+      .map((file) => [file.source_url, file])
+  );
+
+  const resources = material.filter((file) => !isDraftPdf(file.source_url));
 
   const due = readDue(assignment.due_at, new Date());
   const reminderAlive = Boolean(
@@ -133,14 +153,14 @@ export default async function AssignmentPage({
         profesor adjuntó, no el botón de la IA.
       */}
       <div className="s-rise mt-12" style={{ "--d": "340ms" } as CSSProperties}>
-        <MaterialList assignmentId={assignment.id} files={material} />
+        <MaterialList assignmentId={assignment.id} files={resources} />
       </div>
 
       <div className="s-rise mt-14" style={{ "--d": "400ms" } as CSSProperties}>
         <DraftStudio
           assignmentId={assignment.id}
           configured={isDraftConfigured()}
-          material={material
+          material={resources
             .filter(
               (file) =>
                 file.kind === "file" &&
@@ -166,15 +186,28 @@ export default async function AssignmentPage({
           </h2>
 
           <div className="mt-5 flex flex-col gap-4">
-            {drafts.map((draft, index) => (
-              <DraftCard
-                key={draft.id}
-                draft={draft}
-                title={assignment.title}
-                open={index === 0}
-                delay={index * 70}
-              />
-            ))}
+            {drafts.map((draft, index) => {
+              const pdf = compiled.get(draftSourceUrl(draft.id));
+
+              return (
+                <DraftCard
+                  key={draft.id}
+                  draft={draft}
+                  title={assignment.title}
+                  pdf={
+                    pdf
+                      ? {
+                          name: pdf.name,
+                          href: pdf.href,
+                          downloadHref: pdf.downloadHref,
+                        }
+                      : null
+                  }
+                  open={index === 0}
+                  delay={index * 70}
+                />
+              );
+            })}
           </div>
         </section>
       ) : null}

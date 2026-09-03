@@ -7,6 +7,8 @@ import {
   textToPdf,
   UNSUPPORTED_MESSAGE,
 } from "@/lib/office";
+import { draftSourceUrl } from "@/lib/canvas";
+import { compileLatex } from "@/lib/tex";
 import { TASK_PATH, canvasClient } from "./data";
 import { BUCKET, safeName } from "./material";
 
@@ -137,6 +139,105 @@ export async function convertFileToPdf(fileId: string): Promise<ConvertState> {
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]);
     return { status: "error", error: "No se pudo guardar el PDF." };
+  }
+
+  revalidatePath(`${TASK_PATH}/[id]`, "page");
+  return { status: "done" };
+}
+
+/* -------------------------------------------------------------------------- */
+/* El borrador, compilado                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Compila el LaTeX de un borrador y guarda el PDF junto a la tarea.
+ *
+ * Queda guardado y no solo bajado: la gracia de esto es abrir el teléfono en
+ * el bus y ver cómo quedó la fórmula, y para eso el archivo tiene que estar
+ * ahí la próxima vez sin volver a compilar.
+ *
+ * Compilar de nuevo pisa la versión anterior del mismo borrador —es el mismo
+ * documento, corregido— pero cada borrador tiene su PDF: los intentos siguen
+ * siendo distintos entre sí.
+ */
+export async function compileDraft(draftId: string): Promise<ConvertState> {
+  const { supabase, user } = await canvasClient();
+
+  const { data } = await supabase
+    .from("canvas_drafts")
+    .select("id,assignment_id,latex")
+    .eq("user_id", user.id)
+    .eq("id", draftId)
+    .maybeSingle();
+
+  const draft = data as {
+    id: string;
+    assignment_id: string;
+    latex: string | null;
+  } | null;
+
+  if (!draft?.latex) {
+    return { status: "error", error: "Ese borrador no tiene documento." };
+  }
+
+  const { data: assignment } = await supabase
+    .from("canvas_assignments")
+    .select("title")
+    .eq("user_id", user.id)
+    .eq("id", draft.assignment_id)
+    .maybeSingle();
+
+  const title = (assignment as { title: string } | null)?.title ?? "Borrador";
+
+  const outcome = await compileLatex(draft.latex);
+
+  if (!outcome.ok) return { status: "error", error: outcome.error };
+
+  const name = `${title.slice(0, 60)}.pdf`;
+  const path = `${user.id}/${draft.assignment_id}/${crypto.randomUUID()}-${safeName(name)}`;
+
+  const upload = await supabase.storage
+    .from(BUCKET)
+    .upload(path, outcome.pdf, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (upload.error) {
+    return { status: "error", error: "Compiló, pero no se pudo guardar el PDF." };
+  }
+
+  // Los bytes de la compilación anterior de ESTE borrador ya no los nombra
+  // nadie: se borran antes de que la fila pierda su ruta.
+  const { data: previous } = await supabase
+    .from("canvas_files")
+    .select("storage_path")
+    .eq("assignment_id", draft.assignment_id)
+    .eq("source_url", draftSourceUrl(draft.id))
+    .maybeSingle();
+
+  const stale = (previous as { storage_path: string | null } | null)?.storage_path;
+  if (stale) await supabase.storage.from(BUCKET).remove([stale]);
+
+  const { error } = await supabase.from("canvas_files").upsert(
+    {
+      user_id: user.id,
+      assignment_id: draft.assignment_id,
+      kind: "file",
+      status: "ready",
+      name,
+      source_url: draftSourceUrl(draft.id),
+      mime: "application/pdf",
+      bytes: outcome.pdf.byteLength,
+      storage_path: path,
+      error: null,
+    },
+    { onConflict: "assignment_id,source_url" }
+  );
+
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    return { status: "error", error: "Compiló, pero no se pudo guardar el PDF." };
   }
 
   revalidatePath(`${TASK_PATH}/[id]`, "page");
