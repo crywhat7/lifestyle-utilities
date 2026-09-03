@@ -306,3 +306,180 @@ export async function fetchPending(
 
   return { ok: true, data: pending };
 }
+
+/* -------------------------------------------------------------------------- */
+/* El enunciado crudo y sus archivos                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * El HTML del enunciado, tal como lo guarda Canvas.
+ *
+ * La lista de pendientes ya trae el texto limpio, que es lo que lee la IA.
+ * Esto se pide aparte y solo al importar, porque el `href` de cada enlace
+ * —lo único que interesa acá— es justamente lo que el limpiado tira.
+ */
+export async function fetchAssignmentHtml(
+  creds: CanvasCreds,
+  courseId: number,
+  assignmentId: number
+): Promise<CanvasResult<string>> {
+  const outcome = await canvasGet<{ description?: string | null }>(
+    creds,
+    `/courses/${courseId}/assignments/${assignmentId}`,
+    false
+  );
+
+  if (!outcome.ok) return outcome;
+  return { ok: true, data: outcome.data[0]?.description ?? "" };
+}
+
+export type CanvasFileMeta = {
+  name: string;
+  /** La dirección de descarga que Canvas firma para esta sesión. */
+  url: string;
+  mime: string | null;
+  bytes: number | null;
+};
+
+/**
+ * Los datos de un archivo del curso.
+ *
+ * Vale la pena el viaje extra: el `display_name` es el nombre real
+ * ("Rúbrica final.docx"), mientras que la dirección suele terminar en un
+ * número. Y el `url` que devuelve ya viene con el verificador, así que la
+ * descarga no depende de que la llave tenga permiso sobre ese curso.
+ */
+export async function fetchFileMeta(
+  creds: CanvasCreds,
+  fileId: number
+): Promise<CanvasResult<CanvasFileMeta>> {
+  const outcome = await canvasGet<{
+    display_name?: string;
+    filename?: string;
+    url?: string;
+    "content-type"?: string;
+    size?: number;
+  }>(creds, `/files/${fileId}`, false);
+
+  if (!outcome.ok) return outcome;
+
+  const row = outcome.data[0];
+  if (!row?.url) return { ok: false, kind: "not_found" };
+
+  return {
+    ok: true,
+    data: {
+      name: String(row.display_name ?? row.filename ?? `archivo-${fileId}`).slice(0, 200),
+      url: row.url,
+      mime: row["content-type"] ?? null,
+      bytes: typeof row.size === "number" ? row.size : null,
+    },
+  };
+}
+
+export type Downloaded = {
+  bytes: Buffer;
+  mime: string;
+  /** El nombre que declaró el servidor, si lo declaró. */
+  name: string | null;
+};
+
+export type DownloadFailure =
+  | "too_big"
+  | "not_a_file"
+  | "unreachable"
+  | "forbidden";
+
+export const DOWNLOAD_MESSAGE: Record<DownloadFailure, string> = {
+  too_big: "Pesa más de lo que guardamos.",
+  not_a_file: "El enlace lleva a una página, no a un archivo.",
+  unreachable: "No respondió.",
+  forbidden: "Pide iniciar sesión para bajarlo.",
+};
+
+/** Lo que entra al bucket. Más grande que esto se queda como enlace. */
+export const MAX_FILE_BYTES = 12_000_000;
+const DOWNLOAD_TIMEOUT_MS = 20_000;
+
+/** El nombre que el servidor propone en `Content-Disposition`. */
+function dispositionName(header: string | null) {
+  if (!header) return null;
+
+  const star = header.match(/filename\*=(?:UTF-8'')?([^;]+)/i);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].replace(/^["']|["']$/g, ""));
+    } catch {
+      /* sigue con el simple */
+    }
+  }
+
+  const plain = header.match(/filename=["']?([^"';]+)/i);
+  return plain ? plain[1].trim() : null;
+}
+
+/**
+ * Baja un archivo, con techo de peso y sin creerle a la extensión.
+ *
+ * La extensión de la dirección es una promesa, no un hecho: media web sirve
+ * una página de inicio de sesión en una URL que termina en `.pdf`. Lo que
+ * decide es el `Content-Type` que llega, y si llega HTML esto no era un
+ * archivo — se guarda como enlace y se sigue.
+ *
+ * El token viaja solo hacia el propio Canvas. Mandárselo a un dominio
+ * cualquiera porque el enunciado lo enlazó sería regalar la llave.
+ */
+export async function downloadFile(
+  url: string,
+  token?: string
+): Promise<{ ok: true; data: Downloaded } | { ok: false; kind: DownloadFailure }> {
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, kind: "unreachable" };
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return { ok: false, kind: "forbidden" };
+  }
+
+  if (!response.ok) return { ok: false, kind: "unreachable" };
+
+  const mime = (response.headers.get("content-type") ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+
+  if (!mime || mime.startsWith("text/html") || mime.includes("xhtml")) {
+    return { ok: false, kind: "not_a_file" };
+  }
+
+  const declared = Number(response.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > MAX_FILE_BYTES) {
+    return { ok: false, kind: "too_big" };
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  // Sin `Content-Length` el techo se comprueba recién acá, con los bytes en
+  // la mano: es tarde para ahorrar la descarga, pero no para no guardarla.
+  if (buffer.byteLength > MAX_FILE_BYTES) {
+    return { ok: false, kind: "too_big" };
+  }
+
+  return {
+    ok: true,
+    data: {
+      bytes: buffer,
+      mime: mime || "application/octet-stream",
+      name: dispositionName(response.headers.get("content-disposition")),
+    },
+  };
+}

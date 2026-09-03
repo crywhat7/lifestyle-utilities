@@ -305,6 +305,78 @@
   }
 
   /* ------------------------------------------------------------------------
+     Filtrar y ordenar
+
+     Dos controles con el mismo trabajo y dos formas distintas a propósito: el
+     filtro se toca todo el tiempo y tiene que estar a la vista —riel de
+     píldoras, el puesto en tinta llena—; el orden se elige una vez y se
+     olvida, así que alcanza con un menú que parece un enlace.
+     ------------------------------------------------------------------------ */
+
+  .s-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 2.125rem;
+    padding: 0 0.875rem;
+    border-radius: 999px;
+    border: 0;
+    background: var(--s-surface);
+    color: var(--s-ink-2);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    letter-spacing: -0.012em;
+    white-space: nowrap;
+    transition:
+      background-color 0.36s var(--s-ease),
+      color 0.36s var(--s-ease),
+      transform 0.36s var(--s-ease);
+  }
+
+  .s-chip[data-on="true"] {
+    background: var(--s-ink);
+    color: var(--s-paper);
+  }
+
+  .s-chip:active {
+    transform: scale(0.96);
+  }
+
+  .s-select {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--s-blue);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    letter-spacing: -0.012em;
+    padding: 0.25rem 1.125rem 0.25rem 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' fill='none'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%230071e3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+  }
+
+  /* El menú nativo se pinta con el `color-scheme` de la página, así que en
+     oscuro hay que decirle el fondo o sale una lista blanca. */
+  .s-select option {
+    background: var(--s-raised);
+    color: var(--s-ink);
+  }
+
+  /* El chevron va dibujado dentro de un data URI y ahí `light-dark()` no
+     llega: un SVG no lee las variables de quien lo usa. Es la misma
+     duplicación que ya hace `globals.css` con sus recetas de profundidad. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .s-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' fill='none'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%232997ff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+  }
+
+  :root[data-theme="dark"] .s-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' fill='none'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%232997ff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  /* ------------------------------------------------------------------------
      El documento — LaTeX en monoespaciada, sobre papel
      ------------------------------------------------------------------------ */
 

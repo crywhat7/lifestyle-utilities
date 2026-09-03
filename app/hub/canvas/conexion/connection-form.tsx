@@ -137,7 +137,7 @@ export function ConnectionForm({
                   type="button"
                   onClick={() => disconnect()}
                   className="s-pill"
-                  style={{ background: "var(--s-late)" }}
+                  style={{ backgroundColor: "var(--s-late)" }}
                 >
                   Desconectar
                 </button>

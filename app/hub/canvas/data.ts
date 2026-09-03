@@ -5,10 +5,12 @@ import type {
   CanvasConnection,
   CanvasCourse,
   CanvasDraft,
+  CanvasFile,
   StoredAssignment,
 } from "@/lib/canvas";
 import type { CanvasCreds } from "@/lib/canvas-api";
 import { createClient } from "@/lib/supabase/server";
+import { BUCKET } from "./material";
 
 export { CANVAS_PATH, LINK_PATH, TASK_PATH } from "./paths";
 
@@ -143,4 +145,56 @@ export async function loadOpenTaskIds(
     .in("id", taskIds);
 
   return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+}
+
+/** Un archivo del material, ya con la dirección para abrirlo. */
+export type MaterialFile = CanvasFile & { href: string | null };
+
+/**
+ * El material de una tarea, listo para pintar.
+ *
+ * Los archivos del bucket son privados, así que no tienen dirección estable:
+ * se firma una que dura una hora, y se firman todas de un viaje. Un enlace
+ * guardado ya trae la suya —es la de Canvas o la del sitio de afuera— y no
+ * necesita firma ninguna.
+ */
+export async function loadMaterial(
+  client: Client,
+  assignmentId: string
+): Promise<MaterialFile[]> {
+  const { data } = await client
+    .from("canvas_files")
+    .select(
+      "id,assignment_id,kind,status,name,source_url,mime,bytes,storage_path,error,created_at"
+    )
+    .eq("assignment_id", assignmentId)
+    .order("kind", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  const rows = (data ?? []) as CanvasFile[];
+  const paths = rows
+    .map((row) => row.storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  const signed = new Map<string, string>();
+
+  if (paths.length > 0) {
+    const { data: urls } = await client.storage
+      .from(BUCKET)
+      .createSignedUrls(paths, 60 * 60);
+
+    for (const entry of urls ?? []) {
+      if (entry.path && entry.signedUrl) signed.set(entry.path, entry.signedUrl);
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    href:
+      row.kind === "link"
+        ? row.source_url
+        : row.storage_path
+          ? (signed.get(row.storage_path) ?? null)
+          : null,
+  }));
 }

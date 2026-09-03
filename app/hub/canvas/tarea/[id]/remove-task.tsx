@@ -54,7 +54,7 @@ export function RemoveTask({
             })
           }
           className="s-pill"
-          style={{ background: "var(--s-late)" }}
+          style={{ backgroundColor: "var(--s-late)" }}
         >
           {pending ? "Quitando…" : "Quitar"}
         </button>

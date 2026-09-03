@@ -10,9 +10,11 @@ import {
   canvasClient,
   loadAssignment,
   loadDrafts,
+  loadMaterial,
   loadOpenTaskIds,
 } from "../../data";
 import { DraftCard } from "./draft-card";
+import { MaterialList } from "./material-list";
 import { DraftStudio } from "./draft-studio";
 import { RemoveTask } from "./remove-task";
 
@@ -39,8 +41,9 @@ export default async function AssignmentPage({
   const assignment = await loadAssignment(supabase, user.id, id);
   if (!assignment) notFound();
 
-  const [drafts, openTasks] = await Promise.all([
+  const [drafts, material, openTasks] = await Promise.all([
     loadDrafts(supabase, assignment.id),
+    loadMaterial(supabase, assignment.id),
     loadOpenTaskIds(
       supabase,
       user.id,
@@ -124,7 +127,16 @@ export default async function AssignmentPage({
         </section>
       ) : null}
 
-      <div className="s-rise mt-12" style={{ "--d": "360ms" } as CSSProperties}>
+      {/*
+        El material va antes del taller y no después: cuando alguien abre esto
+        a las once de la noche, lo primero que necesita es la plantilla que el
+        profesor adjuntó, no el botón de la IA.
+      */}
+      <div className="s-rise mt-12" style={{ "--d": "340ms" } as CSSProperties}>
+        <MaterialList assignmentId={assignment.id} files={material} />
+      </div>
+
+      <div className="s-rise mt-14" style={{ "--d": "400ms" } as CSSProperties}>
         <DraftStudio
           assignmentId={assignment.id}
           configured={isDraftConfigured()}

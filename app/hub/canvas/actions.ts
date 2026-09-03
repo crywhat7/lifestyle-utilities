@@ -12,7 +12,8 @@ import {
   fetchProfile,
   FAILURE_MESSAGE,
 } from "@/lib/canvas-api";
-import { CANVAS_PATH, LINK_PATH, canvasClient, loadCreds } from "./data";
+import { CANVAS_PATH, LINK_PATH, TASK_PATH, canvasClient, loadCreds } from "./data";
+import { BUCKET, harvestMaterial, type HarvestCount } from "./material";
 
 export type FormState = { status: "idle" | "saved" | "error"; error?: string };
 
@@ -236,7 +237,7 @@ export async function fetchPendingAssignments(): Promise<PendingState> {
 
 export type ImportState =
   | { status: "idle" }
-  | { status: "done"; imported: number }
+  | { status: "done"; imported: number; material: HarvestCount }
   | { status: "error"; error: string };
 
 /** Lo que Clean Daily aguanta en una tarea. Más largo que esto, se corta. */
@@ -330,9 +331,10 @@ export async function importAssignments(
     });
   }
 
-  const { error } = await supabase
+  const { data: saved, error } = await supabase
     .from("canvas_assignments")
-    .upsert(payload, { onConflict: "user_id,assignment_id" });
+    .upsert(payload, { onConflict: "user_id,assignment_id" })
+    .select("id,assignment_id,course_id");
 
   if (error) {
     return {
@@ -341,12 +343,111 @@ export async function importAssignments(
     };
   }
 
+  /*
+    El material va después de guardar y no antes: si Canvas tarda o un PDF de
+    diez megas se cae, la tarea ya está en la lista con su recordatorio. Lo
+    que falte se reintenta desde la pantalla de la tarea, con el botón que
+    dice exactamente qué pasó.
+  */
+  const material = await harvestAll(
+    supabase,
+    user.id,
+    (saved ?? []) as HarvestTarget[]
+  );
+
   refresh();
-  return { status: "done", imported: payload.length };
+  return { status: "done", imported: payload.length, material };
+}
+
+type HarvestTarget = { id: string; assignment_id: number; course_id: number };
+
+/**
+ * El material de varias tareas, una después de la otra.
+ *
+ * En serie por la misma razón que adentro de cada tarea: son descargas
+ * grandes contra el servidor de la escuela y abrirlas todas de golpe es la
+ * forma más rápida de que Canvas empiece a cortar.
+ */
+async function harvestAll(
+  supabase: Awaited<ReturnType<typeof canvasClient>>["supabase"],
+  userId: string,
+  targets: HarvestTarget[]
+): Promise<HarvestCount> {
+  const total: HarvestCount = { files: 0, links: 0, failed: 0 };
+  const creds = await loadCreds(supabase, userId);
+
+  if (!creds) return total;
+
+  for (const target of targets.slice(0, 20)) {
+    const count = await harvestMaterial(supabase, userId, creds, target);
+    total.files += count.files;
+    total.links += count.links;
+    total.failed += count.failed;
+  }
+
+  return total;
 }
 
 /**
- * Saca una tarea de la lista.
+ * Vuelve a buscar el material de una tarea.
+ *
+ * Sirve para dos cosas: reintentar lo que falló y traer lo que el profesor
+ * subió después de que la importaste, que pasa todo el tiempo.
+ */
+export async function refreshMaterial(id: string): Promise<ImportState> {
+  const { supabase, user } = await canvasClient();
+
+  const { data } = await supabase
+    .from("canvas_assignments")
+    .select("id,assignment_id,course_id")
+    .eq("user_id", user.id)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return { status: "error", error: "Esa tarea ya no está." };
+
+  // Lo que falló antes se borra para que el reintento pueda volver a
+  // escribirlo: si no, la fila vieja gana y el error queda para siempre.
+  await supabase
+    .from("canvas_files")
+    .delete()
+    .eq("assignment_id", id)
+    .eq("status", "failed");
+
+  const material = await harvestAll(supabase, user.id, [data as HarvestTarget]);
+
+  revalidatePath(`${TASK_PATH}/[id]`, "page");
+  return { status: "done", imported: 0, material };
+}
+
+/** Un archivo que no sirve: se va del bucket y de la lista. */
+export async function deleteFile(fileId: string) {
+  const { supabase, user } = await canvasClient();
+
+  const { data } = await supabase
+    .from("canvas_files")
+    .select("storage_path")
+    .eq("user_id", user.id)
+    .eq("id", fileId)
+    .maybeSingle();
+
+  const path = (data as { storage_path: string | null } | null)?.storage_path;
+  if (path) await supabase.storage.from(BUCKET).remove([path]);
+
+  await supabase
+    .from("canvas_files")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", fileId);
+
+  revalidatePath(`${TASK_PATH}/[id]`, "page");
+}
+
+/**
+ * Saca una tarea de la lista, y con ella todo lo que colgaba.
+ *
+ * Después de esto la tarea vuelve a aparecer como importable en Canvas: es la
+ * forma de empezar de cero cuando el profesor rehízo el enunciado.
  *
  * El recordatorio de Clean Daily se va con ella: se creó desde acá y quedaría
  * huérfano, sin forma de saber de dónde salió. Los borradores caen por la
@@ -371,6 +472,22 @@ export async function removeAssignment(id: string) {
       .eq("user_id", user.id)
       .eq("id", taskId);
   }
+
+  /*
+    Las filas de `canvas_files` caen solas por la cascada, pero los bytes en
+    el bucket no: nadie los borra si no los borramos acá, y quedarían
+    ocupando espacio para siempre sin ninguna fila que los nombre.
+  */
+  const { data: files } = await supabase
+    .from("canvas_files")
+    .select("storage_path")
+    .eq("assignment_id", id);
+
+  const paths = ((files ?? []) as { storage_path: string | null }[])
+    .map((row) => row.storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  if (paths.length > 0) await supabase.storage.from(BUCKET).remove(paths);
 
   await supabase
     .from("canvas_assignments")

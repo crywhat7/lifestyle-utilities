@@ -1,9 +1,23 @@
 "use client";
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useMemo, useState, useTransition, type CSSProperties } from "react";
 import { Check, Cross, Refresh } from "@/components/icons";
-import { byDue, readDue, type CanvasAssignment } from "@/lib/canvas";
+import {
+  DUE_FILTERS,
+  SORTS,
+  passesFilter,
+  readDue,
+  sortAssignments,
+  type CanvasAssignment,
+  type DueFilter,
+  type SortKey,
+} from "@/lib/canvas";
 import { fetchPendingAssignments, importAssignments } from "./actions";
+
+type ImportDone = {
+  imported: number;
+  material: { files: number; links: number; failed: number };
+};
 
 /**
  * El importador — el mismo gesto que el lector de movimientos de My Pocket.
@@ -24,8 +38,10 @@ export function Importer({
 }) {
   const [pending, setPending] = useState<CanvasAssignment[] | null>(null);
   const [chosen, setChosen] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<DueFilter>("all");
+  const [sort, setSort] = useState<SortKey>("due");
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<number | null>(null);
+  const [done, setDone] = useState<ImportDone | null>(null);
   const [looking, startLooking] = useTransition();
   const [saving, startSaving] = useTransition();
 
@@ -47,7 +63,7 @@ export function Importer({
         return;
       }
 
-      const rows = [...outcome.pending].sort(byDue);
+      const rows = outcome.pending;
       setPending(rows);
       // Lo que todavía no está en la lista viene marcado: es lo que la
       // persona vino a buscar. Lo que ya importó, no.
@@ -77,11 +93,26 @@ export function Importer({
         return;
       }
 
-      setDone(outcome.imported);
+      setDone({ imported: outcome.imported, material: outcome.material });
       setPending(null);
       setChosen(new Set());
     });
   }
+
+  /*
+    La lista que se ve no es la lista que se guarda. Filtrar y ordenar son
+    formas de mirar: lo marcado sobrevive al cambio de filtro, así que se
+    puede marcar tres vencidas, cambiar a "sin fecha", marcar dos más e
+    importar las cinco.
+  */
+  const view = useMemo(() => {
+    if (!pending) return [];
+    const stamp = new Date();
+    return sortAssignments(
+      pending.filter((row) => passesFilter(row, filter, stamp)),
+      sort
+    );
+  }, [pending, filter, sort]);
 
   function toggle(id: number) {
     setChosen((current) => {
@@ -123,13 +154,32 @@ export function Importer({
 
       {looking ? <div className="s-thinking mt-5" /> : null}
 
-      {done != null ? (
-        <p className="s-body mt-4 flex items-center gap-2 text-[var(--s-done)]">
-          <Check className="size-4" />
-          {done === 1
-            ? "Una tarea importada, con su recordatorio."
-            : `${done} tareas importadas, cada una con su recordatorio.`}
-        </p>
+      {done ? (
+        <div className="mt-4">
+          <p className="s-body flex items-center gap-2 text-[var(--s-done)]">
+            <Check className="size-4" />
+            {done.imported === 1
+              ? "Una tarea importada, con su recordatorio."
+              : `${done.imported} tareas importadas, cada una con su recordatorio.`}
+          </p>
+          <p className="s-caption mt-1.5">
+            {done.material.files > 0 || done.material.links > 0
+              ? [
+                  done.material.files > 0
+                    ? `${done.material.files} ${done.material.files === 1 ? "archivo bajado" : "archivos bajados"}`
+                    : null,
+                  done.material.links > 0
+                    ? `${done.material.links} ${done.material.links === 1 ? "enlace guardado" : "enlaces guardados"}`
+                    : null,
+                  done.material.failed > 0
+                    ? `${done.material.failed} sin bajar`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "Sin material adjunto en los enunciados."}
+          </p>
+        </div>
       ) : null}
 
       {error ? (
@@ -147,11 +197,68 @@ export function Importer({
         ) : (
           <div className="mt-7">
             <p className="s-eyebrow">
-              {pending.length} sin entregar
+              {view.length === pending.length
+                ? `${pending.length} sin entregar`
+                : `${view.length} de ${pending.length}`}
             </p>
 
+            {/*
+              Los filtros van en un riel que se desliza y no en un menú: son
+              cinco y el que está puesto tiene que verse sin abrir nada. El
+              riel sangra hasta el borde de la pantalla para que se note que
+              hay más a la derecha.
+            */}
+            <div className="-mx-6 mt-4 overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max gap-2">
+                {DUE_FILTERS.map((option) => {
+                  const on = option.value === filter;
+                  const count = pending.filter((row) =>
+                    passesFilter(row, option.value, new Date())
+                  ).length;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setFilter(option.value)}
+                      className="s-chip"
+                      data-on={on}
+                    >
+                      {option.label}
+                      <span className="opacity-55">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <label className="s-caption" htmlFor="sort">
+                Ordenar por
+              </label>
+              <select
+                id="sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortKey)}
+                className="s-select"
+              >
+                {SORTS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {view.length === 0 ? (
+              <p className="s-body mt-6">
+                Nada en este filtro. Probá con otro.
+              </p>
+            ) : null}
+
             <ul className="mt-3 flex flex-col">
-              {pending.map((row, index) => {
+              {view.map((row, index) => {
                 const on = chosen.has(row.assignment_id);
                 const seen = already.has(row.assignment_id);
                 const due = readDue(row.due_at, now);
@@ -197,7 +304,7 @@ export function Importer({
                 className="s-pill"
               >
                 {saving
-                  ? "Importando…"
+                  ? "Importando y bajando material…"
                   : chosen.size === 0
                     ? "Elegí alguna"
                     : `Importar ${chosen.size}`}

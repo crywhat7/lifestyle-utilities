@@ -2,29 +2,20 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { ArrowBack, Cap, Chevron, Sliders } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
-import { byDue, readDue, schoolLabel, type DueTone } from "@/lib/canvas";
+import { byDue, readDue, schoolLabel } from "@/lib/canvas";
 import {
   LINK_PATH,
-  TASK_PATH,
   canvasClient,
   loadAssignments,
   loadConnection,
   loadCourses,
 } from "./data";
 import { Importer } from "./importer";
+import { TaskList } from "./task-list";
 
 export const metadata: Metadata = {
   title: "Canvas Studio",
   description: "Tus entregas de Canvas, en la mano y ya empezadas.",
-};
-
-/** El color de lo que falta. El azul no se usa: el azul es para tocar. */
-const TONE_INK: Record<DueTone, string> = {
-  overdue: "var(--s-late)",
-  today: "var(--s-late)",
-  soon: "var(--s-soon)",
-  later: "var(--s-ink-3)",
-  none: "var(--s-ink-3)",
 };
 
 export default async function CanvasPage() {
@@ -156,46 +147,15 @@ export default async function CanvasPage() {
       ) : null}
 
       {sorted.length > 0 ? (
-        <section className="mt-14">
-          <h2
-            className="s-eyebrow s-rise"
-            style={{ "--d": "380ms" } as CSSProperties}
-          >
-            Tu lista
-          </h2>
-
-          <ul className="mt-4 flex flex-col">
-            {sorted.map((row, index) => {
-              const due = readDue(row.due_at, now);
-
-              return (
-                <li key={row.id}>
-                  <NavLink
-                    href={`${TASK_PATH}/${row.id}`}
-                    className="s-rise flex items-center gap-4 border-b border-[var(--s-hair)] py-5"
-                    style={
-                      { "--d": `${420 + index * 60}ms` } as CSSProperties
-                    }
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="s-caption block truncate">
-                        {row.course_name}
-                      </span>
-                      <span className="s-head mt-1.5 block">{row.title}</span>
-                      <span
-                        className="s-tag mt-2.5"
-                        style={{ color: TONE_INK[due.tone] }}
-                      >
-                        {due.label}
-                      </span>
-                    </span>
-                    <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--s-ink-3)]" />
-                  </NavLink>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <TaskList
+          nowIso={now.toISOString()}
+          rows={sorted.map((row) => ({
+            id: row.id,
+            title: row.title,
+            course_name: row.course_name,
+            due_at: row.due_at,
+          }))}
+        />
       ) : null}
 
       {connection && followed.length === 0 ? (

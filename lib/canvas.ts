@@ -216,3 +216,209 @@ export function byDue<T extends { due_at: string | null }>(a: T, b: T) {
   if (!b.due_at) return -1;
   return a.due_at < b.due_at ? -1 : 1;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Filtros y orden de la importación                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Con qué recorte se mira la lista que devolvió Canvas.
+ *
+ * No son categorías del sistema: son las cuatro preguntas que alguien se hace
+ * de verdad frente a treinta tareas. "¿Qué debo?", "¿qué se me viene?",
+ * "¿qué hay esta semana?" y "¿qué quedó sin fecha?".
+ */
+export type DueFilter = "all" | "overdue" | "week" | "upcoming" | "undated";
+
+export const DUE_FILTERS: { value: DueFilter; label: string }[] = [
+  { value: "all", label: "Todas" },
+  { value: "overdue", label: "Vencidas" },
+  { value: "week", label: "Esta semana" },
+  { value: "upcoming", label: "Próximas" },
+  { value: "undated", label: "Sin fecha" },
+];
+
+export type SortKey = "due" | "due_desc" | "course" | "title" | "points";
+
+export const SORTS: { value: SortKey; label: string }[] = [
+  { value: "due", label: "Lo más urgente" },
+  { value: "due_desc", label: "Lo más lejano" },
+  { value: "course", label: "Por curso" },
+  { value: "title", label: "Por título" },
+  { value: "points", label: "Por puntaje" },
+];
+
+export function passesFilter<T extends { due_at: string | null }>(
+  row: T,
+  filter: DueFilter,
+  now: Date
+) {
+  if (filter === "all") return true;
+
+  const due = readDue(row.due_at, now);
+
+  if (filter === "undated") return due.days == null;
+  if (due.days == null) return false;
+  if (filter === "overdue") return due.days < 0;
+  if (filter === "week") return due.days >= 0 && due.days <= 7;
+  return due.days >= 0; // upcoming
+}
+
+/**
+ * Ordena una copia, nunca el arreglo original.
+ *
+ * En "lo más urgente" y "lo más lejano" las tareas sin fecha van siempre al
+ * final: no tienen dónde caer en una línea de tiempo y ponerlas primero —que
+ * es lo que hace un `sort` ingenuo con los nulos— esconde lo que vence
+ * mañana debajo de lo que no vence nunca.
+ */
+export function sortAssignments<
+  T extends {
+    due_at: string | null;
+    title: string;
+    course_name: string;
+    points: number | null;
+  },
+>(rows: T[], key: SortKey): T[] {
+  const copy = [...rows];
+
+  if (key === "due") return copy.sort(byDue);
+
+  if (key === "due_desc") {
+    return copy.sort((a, b) => {
+      if (!a.due_at && !b.due_at) return 0;
+      if (!a.due_at) return 1;
+      if (!b.due_at) return -1;
+      return a.due_at < b.due_at ? 1 : -1;
+    });
+  }
+
+  if (key === "course") {
+    return copy.sort(
+      (a, b) => a.course_name.localeCompare(b.course_name, "es") || byDue(a, b)
+    );
+  }
+
+  if (key === "title") {
+    return copy.sort((a, b) => a.title.localeCompare(b.title, "es"));
+  }
+
+  return copy.sort((a, b) => (b.points ?? -1) - (a.points ?? -1) || byDue(a, b));
+}
+
+/* -------------------------------------------------------------------------- */
+/* El material: enlaces y archivos del enunciado                               */
+/* -------------------------------------------------------------------------- */
+
+export type CanvasFile = {
+  id: string;
+  assignment_id: string;
+  kind: "file" | "link";
+  status: "ready" | "failed";
+  name: string;
+  source_url: string;
+  mime: string | null;
+  bytes: number | null;
+  storage_path: string | null;
+  error: string | null;
+  created_at: string;
+};
+
+/** Lo que se encontró en el enunciado, antes de intentar bajarlo. */
+export type FoundLink = {
+  url: string;
+  label: string;
+  /**
+   * canvas — un archivo del curso: se baja con la llave de la persona.
+   * file   — una dirección que termina en un archivo: se baja sin llave.
+   * link   — una página. Se guarda la dirección, no hay nada que bajar.
+   */
+  kind: "canvas" | "file" | "link";
+};
+
+/** Extensiones que valen como "esto es un documento, no una página". */
+const FILE_EXT =
+  /\.(pdf|docx?|pptx?|xlsx?|csv|txt|md|rtf|odt|ods|odp|zip|rar|7z|png|jpe?g|gif|webp|svg|tex|ipynb|m|py|r|sql|epub)(?=$|[?#])/i;
+
+/** Un archivo servido por el propio Canvas, con o sin curso en la ruta. */
+const CANVAS_FILE = /\/(?:courses\/\d+\/)?files\/(\d+)/;
+
+/** El id del archivo de Canvas dentro de una dirección suya. */
+export function canvasFileId(url: string) {
+  const match = url.match(CANVAS_FILE);
+  return match ? Number(match[1]) : null;
+}
+
+function decodeEntities(text: string) {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&([a-z]+);/gi, (match, name) => ENTITIES[name.toLowerCase()] ?? match);
+}
+
+/**
+ * Todo lo enlazado en el enunciado, con su nombre visible.
+ *
+ * Se lee el HTML crudo de Canvas —no el texto limpio— porque el `href` es
+ * justamente lo que `htmlToText` tira. El nombre sale del texto del enlace,
+ * que casi siempre ES el nombre del archivo ("Plantilla informe.docx"); si el
+ * enlace no dice nada, se cae al último tramo de la dirección.
+ *
+ * Se descartan los anclas internas, los `mailto:` y los `javascript:`, que no
+ * son material de nadie.
+ */
+export function extractLinks(
+  html: string | null | undefined,
+  baseUrl: string
+): FoundLink[] {
+  if (!html) return [];
+
+  const found = new Map<string, FoundLink>();
+  const anchor = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+
+  for (const match of html.matchAll(anchor)) {
+    const raw = decodeEntities(match[1]).trim();
+
+    if (!raw || raw.startsWith("#") || /^(mailto|javascript|tel):/i.test(raw)) {
+      continue;
+    }
+
+    let url: string;
+
+    try {
+      // Canvas enlaza sus propios archivos en relativo: "/courses/1/files/2".
+      url = new URL(raw, `${baseUrl}/`).toString();
+    } catch {
+      continue;
+    }
+
+    if (!/^https?:/i.test(url)) continue;
+    if (found.has(url)) continue;
+
+    const text = decodeEntities(match[2].replace(/<[^>]+>/g, "")).trim();
+    const tail = (() => {
+      try {
+        const path = new URL(url).pathname.split("/").filter(Boolean).pop();
+        return path ? decodeURIComponent(path) : "";
+      } catch {
+        return "";
+      }
+    })();
+
+    const isCanvas = url.startsWith(baseUrl) && CANVAS_FILE.test(url);
+
+    found.set(url, {
+      url,
+      label: (text || tail || url).slice(0, 200),
+      kind: isCanvas ? "canvas" : FILE_EXT.test(url) ? "file" : "link",
+    });
+  }
+
+  return [...found.values()];
+}
+
+/** "1,2 MB" — el peso, dicho corto. */
+export function weightLabel(bytes: number | null) {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes < 1_000_000) return `${Math.round(bytes / 1000)} KB`;
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
+}
