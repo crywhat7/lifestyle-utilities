@@ -6,6 +6,22 @@ import { weightLabel } from "@/lib/canvas";
 import type { MaterialFile } from "../../data";
 import { deleteFile, refreshMaterial } from "../../actions";
 
+/**
+ * ¿El teléfono sabe pintar esto?
+ *
+ * Un PDF o una foto se miran ahí mismo y bajarlos sería un paso de más. Un
+ * .docx o un .zip no: abrirlos en una pestaña deja una pantalla en blanco,
+ * que es exactamente el problema que tenía esta lista. Esos solo se bajan.
+ */
+function canView(file: MaterialFile) {
+  const mime = file.mime ?? "";
+  return (
+    mime.startsWith("image/") ||
+    mime.startsWith("text/") ||
+    mime.includes("pdf")
+  );
+}
+
 /** Tres letras que dicen qué es sin abrirlo: PDF, DOCX, XLSX. */
 function badge(file: MaterialFile) {
   const fromName = file.name.match(/\.([a-z0-9]{1,5})(?:$|\?)/i);
@@ -103,27 +119,54 @@ export function MaterialList({
                 {file.kind === "link" ? <Clip className="size-4" /> : badge(file)}
               </span>
 
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] font-medium">
-                  {file.name}
-                </span>
-                <span className="s-caption mt-0.5 block truncate">
-                  {file.status === "failed"
-                    ? file.error
-                    : file.kind === "link"
-                      ? new URL(file.source_url).hostname
-                      : [weightLabel(file.bytes), "guardado"]
-                          .filter(Boolean)
-                          .join(" · ")}
-                </span>
-              </span>
-
-              {file.href ? (
+              {/*
+                El nombre abre lo que se puede mirar; para lo demás es solo
+                texto y la flecha hace el trabajo. Un enlace que promete abrir
+                algo y deja la pantalla en blanco es peor que no ofrecerlo.
+              */}
+              {file.href && (file.kind === "link" || canView(file)) ? (
                 <a
                   href={file.href}
                   target="_blank"
                   rel="noreferrer noopener"
-                  aria-label={`Abrir ${file.name}`}
+                  className="min-w-0 flex-1"
+                >
+                  <span className="block truncate text-[0.9375rem] font-medium">
+                    {file.name}
+                  </span>
+                  <span className="s-caption mt-0.5 block truncate">
+                    {file.kind === "link"
+                      ? new URL(file.source_url).hostname
+                      : [weightLabel(file.bytes), "tocá para verlo"]
+                          .filter(Boolean)
+                          .join(" · ")}
+                  </span>
+                </a>
+              ) : (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.9375rem] font-medium">
+                    {file.name}
+                  </span>
+                  <span className="s-caption mt-0.5 block truncate">
+                    {file.status === "failed"
+                      ? file.error
+                      : [weightLabel(file.bytes), "guardado"]
+                          .filter(Boolean)
+                          .join(" · ")}
+                  </span>
+                </span>
+              )}
+
+              {/*
+                Sin `target`: la descarga llega con `Content-Disposition:
+                attachment` y el teléfono la guarda sin moverse de acá. Una
+                pestaña nueva para eso queda abierta y en blanco.
+              */}
+              {file.downloadHref ? (
+                <a
+                  href={file.downloadHref}
+                  download={file.name}
+                  aria-label={`Bajar ${file.name}`}
                   className="flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--s-blue)]"
                 >
                   <Download className="size-[1.125rem]" />

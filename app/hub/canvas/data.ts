@@ -147,8 +147,13 @@ export async function loadOpenTaskIds(
   return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
 }
 
-/** Un archivo del material, ya con la dirección para abrirlo. */
-export type MaterialFile = CanvasFile & { href: string | null };
+/** Un archivo del material, con sus dos direcciones. */
+export type MaterialFile = CanvasFile & {
+  /** Para verlo: el navegador lo abre si sabe (PDF, imagen). */
+  href: string | null;
+  /** Para tenerlo: fuerza la descarga con el nombre real del archivo. */
+  downloadHref: string | null;
+};
 
 /**
  * El material de una tarea, listo para pintar.
@@ -188,13 +193,37 @@ export async function loadMaterial(
     }
   }
 
-  return rows.map((row) => ({
-    ...row,
-    href:
-      row.kind === "link"
-        ? row.source_url
-        : row.storage_path
-          ? (signed.get(row.storage_path) ?? null)
-          : null,
-  }));
+  return rows.map((row) => {
+    if (row.kind === "link") {
+      return { ...row, href: row.source_url, downloadHref: null };
+    }
+
+    const url = row.storage_path ? (signed.get(row.storage_path) ?? null) : null;
+
+    return { ...row, href: url, downloadHref: withDownload(url, row.name) };
+  });
+}
+
+/**
+ * La misma URL firmada, pero pidiendo que baje en vez de abrirse.
+ *
+ * Sin esto, tocar un .docx en el teléfono abre una pestaña de Supabase que se
+ * queda en blanco: el navegador recibe el archivo con `Content-Disposition:
+ * inline`, no sabe pintarlo y no hace nada. El parámetro `download` le dice
+ * al Storage que mande `attachment`, y ahí sí el teléfono lo guarda.
+ *
+ * Va el nombre real y no el del objeto: adentro del bucket el archivo se
+ * llama "<uuid>-plantilla-informe.docx" para que dos tareas no choquen, y
+ * nadie quiere ese nombre en su carpeta de descargas.
+ */
+function withDownload(signedUrl: string | null, name: string) {
+  if (!signedUrl) return null;
+
+  try {
+    const url = new URL(signedUrl);
+    url.searchParams.set("download", name);
+    return url.toString();
+  } catch {
+    return signedUrl;
+  }
 }
