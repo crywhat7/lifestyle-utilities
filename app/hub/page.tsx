@@ -4,7 +4,6 @@ import type { CSSProperties } from "react";
 import {
   ArrowOut,
   CartTag,
-  PlusSlot,
   Power,
   Slate,
   Spark,
@@ -16,7 +15,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { currentUser } from "@/lib/auth";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
-import { InstallPrompt } from "./install-prompt";
+import { HubNotice } from "./hub-notice";
 
 export const metadata: Metadata = {
   title: "Tu hub",
@@ -53,6 +52,13 @@ export default async function HubPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      {/*
+        Lo pendiente va antes que el saludo: instalar la app y encender los
+        avisos caducan, el saludo no. Se calla con la cruz y no vuelve por
+        semanas.
+      */}
+      <HubNotice />
+
       <header
         className="fade flex items-center justify-between"
         style={{ "--d": "40ms" } as CSSProperties}
@@ -91,17 +97,23 @@ export default async function HubPage() {
         </h1>
       </section>
 
-      {/* Bento */}
+      {/*
+        Bento de verdad: dos columnas y tamaños desiguales. Cuando las
+        herramientas son impares la primera ocupa el ancho completo y las demás
+        van de a dos; cuando son pares entran todas en pareja. La regla existe
+        para que nunca quede un hueco que haya que rellenar con una placa
+        vacía: el ritmo lo dan las piezas reales, no un cartel de "próximamente".
+      */}
       <div className="grid grid-cols-2 gap-3">
         {TOOLS.map((tool, index) => (
-          <ToolTile key={tool.slug} tool={tool} delay={460 + index * 110} />
+          <ToolTile
+            key={tool.slug}
+            tool={tool}
+            wide={TOOLS.length % 2 === 1 && index === 0}
+            delay={460 + index * 90}
+          />
         ))}
-
-        <EmptySlot delay={720} label="Espacio libre" />
-        <EmptySlot delay={790} label="Próxima idea" />
       </div>
-
-      <InstallPrompt />
 
       <footer className="mt-auto pt-5">
         <div
@@ -135,14 +147,36 @@ export default async function HubPage() {
 }
 
 /** El icono de cada herramienta: un glifo propio, nunca una librería. */
-function ToolGlyph({ iconKey }: { iconKey: Tool["iconKey"] }) {
-  if (iconKey === "cart") return <CartTag className="size-7" />;
-  if (iconKey === "wallet") return <Wallet className="size-7" />;
-  if (iconKey === "slate") return <Slate className="size-7" />;
-  return <Spark className="size-6" />;
+function ToolGlyph({
+  iconKey,
+  wide,
+}: {
+  iconKey: Tool["iconKey"];
+  wide: boolean;
+}) {
+  const size = wide ? "size-7" : "size-6";
+  if (iconKey === "cart") return <CartTag className={size} />;
+  if (iconKey === "wallet") return <Wallet className={size} />;
+  if (iconKey === "slate") return <Slate className={size} />;
+  return <Spark className={wide ? "size-6" : "size-5"} />;
 }
 
-function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
+/**
+ * Una pieza del bento.
+ *
+ * Sin rótulo de "Abrir" ni de "Listo para usar": la placa entera es el botón y
+ * la flecha ya lo dice. Lo único que se anuncia es lo que todavía no se puede
+ * usar, porque eso sí cambia lo que pasa al tocarla.
+ */
+function ToolTile({
+  tool,
+  wide,
+  delay,
+}: {
+  tool: Tool;
+  wide: boolean;
+  delay: number;
+}) {
   const isReady = tool.status === "live";
 
   const content = (
@@ -157,45 +191,59 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
         }}
       />
 
-      <div className="relative flex items-start justify-between gap-4">
-        <span className="groove flex size-14 items-center justify-center rounded-[18px] text-[var(--accent-ink)]">
-          <ToolGlyph iconKey={tool.iconKey} />
-        </span>
-
-        <span className="chip">
-          {!isReady ? (
-            <span className="size-1.5 rounded-full bg-[var(--accent)]" />
-          ) : null}
-          {STATUS_LABEL[tool.status]}
-        </span>
-      </div>
-
-      <h2 className="display relative mt-6 text-[1.875rem]">{tool.name}</h2>
-      <p className="relative mt-2 text-[0.9375rem] text-[var(--text-2)]">
-        {tool.tagline}
-      </p>
-      <p className="relative mt-3 text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
-        {tool.description}
-      </p>
-
-      <div className="relative mt-6 flex items-center justify-between">
-        <span className="text-[0.75rem] text-[var(--text-3)]">
-          {isReady ? "Listo para usar" : "En construcción"}
-        </span>
+      <div className="relative flex items-start justify-between gap-3">
         <span
-          aria-hidden="true"
-          className={`key flex size-10 items-center justify-center rounded-full ${
-            isReady ? "key-accent" : "text-[var(--text-3)]"
+          className={`groove flex items-center justify-center text-[var(--accent-ink)] ${
+            wide ? "size-14 rounded-[18px]" : "size-12 rounded-[16px]"
           }`}
         >
-          <ArrowOut className="size-4" />
+          <ToolGlyph iconKey={tool.iconKey} wide={wide} />
         </span>
+
+        {isReady ? (
+          <span
+            aria-hidden="true"
+            className={`key key-accent flex items-center justify-center rounded-full ${
+              wide ? "size-11" : "size-9"
+            }`}
+          >
+            <ArrowOut className={wide ? "size-4" : "size-3.5"} />
+          </span>
+        ) : (
+          <span className={`chip ${wide ? "" : "gap-1.5 px-2 py-1 text-[0.625rem] tracking-[0.08em]"}`}>
+            <span className="size-1.5 rounded-full bg-[var(--accent)]" />
+            {STATUS_LABEL[tool.status]}
+          </span>
+        )}
       </div>
+
+      <h2
+        className={`display relative ${wide ? "mt-6 text-[2rem]" : "mt-auto pt-6 text-[1.375rem]"}`}
+      >
+        {tool.name}
+      </h2>
+      <p
+        className={`relative text-[var(--text-2)] ${
+          wide ? "mt-2 text-[0.9375rem]" : "mt-1.5 text-[0.75rem] leading-snug"
+        }`}
+      >
+        {tool.tagline}
+      </p>
+
+      {/* La descripción larga solo cabe en la placa ancha; en la chica el
+          subtítulo ya dice para qué sirve. */}
+      {wide ? (
+        <p className="relative mt-3 text-[0.8125rem] leading-relaxed text-[var(--text-3)]">
+          {tool.description}
+        </p>
+      ) : null}
     </>
   );
 
-  const className =
-    "plate rise relative col-span-2 block overflow-hidden p-5 transition-[transform,filter] duration-500 [transition-timing-function:var(--ease-expo)] active:scale-[0.985] active:brightness-95";
+  const className = [
+    "plate rise relative block overflow-hidden transition-[transform,filter] duration-500 [transition-timing-function:var(--ease-expo)] active:scale-[0.985] active:brightness-95",
+    wide ? "col-span-2 p-5" : "flex aspect-[5/6] flex-col p-4",
+  ].join(" ");
 
   if (!isReady) {
     return (
@@ -216,20 +264,5 @@ function ToolTile({ tool, delay }: { tool: Tool; delay: number }) {
     >
       {content}
     </NavLink>
-  );
-}
-
-function EmptySlot({ delay, label }: { delay: number; label: string }) {
-  return (
-    <div
-      className="groove rise flex aspect-square flex-col items-center justify-center gap-2 border-dashed border-[var(--edge)] text-[var(--text-3)]"
-      style={{ "--d": `${delay}ms` } as CSSProperties}
-      aria-hidden="true"
-    >
-      <PlusSlot className="size-5 opacity-50" />
-      <span className="text-[0.6875rem] tracking-[0.14em] uppercase">
-        {label}
-      </span>
-    </div>
   );
 }

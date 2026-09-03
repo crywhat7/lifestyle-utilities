@@ -246,7 +246,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Chrome dispara `beforeinstallprompt` una sola vez y muy temprano —
           en una visita repetida, antes de que React hidrate. Si nadie lo
           atrapa ahí, el evento se pierde y el botón de instalar no aparece
-          nunca. Esto lo guarda en `window` para que `InstallPrompt` lo
+          nunca. Esto lo guarda en `window` para que `HubNotice` lo
           recoja cuando monte, sea antes o después.
         */}
         <script
