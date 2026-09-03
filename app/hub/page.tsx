@@ -4,8 +4,8 @@ import type { CSSProperties } from "react";
 import {
   ArrowOut,
   CartTag,
-  Power,
   Slate,
+  Sliders,
   Spark,
   Wallet,
   WaveHand,
@@ -13,6 +13,7 @@ import {
 import { NavLink } from "@/components/nav-link";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { currentUser } from "@/lib/auth";
+import { initialsOf, resolveName } from "@/lib/profile";
 import { STATUS_LABEL, TOOLS, type Tool } from "@/lib/tools";
 import { createClient } from "@/lib/supabase/server";
 import { HubNotice } from "./hub-notice";
@@ -31,24 +32,33 @@ export default async function HubPage() {
   if (!user) redirect("/");
 
   const supabase = await createClient();
-  const { data: profile } = await supabase
+
+  // `username` llegó en la migración 0012. Si no se corrió, la consulta falla
+  // entera y el hub se quedaría sin saludo por una columna que falta: se
+  // reintenta sin ella y el perfil explica qué hacer.
+  const full = await supabase
     .from("users_profiles")
-    .select("name")
+    .select("name,username")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const fullName: string =
-    profile?.name ??
-    user.name ??
-    user.email?.split("@")[0] ??
-    "invitado";
+  const profile = full.error
+    ? {
+        ...((
+          await supabase
+            .from("users_profiles")
+            .select("name")
+            .eq("user_id", user.id)
+            .maybeSingle()
+        ).data as { name: string | null } | null),
+        username: null,
+      }
+    : (full.data as { name: string | null; username: string | null } | null);
+
+  const fullName = resolveName(profile?.name, user.name, user.email);
+  const username = profile?.username ?? null;
   const firstName = fullName.trim().split(/\s+/)[0];
-  const initials = fullName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
+  const initials = initialsOf(fullName);
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -115,9 +125,17 @@ export default async function HubPage() {
         ))}
       </div>
 
+      {/*
+        La tarjeta de abajo dejó de ser un cartel con un botón de salir: ahora
+        es la puerta al perfil, donde viven el nombre, el usuario y todo lo que
+        vale para las tres herramientas. Cerrar sesión se hace adentro, que es
+        donde uno espera encontrarlo y no a un toque de distancia por error.
+      */}
       <footer className="mt-auto pt-5">
-        <div
-          className="plate rise flex items-center gap-3 p-3"
+        <NavLink
+          href="/hub/perfil"
+          aria-label="Tu perfil y ajustes"
+          className="plate rise flex items-center gap-3 p-3 transition-[transform,filter] duration-500 [transition-timing-function:var(--ease-expo)] active:scale-[0.985] active:brightness-95"
           style={{ "--d": "540ms" } as CSSProperties}
         >
           <span className="key flex size-11 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-semibold text-[var(--text-2)]">
@@ -128,19 +146,16 @@ export default async function HubPage() {
               {fullName}
             </span>
             <span className="block truncate text-[0.75rem] text-[var(--text-3)]">
-              {user.email}
+              {username ? `@${username}` : user.email}
             </span>
           </span>
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              aria-label="Cerrar sesión"
-              className="key flex size-11 items-center justify-center rounded-full text-[var(--text-2)]"
-            >
-              <Power className="size-[1.125rem]" />
-            </button>
-          </form>
-        </div>
+          <span
+            aria-hidden="true"
+            className="key flex size-11 items-center justify-center rounded-full text-[var(--text-2)]"
+          >
+            <Sliders className="size-[1.125rem]" />
+          </span>
+        </NavLink>
       </footer>
     </main>
   );

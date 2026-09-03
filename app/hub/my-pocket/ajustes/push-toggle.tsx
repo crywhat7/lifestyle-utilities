@@ -10,6 +10,9 @@ import {
   sendTestPush,
 } from "./push-actions";
 
+const DEFAULT_NOTE =
+  "Cuando entre tu salario te avisamos acá mismo, aunque tengas la app cerrada. Se activa por dispositivo: el teléfono y la laptop van aparte.";
+
 /**
  * Interruptor de avisos push.
  *
@@ -18,7 +21,18 @@ import {
  * navegador no da permiso hasta que la web está instalada en la pantalla de
  * inicio, y ese caso se explica en vez de fallar en silencio.
  */
-export function PushToggle({ admin = false }: { admin?: boolean }) {
+export function PushToggle({
+  admin = false,
+  note = DEFAULT_NOTE,
+}: {
+  admin?: boolean;
+  /**
+   * Qué avisos son. La pantalla de perfil usa el mismo interruptor —el
+   * permiso es del navegador, no de la herramienta— pero ahí hablar solo del
+   * salario sería mentir a medias.
+   */
+  note?: string;
+}) {
   const [status, setStatus] = useState<PushStatus>("checking");
   const [error, setError] = useState<string | null>(null);
   const [tested, setTested] = useState(false);
@@ -69,8 +83,7 @@ export function PushToggle({ admin = false }: { admin?: boolean }) {
       <p className="eyebrow">Avisos</p>
       <h2 className="display mt-2 text-[1.625rem]">Notificaciones</h2>
       <p className="mt-2 mb-5 text-[0.8125rem] leading-relaxed text-[var(--text-2)]">
-        Cuando entre tu salario te avisamos acá mismo, aunque tengas la app
-        cerrada. Se activa por dispositivo: el teléfono y la laptop van aparte.
+        {note}
       </p>
 
       {status === "checking" ? (
