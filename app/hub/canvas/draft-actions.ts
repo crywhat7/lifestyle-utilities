@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { generateDraft, DRAFT_MESSAGE, type DraftAttachment } from "@/lib/ai/draft";
 import { longDue } from "@/lib/canvas";
+import { extractText } from "@/lib/office";
 import { CANVAS_PATH, TASK_PATH, canvasClient, loadAssignment } from "./data";
+import { BUCKET } from "./material";
 
 export type DraftState =
   | { status: "idle" }
@@ -95,6 +97,15 @@ export async function generateDraftFor(
     .getAll("files")
     .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
+  // El material que ya bajamos de Canvas: se elige por id y se lee del
+  // bucket. Que la persona tenga que descargar la plantilla al teléfono para
+  // volver a subirla acá sería absurdo teniéndola nosotros.
+  const materialIds = formData
+    .getAll("material")
+    .map((entry) => String(entry))
+    .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+    .slice(0, MAX_FILES);
+
   if (files.length > MAX_FILES) {
     return {
       status: "error",
@@ -139,6 +150,14 @@ export async function generateDraftFor(
       base64: buffer.toString("base64"),
     });
   }
+
+  const fromMaterial = await readMaterial(supabase, user.id, assignment.id, materialIds);
+
+  if (fromMaterial.error) {
+    return { status: "error", error: fromMaterial.error };
+  }
+
+  attachments.push(...fromMaterial.attachments);
 
   const outcome = await generateDraft({
     title: assignment.title,
@@ -195,4 +214,88 @@ export async function deleteDraft(draftId: string) {
     .eq("id", draftId);
 
   revalidatePath(`${TASK_PATH}/[id]`, "page");
+}
+
+/* -------------------------------------------------------------------------- */
+/* El material guardado, como contexto                                         */
+/* -------------------------------------------------------------------------- */
+
+type MaterialRow = {
+  id: string;
+  name: string;
+  mime: string | null;
+  storage_path: string | null;
+};
+
+/**
+ * Los archivos del material elegidos, listos para el turno de la IA.
+ *
+ * Cada uno entra por la puerta que le corresponde: una foto o un PDF viajan
+ * tal cual, porque Gemini los mira; un Word o un Excel no —el modelo no sabe
+ * abrirlos— así que se les saca el texto acá y lo que viaja es eso. Es la
+ * misma conversión del botón "PDF", usada sin pedirle nada a nadie.
+ */
+async function readMaterial(
+  supabase: Awaited<ReturnType<typeof canvasClient>>["supabase"],
+  userId: string,
+  assignmentId: string,
+  ids: string[]
+): Promise<{ attachments: DraftAttachment[]; error?: string }> {
+  if (ids.length === 0) return { attachments: [] };
+
+  const { data } = await supabase
+    .from("canvas_files")
+    .select("id,name,mime,storage_path")
+    .eq("user_id", userId)
+    .eq("assignment_id", assignmentId)
+    .eq("status", "ready")
+    .in("id", ids);
+
+  const rows = ((data ?? []) as MaterialRow[]).filter((row) => row.storage_path);
+  const attachments: DraftAttachment[] = [];
+
+  for (const row of rows) {
+    const download = await supabase.storage
+      .from(BUCKET)
+      .download(row.storage_path!);
+
+    if (download.error || !download.data) continue;
+
+    const bytes = Buffer.from(await download.data.arrayBuffer());
+
+    if (bytes.byteLength > MAX_ONE_BYTE) {
+      return {
+        attachments: [],
+        error: `"${row.name}" pesa demasiado para mandárselo a la IA.`,
+      };
+    }
+
+    const mime = row.mime ?? "application/octet-stream";
+
+    if (mime.startsWith("image/") || mime === "application/pdf") {
+      attachments.push({
+        name: row.name,
+        mimeType: mime,
+        base64: bytes.toString("base64"),
+      });
+      continue;
+    }
+
+    const extracted = await extractText(bytes, row.name, row.mime);
+
+    if (!extracted?.text.trim()) {
+      return {
+        attachments: [],
+        error: `No se pudo leer "${row.name}". Convertilo a PDF y volvé a intentar.`,
+      };
+    }
+
+    attachments.push({
+      name: row.name,
+      mimeType: "text/plain",
+      text: extracted.text.slice(0, 20_000),
+    });
+  }
+
+  return { attachments };
 }

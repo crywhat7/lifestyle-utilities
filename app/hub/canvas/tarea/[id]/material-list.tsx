@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import { Clip, Cross, Download, Refresh } from "@/components/icons";
 import { weightLabel } from "@/lib/canvas";
+import { saveFile } from "@/lib/save-file";
 import type { MaterialFile } from "../../data";
 import { deleteFile, refreshMaterial } from "../../actions";
+import { convertFileToPdf } from "../../pdf-actions";
 
 /**
  * ¿El teléfono sabe pintar esto?
@@ -50,6 +52,42 @@ export function MaterialList({
 }) {
   const [busy, startBusy] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [converting, setConverting] = useState<string | null>(null);
+
+  async function save(file: MaterialFile) {
+    if (!file.downloadHref) return;
+
+    setSaving(file.id);
+    setNote(null);
+
+    const outcome = await saveFile(
+      file.downloadHref,
+      file.name,
+      file.mime ?? undefined
+    );
+
+    setSaving(null);
+    if (outcome === "failed") setNote(`No se pudo guardar ${file.name}.`);
+  }
+
+  function convert(file: MaterialFile) {
+    setConverting(file.id);
+    setNote(null);
+
+    startBusy(async () => {
+      const outcome = await convertFileToPdf(file.id);
+      setConverting(null);
+
+      setNote(
+        outcome.status === "done"
+          ? `${file.name} convertido. El PDF quedó en la lista.`
+          : outcome.status === "error"
+            ? outcome.error
+            : null
+      );
+    });
+  }
 
   const saved = files.filter((file) => file.kind === "file");
   const links = files.filter((file) => file.kind === "link");
@@ -158,19 +196,39 @@ export function MaterialList({
               )}
 
               {/*
-                Sin `target`: la descarga llega con `Content-Disposition:
-                attachment` y el teléfono la guarda sin moverse de acá. Una
-                pestaña nueva para eso queda abierta y en blanco.
+                Botón y no enlace: instalada en el teléfono, un enlace de
+                descarga abre Safari, parpadea y no deja nada. `saveFile`
+                elige el camino que el aparato sí permite.
               */}
               {file.downloadHref ? (
-                <a
-                  href={file.downloadHref}
-                  download={file.name}
-                  aria-label={`Bajar ${file.name}`}
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--s-blue)]"
+                <button
+                  type="button"
+                  disabled={saving === file.id}
+                  onClick={() => save(file)}
+                  aria-label={`Guardar ${file.name}`}
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full text-[var(--s-blue)] disabled:opacity-40"
                 >
                   <Download className="size-[1.125rem]" />
-                </a>
+                </button>
+              ) : null}
+
+              {/*
+                Solo en lo que se puede convertir y todavía no tiene su PDF.
+                Un botón que ya cumplió su trabajo es ruido.
+              */}
+              {file.kind === "file" &&
+              file.status === "ready" &&
+              file.convertible &&
+              !file.hasPdf ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => convert(file)}
+                  aria-label={`Convertir ${file.name} a PDF`}
+                  className="s-chip h-8 shrink-0 px-2.5 text-[0.75rem] font-semibold disabled:opacity-40"
+                >
+                  {converting === file.id ? "…" : "PDF"}
+                </button>
               ) : null}
 
               <button

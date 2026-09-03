@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { Clip, Cross, Spark } from "@/components/icons";
+import { Check, Clip, Cross, Spark } from "@/components/icons";
 import { generateDraftFor, type DraftState } from "../../draft-actions";
 
 const INITIAL: DraftState = { status: "idle" };
@@ -23,12 +23,22 @@ function weight(bytes: number) {
  * enunciado de Canvas nunca dice y sin lo cual la IA inventa. Van en el mismo
  * turno que las instrucciones, no en una conversación aparte.
  */
+export type DraftSource = {
+  id: string;
+  name: string;
+  /** "Word", "Excel", "PDF": qué va a leer la IA de ahí. */
+  hint: string;
+};
+
 export function DraftStudio({
   assignmentId,
   configured,
+  material,
 }: {
   assignmentId: string;
   configured: boolean;
+  /** El material ya bajado de Canvas, para mandarlo sin volver a subirlo. */
+  material: DraftSource[];
 }) {
   const [state, formAction, pending] = useActionState(
     generateDraftFor,
@@ -37,6 +47,7 @@ export function DraftStudio({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
 
   /**
    * El `<input type="file">` no deja quitar UNO de los elegidos: su lista es
@@ -95,6 +106,54 @@ export function DraftStudio({
           </p>
         </div>
 
+        {/*
+          El material de la tarea ya está en el servidor: mandarlo es marcar
+          una casilla. Obligar a bajar la plantilla al teléfono para volver a
+          subirla acá sería pedirle a la persona que haga de cable.
+
+          Word y Excel no los lee la IA, así que de esos viaja el texto que
+          sacamos nosotros. Eso pasa solo, sin convertir nada a mano.
+        */}
+        {material.length > 0 ? (
+          <div>
+            <p className="s-field-label">Material de la tarea</p>
+            <ul className="flex flex-col gap-1">
+              {material.map((item) => {
+                const on = chosen.has(item.id);
+
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setChosen((current) => {
+                          const next = new Set(current);
+                          if (next.has(item.id)) next.delete(item.id);
+                          else next.add(item.id);
+                          return next;
+                        })
+                      }
+                      className="flex w-full items-center gap-3 py-2 text-left"
+                    >
+                      <span className="s-check size-[1.375rem]" data-on={on}>
+                        <Check className="size-3" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[0.9375rem]">
+                        {item.name}
+                      </span>
+                      <span className="s-caption shrink-0">{item.hint}</span>
+                    </button>
+                    {on ? (
+                      <input type="hidden" name="material" value={item.id} />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+
         <div>
           <input
             ref={inputRef}
@@ -119,7 +178,7 @@ export function DraftStudio({
                 Adjuntar contexto
               </span>
               <span className="s-caption mt-0.5 block">
-                Fotos, PDFs o notas. Hasta 6 archivos.
+                Fotos, PDFs o notas del teléfono. Hasta 6 archivos.
               </span>
             </span>
           </label>

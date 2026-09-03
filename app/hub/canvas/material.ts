@@ -33,7 +33,7 @@ type Client = Awaited<ReturnType<typeof createClient>>;
 export type HarvestCount = { files: number; links: number; failed: number };
 
 /** Un nombre de objeto que sobreviva a cualquier sistema de archivos. */
-function safeName(name: string) {
+export function safeName(name: string) {
   const clean = name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

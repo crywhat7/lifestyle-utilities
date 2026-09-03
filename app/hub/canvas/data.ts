@@ -9,6 +9,7 @@ import type {
   StoredAssignment,
 } from "@/lib/canvas";
 import type { CanvasCreds } from "@/lib/canvas-api";
+import { isConvertible } from "@/lib/office";
 import { createClient } from "@/lib/supabase/server";
 import { BUCKET } from "./material";
 
@@ -153,6 +154,10 @@ export type MaterialFile = CanvasFile & {
   href: string | null;
   /** Para tenerlo: fuerza la descarga con el nombre real del archivo. */
   downloadHref: string | null;
+  /** Si sabemos sacarle el texto: Word, Excel, CSV, texto plano. */
+  convertible: boolean;
+  /** Si ya tiene su copia en PDF al lado, para no ofrecer el botón dos veces. */
+  hasPdf: boolean;
 };
 
 /**
@@ -193,16 +198,40 @@ export async function loadMaterial(
     }
   }
 
+  // Un PDF convertido guarda el origen del original con "#pdf" al final: esa
+  // marca es la que dice cuál documento ya tiene su copia.
+  const converted = new Set(
+    rows
+      .filter((row) => row.source_url.endsWith(PDF_MARK))
+      .map((row) => row.source_url.slice(0, -PDF_MARK.length))
+  );
+
   return rows.map((row) => {
     if (row.kind === "link") {
-      return { ...row, href: row.source_url, downloadHref: null };
+      return {
+        ...row,
+        href: row.source_url,
+        downloadHref: null,
+        convertible: false,
+        hasPdf: false,
+      };
     }
 
     const url = row.storage_path ? (signed.get(row.storage_path) ?? null) : null;
+    const isPdf = (row.mime ?? "").includes("pdf");
 
-    return { ...row, href: url, downloadHref: withDownload(url, row.name) };
+    return {
+      ...row,
+      href: url,
+      downloadHref: withDownload(url, row.name),
+      convertible: !isPdf && isConvertible(row.name, row.mime),
+      hasPdf: converted.has(row.source_url),
+    };
   });
 }
+
+/** El sufijo con el que un PDF convertido recuerda de dónde salió. */
+const PDF_MARK = "#pdf";
 
 /**
  * La misma URL firmada, pero pidiendo que baje en vez de abrirse.

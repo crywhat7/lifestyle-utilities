@@ -140,6 +140,22 @@ export default async function AssignmentPage({
         <DraftStudio
           assignmentId={assignment.id}
           configured={isDraftConfigured()}
+          material={material
+            .filter(
+              (file) =>
+                file.kind === "file" &&
+                file.status === "ready" &&
+                (file.convertible || (file.mime ?? "").match(/^image\/|pdf/))
+            )
+            .map((file) => ({
+              id: file.id,
+              name: file.name,
+              hint: (file.mime ?? "").includes("pdf")
+                ? "PDF"
+                : (file.mime ?? "").startsWith("image/")
+                  ? "Imagen"
+                  : "Texto",
+            }))}
         />
       </div>
 

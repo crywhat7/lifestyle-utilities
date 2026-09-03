@@ -3,6 +3,7 @@
 import { useState, useTransition, type CSSProperties } from "react";
 import { Check, Chevron, Copy, Download, Trash } from "@/components/icons";
 import type { CanvasDraft } from "@/lib/canvas";
+import { saveBlob } from "@/lib/save-file";
 import { deleteDraft } from "../../draft-actions";
 
 /** "3 de septiembre, 23:14" — cuándo se escribió este intento. */
@@ -62,19 +63,19 @@ export function DraftCard({
     }
   }
 
+  /**
+   * Instalada en el teléfono, un ancla con `download` no baja nada: iOS abre
+   * Safari y lo cierra. `saveBlob` ofrece ahí la hoja de compartir, que sí
+   * guarda en Archivos, y en escritorio hace la descarga de siempre.
+   */
   function download() {
     if (!draft.latex) return;
 
     const blob = new Blob([draft.latex], {
       type: "application/x-tex;charset=utf-8",
     });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
 
-    anchor.href = url;
-    anchor.download = fileName(title);
-    anchor.click();
-    URL.revokeObjectURL(url);
+    void saveBlob(blob, fileName(title));
   }
 
   const failed = draft.status === "failed";
