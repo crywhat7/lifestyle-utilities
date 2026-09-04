@@ -527,3 +527,14 @@ export function Refresh({ className }: IconProps) {
     </Stroke>
   );
 }
+
+/** Reloj con la flecha hacia atrás — un día que ya cerró y se vuelve a abrir. */
+export function History({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M12 8v4l2 2" />
+      <path d="M3.05 11a9 9 0 1 1 .5 4" />
+      <path d="M3 20v-5h5" />
+    </Stroke>
+  );
+}

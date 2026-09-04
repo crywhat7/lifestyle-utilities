@@ -7,6 +7,9 @@ import {
   indexById,
   longDayLabel,
   monthRange,
+  recallFloor,
+  relativeDayLabel,
+  resolveDay,
   scheduledFor,
   sortTasks,
   type HabitLog,
@@ -28,31 +31,58 @@ export const metadata: Metadata = {
     "Tus hábitos del día en una pizarra que se borra sola, y las tareas que no mueren hasta que las marcás.",
 };
 
-export default async function CleanDailyPage() {
+export default async function CleanDailyPage({
+  searchParams,
+}: PageProps<"/hub/clean-daily">) {
   const { supabase, user } = await cleanClient();
-  const day = today();
-  const { from } = monthRange(day);
+  const now = today();
+
+  /*
+    El día que se está mirando. Por defecto hoy, siempre: la pantalla del
+    recuerdo no se abre sola ni queda pegada — hay que pedirla en la URL, y
+    cualquier valor fuera de la semana escribible cae de vuelta en hoy.
+  */
+  const params = await searchParams;
+  const day = resolveDay(params?.d, now);
+  const past = day !== now;
+
+  /*
+    El mes para las métricas es siempre el de HOY: el pie de la pantalla
+    mide el ritmo real, no el del día que se abrió a mano. El rango de
+    registros se estira hacia atrás si el día abierto quedó en el mes
+    anterior, para no pagar una segunda consulta por una fila.
+  */
+  const { from } = monthRange(now);
+  const since = day < from ? day : from;
 
   /*
     Las tres consultas salen juntas: ninguna necesita el resultado de la
     otra, y encadenarlas era pagar tres viajes a Supabase para pintar una
     pantalla que se abre varias veces al día.
 
-    Los registros se piden del mes entero, no solo de hoy: con esa misma
+    Los registros se piden del mes entero, no solo del día: con esa misma
     lista se arma la fila del día y el porcentaje de consistencia del pie.
   */
   const [habits, logs, tasks] = await Promise.all([
     loadHabits(supabase, user.id),
-    loadLogs(supabase, user.id, from, day),
+    loadLogs(supabase, user.id, since, now),
     loadTasks(supabase, user.id),
   ]);
 
   const scheduled = scheduledFor(habits, day);
-  const todayLogs = logs.filter((log) => log.done_on === day);
+  const dayLogs = logs.filter((log) => log.done_on === day);
   const open = sortTasks(tasks.open);
 
   return (
-    <main className="relative flex flex-1 flex-col gap-6 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <main
+      className="relative flex flex-1 flex-col gap-6 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]"
+      /*
+        Una sola bandera arriba de todo cambia el ambiente entero: el aqua de
+        la pizarra viva pasa a ámbar de lámpara y la aurora deja de respirar.
+        No es decoración — es lo que impide marcar ayer creyendo que es hoy.
+      */
+      data-era={past ? "past" : "now"}
+    >
       <header
         className="settle flex items-center justify-between"
         style={{ "--d": "0ms" } as CSSProperties}
@@ -87,8 +117,12 @@ export default async function CleanDailyPage() {
         Arriba y primero: lo único de esta pantalla que sí se acumula.
         Si no hay nada pendiente, la sección se encoge a una línea y el día
         empieza donde tiene que empezar.
+
+        En un día pasado no se dibuja: las tareas no tienen día, viven hasta
+        que se marcan, y mostrarlas debajo de un encabezado que dice "ayer"
+        haría creer que son las de ayer.
       */}
-      <TaskBoard open={open} done={tasks.done} />
+      {past ? null : <TaskBoard open={open} done={tasks.done} />}
 
       {/*
         El momento firma vive adentro del tablero, no acá: el número grande
@@ -97,15 +131,19 @@ export default async function CleanDailyPage() {
       */}
       <TodayBoard
         habits={scheduled}
-        logs={todayLogs}
+        logs={dayLogs}
+        day={day}
+        today={now}
+        floor={recallFloor(now)}
         dayLabel={longDayLabel(day)}
+        shortLabel={relativeDayLabel(day, now)}
         nowMinutes={clock()}
         /* Para poder nombrar al hábito anterior aunque hoy no se dibuje —el
            padre puede estar en pausa, o ser de la otra polaridad—. */
         names={Object.fromEntries(habits.map((item) => [item.id, item.name]))}
       />
 
-      <MonthPulse habits={habits} logs={logs} from={from} day={day} />
+      <MonthPulse habits={habits} logs={logs} from={from} day={now} />
     </main>
   );
 }

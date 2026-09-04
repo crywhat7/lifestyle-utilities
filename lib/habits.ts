@@ -720,3 +720,58 @@ export function toLocalInput(iso: string | null) {
     date.getDate()
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* El recuerdo: escribir un día que ya cerró                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Hasta dónde atrás se puede escribir.
+ *
+ * La pizarra sigue borrándose sola: lo que no se marcó ayer no aparece hoy
+ * como deuda, y esa promesa no se toca. Pero olvidarse de ABRIR la app no es
+ * lo mismo que no haber hecho el hábito, y obligar a que el registro mienta
+ * por eso convierte el porcentaje del mes en ruido.
+ *
+ * Una semana es el límite justo: alcanza para el fin de semana que pasó sin
+ * teléfono y es demasiado poco para reescribir un mes entero desde la
+ * memoria, que es exactamente lo que haría que el número deje de valer.
+ */
+export const RECALL_DAYS = 7;
+
+/** El día más viejo que todavía se puede escribir. */
+export function recallFloor(today: string) {
+  return addDays(today, -RECALL_DAYS);
+}
+
+/**
+ * El día que la pantalla —o la acción— va a tocar, ya acotado.
+ *
+ * Todo lo que viene de la URL o del cliente pasa por acá, así que no hay
+ * forma de escribir el futuro ni de colarse más atrás del piso: cualquier
+ * valor raro cae en hoy, que es el único día que siempre es legal.
+ */
+export function resolveDay(raw: unknown, today: string) {
+  if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return today;
+  if (raw >= today) return today;
+  const floor = recallFloor(today);
+  return raw < floor ? today : raw;
+}
+
+/** "Hoy", "Ayer", "Anteayer", "Jueves". El nombre corto del día abierto. */
+export function relativeDayLabel(iso: string, today: string) {
+  const back = daysBetween(iso, today);
+  if (back <= 0) return "Hoy";
+  if (back === 1) return "Ayer";
+  if (back === 2) return "Anteayer";
+
+  const name = WEEKDAY_NAMES[fromIsoDay(iso).getDay()];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** "hace 3 días", para el sello del encabezado. Nulo si el día es hoy. */
+export function recallDistance(iso: string, today: string) {
+  const back = daysBetween(iso, today);
+  if (back <= 0) return null;
+  return back === 1 ? "hace 1 día" : `hace ${back} días`;
+}

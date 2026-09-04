@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { hhmm, type HabitFreq, type Polarity } from "@/lib/habits";
+import { hhmm, resolveDay, type HabitFreq, type Polarity } from "@/lib/habits";
 import { habitPayload } from "@/lib/notifications";
 import { sendPush, type PushSubscriptionRow } from "@/lib/push";
 import { CLEAN_PATH, HABITS_PATH, RHYTHM_PATH, cleanClient, today } from "./data";
@@ -31,19 +31,39 @@ function toNumber(value: FormDataEntryValue | null) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Marcar o desmarcar un hábito HOY.
+ * El día sobre el que va a escribir esta acción.
  *
- * Solo se escribe el día de hoy, nunca uno anterior: la pantalla de ayer no
- * existe y no hay forma de "ponerse al día" con culpa retroactiva. Desmarcar
- * borra la fila, no la deja en falso — la ausencia es el estado limpio.
+ * El cliente puede pedir un día anterior —la pantalla del recuerdo—, pero la
+ * palabra final la tiene el servidor: `resolveDay` no deja pasar el futuro
+ * ni nada más viejo que el piso de la semana, y cualquier valor torcido cae
+ * en hoy. Con esto, mandar un `done_on` inventado desde la consola no
+ * alcanza para reescribir el mes pasado.
  */
-export async function markHabit(habitId: string, done: boolean) {
+function writableDay(day?: string) {
+  return resolveDay(day, today());
+}
+
+/**
+ * Marcar o desmarcar un hábito.
+ *
+ * Sin `day` es hoy, que es el 99% de los toques. Con `day` es un día que ya
+ * cerró y que la persona abrió a propósito: olvidarse de ABRIR la app no es
+ * lo mismo que no haber hecho el hábito, y obligar a que el registro mienta
+ * por eso vuelve ruido al porcentaje del mes.
+ *
+ * Lo que sigue sin existir es la deuda: ningún día pasado aparece solo
+ * pidiendo que lo completen — hay que ir a buscarlo.
+ *
+ * Desmarcar borra la fila, no la deja en falso: la ausencia es el estado
+ * limpio.
+ */
+export async function markHabit(habitId: string, done: boolean, day?: string) {
   const { supabase, user } = await cleanClient();
-  const day = today();
+  const on = writableDay(day);
 
   if (done) {
     await supabase.from("clean_habit_logs").upsert(
-      { user_id: user.id, habit_id: habitId, done_on: day, times: 1 },
+      { user_id: user.id, habit_id: habitId, done_on: on, times: 1 },
       { onConflict: "habit_id,done_on", ignoreDuplicates: true }
     );
   } else {
@@ -52,7 +72,7 @@ export async function markHabit(habitId: string, done: boolean) {
       .delete()
       .eq("user_id", user.id)
       .eq("habit_id", habitId)
-      .eq("done_on", day);
+      .eq("done_on", on);
   }
 
   refresh();
@@ -65,16 +85,16 @@ export async function markHabit(habitId: string, done: boolean) {
  * quiere ver bajar. Al llegar a cero se borra la fila: el día vuelve a estar
  * limpio, sin dejar un registro de "cero veces" que ensucie las métricas.
  */
-export async function bumpHabit(habitId: string, delta: number) {
+export async function bumpHabit(habitId: string, delta: number, day?: string) {
   const { supabase, user } = await cleanClient();
-  const day = today();
+  const on = writableDay(day);
 
   const { data: current } = await supabase
     .from("clean_habit_logs")
     .select("times")
     .eq("user_id", user.id)
     .eq("habit_id", habitId)
-    .eq("done_on", day)
+    .eq("done_on", on)
     .maybeSingle();
 
   const next = Math.min(99, (current?.times ?? 0) + delta);
@@ -85,10 +105,10 @@ export async function bumpHabit(habitId: string, delta: number) {
       .delete()
       .eq("user_id", user.id)
       .eq("habit_id", habitId)
-      .eq("done_on", day);
+      .eq("done_on", on);
   } else {
     await supabase.from("clean_habit_logs").upsert(
-      { user_id: user.id, habit_id: habitId, done_on: day, times: next },
+      { user_id: user.id, habit_id: habitId, done_on: on, times: next },
       { onConflict: "habit_id,done_on" }
     );
   }
