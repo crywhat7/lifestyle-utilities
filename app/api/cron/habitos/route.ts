@@ -7,6 +7,7 @@ import {
   type Habit,
   type NudgeKind,
 } from "@/lib/habits";
+import { runFuelNudges, type FuelRun } from "@/lib/fuel-nudges";
 import { habitPayload, type HabitNudge } from "@/lib/notifications";
 import {
   dropSubscriptions,
@@ -99,6 +100,24 @@ async function run(request: NextRequest) {
     byUser.set(userId, list);
   }
 
+  /*
+    El parte de calorías de Fuel viaja en esta misma corrida: comparte las
+    suscripciones ya leídas y el reloj (`at` y `dry` también lo mueven). Va
+    antes de los hábitos porque esos tienen varias salidas tempranas, y una
+    falla de Fuel se informa sin tumbar los avisos de hábitos.
+  */
+  let fuel: FuelRun;
+  try {
+    fuel = await runFuelNudges({ supabase, byUser, today, minutes: now, dry });
+  } catch (cause) {
+    fuel = {
+      users: 0,
+      pushed: 0,
+      nudges: [],
+      error: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
+
   const base = {
     ok: true,
     dry,
@@ -108,6 +127,7 @@ async function run(request: NextRequest) {
     ).padStart(2, "0")}`,
     timezone: TIMEZONE,
     window: width,
+    fuel,
   };
 
   // Sin un solo dispositivo conectado no hay nada que hacer, y ni siquiera

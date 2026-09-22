@@ -1,4 +1,5 @@
 import "server-only";
+import { dayStatus, formatKcal, type Goal, type NudgeKind as FuelNudgeKind } from "@/lib/fuel";
 import { formatMoney } from "@/lib/money";
 import type { PushPayload } from "@/lib/push";
 
@@ -192,5 +193,94 @@ export function duePayload(lines: DueLine[]): PushPayload {
       .join(", ")}${lines.length > 3 ? " y más" : ""}. Tocá para registrarlos.`,
     url: "/hub/my-pocket",
     tag: "pocket-due",
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Fuel                                                                        */
+/* -------------------------------------------------------------------------- */
+
+export type FuelNudge = {
+  kind: FuelNudgeKind;
+  eaten: number;
+  target: number;
+  goal: Goal;
+  meals: number;
+};
+
+/**
+ * El parte de calorías.
+ *
+ * Siempre lleva la cifra que importa en el título —lo que falta o lo que se
+ * pasó—, porque el sistema operativo muestra el título entero y el cuerpo
+ * cortado. El tono cambia con la meta: a quien quiere subir, quedarse corto
+ * a la noche es el problema, no pasarse.
+ *
+ * Nunca regaña. Un aviso que hace sentir mal a las nueve de la noche se
+ * apaga, y con él se apaga el registro entero.
+ */
+export function fuelPayload({ kind, eaten, target, goal, meals }: FuelNudge): PushPayload {
+  const url = "/hub/fuel";
+  const tag = "fuel";
+  const { remaining, tone } = dayStatus(eaten, target);
+  const left = formatKcal(Math.abs(remaining));
+  const of = `${formatKcal(eaten)} de ${formatKcal(target)} kcal`;
+
+  if (kind === "over" || tone === "over") {
+    return {
+      title: `Te pasaste por ${left} kcal`,
+      body:
+        goal === "gain"
+          ? `Llevás ${of}. Para subir, un día arriba no es problema.`
+          : `Llevás ${of}. Lo que queda del día, liviano; mañana arranca en cero.`,
+      url,
+      tag,
+    };
+  }
+
+  if (meals === 0) {
+    return {
+      title: kind === "morning" ? "¿Ya desayunaste?" : "Hoy no hay nada registrado",
+      body: `Tu meta es ${formatKcal(target)} kcal. Tomale foto a lo próximo que comás.`,
+      url,
+      tag,
+    };
+  }
+
+  if (tone === "met") {
+    return {
+      title: "Meta del día cumplida",
+      body: `Llevás ${of}. Si te da hambre, que sea algo liviano.`,
+      url,
+      tag,
+    };
+  }
+
+  if (tone === "near") {
+    return {
+      title: `Te faltan ${left} kcal`,
+      body: `Llevás ${of}. Un aperitivo chico y cerrás el día.`,
+      url,
+      tag,
+    };
+  }
+
+  if (kind === "night") {
+    return {
+      title: `Te faltan ${left} kcal`,
+      body:
+        goal === "gain"
+          ? `Llevás ${of}. Para subir hace falta completar: una cena más o un aperitivo fuerte.`
+          : `Llevás ${of}. ¿Falta registrar la cena?`,
+      url,
+      tag,
+    };
+  }
+
+  return {
+    title: `Llevás ${formatKcal(eaten)} kcal`,
+    body: `Te quedan ${left} de ${formatKcal(target)} para hoy.`,
+    url,
+    tag,
   };
 }

@@ -6,7 +6,7 @@ export type Tool = {
   tagline: string;
   description: string;
   href: string;
-  iconKey: "cart" | "spark" | "wallet" | "slate" | "cap";
+  iconKey: "cart" | "spark" | "wallet" | "slate" | "cap" | "flame";
   status: ToolStatus;
 };
 
@@ -59,6 +59,16 @@ export const TOOLS: Tool[] = [
       "Tus hábitos del día en una pizarra que se borra a las 00:00, y las tareas que no mueren hasta que las marcás.",
     href: "/hub/clean-daily",
     iconKey: "slate",
+    status: "live",
+  },
+  {
+    slug: "fuel",
+    name: "Fuel",
+    tagline: "Foto a lo que comés, y listo",
+    description:
+      "Tu meta diaria de calorías armada por IA, un menú con lo que tenés en casa y un botón para registrar cada comida con una foto.",
+    href: "/hub/fuel",
+    iconKey: "flame",
     status: "live",
   },
 ];

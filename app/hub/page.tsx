@@ -5,6 +5,7 @@ import {
   ArrowOut,
   Cap,
   CartTag,
+  Flame,
   Slate,
   Sliders,
   Spark,
@@ -175,6 +176,7 @@ function ToolGlyph({
   if (iconKey === "wallet") return <Wallet className={size} />;
   if (iconKey === "slate") return <Slate className={size} />;
   if (iconKey === "cap") return <Cap className={size} />;
+  if (iconKey === "flame") return <Flame className={size} />;
   return <Spark className={wide ? "size-6" : "size-5"} />;
 }
 

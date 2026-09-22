@@ -10,6 +10,7 @@ detrás de un login con Google:
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
 | **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
+| **Fuel** | Contador de calorías. La IA arma tu meta diaria con peso, altura, sexo, edad y objetivo; arma un menú (5 desayunos, 5 almuerzos, 5 cenas, 10 aperitivos) con los ingredientes que elegís; y un botón grande registra cada comida con una foto y/o una descripción. |
 
 ---
 
@@ -70,6 +71,8 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    [`0011`](supabase/migrations/0011_habit_place.sql)) son las de Clean
    Daily: tablas, intenciones de implementación, acumulación de hábitos y el
    lugar.
+4. [`0015`](supabase/migrations/0015_fuel.sql) es la de Fuel: perfil y plan,
+   menú, comidas y el candado de sus avisos.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de
@@ -95,7 +98,7 @@ probar sin despertar a nadie.
 | --- | --- | --- |
 | `/api/cron/salarios` | 1 vez al día | Registra los pagos que caen hoy. |
 | `/api/cron/recordatorio` | 13:00 y 19:00 | Pide registrar gastos y avisa lo que vence. |
-| `/api/cron/habitos` | **cada 5 min** | Recordatorios de Clean Daily. |
+| `/api/cron/habitos` | **cada 5 min** (u horario) | Recordatorios de Clean Daily y los partes de calorías de Fuel. |
 
 ### El de hábitos
 
@@ -139,6 +142,22 @@ sin esperarla:
 ```bash
 curl "https://TU-DOMINIO/api/cron/habitos?dry=1&at=07:00" -H "Authorization: Bearer $CRON_SECRET"
 ```
+
+### Los partes de Fuel
+
+Viajan en la misma corrida de `/api/cron/habitos`: no hay endpoint aparte.
+Cada persona con plan, avisos encendidos y un dispositivo suscrito recibe:
+
+- **Cuatro partes al día** — 10:30, 14:30, 18:00 y 20:30: cuánto lleva y
+  cuánto le falta. Cada uno tiene una ventana de dos horas, así que funciona
+  igual con el cron cada 5 minutos que cada hora (a las 11:00 todavía sale el
+  de las 10:30).
+- **Te pasaste** — en la primera corrida después de superar la meta en más
+  de un 5%, a la hora que sea. Si coincide con un parte, sale uno solo.
+
+Nada se repite en el día: lo garantiza `fuel_nudges`, con el mismo candado
+que los hábitos. La respuesta del cron trae un bloque `fuel` con lo que hizo,
+y `?dry=1&at=20:30` muestra qué saldría a esa hora sin mandar nada.
 
 Los push necesitan las llaves VAPID (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`) y que cada persona los active en su dispositivo desde
