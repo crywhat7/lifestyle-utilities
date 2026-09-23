@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "@/lib/log";
 
 const ENDPOINT = "https://api.resend.com/emails";
 
@@ -13,7 +14,22 @@ export type MailOutcome =
   | { ok: true; id: string }
   | { ok: false; error: string };
 
-export async function sendMail({
+/** Manda el correo y deja constancia de cómo salió (sin el cuerpo). */
+export async function sendMail(input: Parameters<typeof deliver>[0]): Promise<MailOutcome> {
+  const started = Date.now();
+  const outcome = await deliver(input);
+  log({
+    level: outcome.ok ? "info" : "error",
+    source: "mail",
+    event: outcome.ok ? "mail.sent" : "mail.failed",
+    message: outcome.ok ? input.subject : outcome.error,
+    durationMs: Date.now() - started,
+    detail: { to: input.to, subject: input.subject, ...(outcome.ok ? { id: outcome.id } : {}) },
+  });
+  return outcome;
+}
+
+async function deliver({
   to,
   subject,
   html,

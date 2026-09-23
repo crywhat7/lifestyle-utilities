@@ -1,5 +1,6 @@
 import "server-only";
 import webpush from "web-push";
+import { log } from "@/lib/log";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 export type PushSubscriptionRow = {
@@ -57,6 +58,7 @@ export async function sendPush(
 
   if (!configure()) {
     result.errors.push("Faltan las llaves VAPID.");
+    log({ level: "error", source: "push", event: "push.unconfigured", message: "Faltan las llaves VAPID", detail: { title: payload.title } });
     return result;
   }
 
@@ -88,6 +90,16 @@ export async function sendPush(
       );
     }
   }
+
+  // Cada envío queda anotado: qué aviso, a cuántos dispositivos llegó y por
+  // qué no llegó a los demás.
+  log({
+    level: result.errors.length > 0 ? "error" : "info",
+    source: "push",
+    event: result.errors.length > 0 ? "push.failed" : "push.sent",
+    message: `${payload.title} → ${result.sent}/${subscriptions.length} dispositivos`,
+    detail: { tag: payload.tag, title: payload.title, body: payload.body, sent: result.sent, gone: result.gone.length, errors: result.errors },
+  });
 
   return result;
 }

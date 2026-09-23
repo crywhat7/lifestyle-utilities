@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "@/lib/log";
 
 /**
  * Compilar LaTeX de verdad, sin tener LaTeX.
@@ -49,6 +50,20 @@ function readLog(log: string) {
 
 /** Compila con pdflatex y devuelve el PDF, o el error de TeX ya legible. */
 export async function compileLatex(source: string): Promise<CompileResult> {
+  const started = Date.now();
+  const result = await compile(source);
+  log({
+    level: result.ok ? "info" : "warn",
+    source: "tex",
+    event: result.ok ? "tex.compiled" : "tex.failed",
+    message: result.ok ? undefined : result.error,
+    durationMs: Date.now() - started,
+    detail: { sourceChars: source.length, ...(result.ok ? { pdfBytes: result.pdf.byteLength } : {}) },
+  });
+  return result;
+}
+
+async function compile(source: string): Promise<CompileResult> {
   const text = source.trim();
 
   if (!text) return { ok: false, error: "El borrador está vacío." };

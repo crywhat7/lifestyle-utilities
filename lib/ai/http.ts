@@ -1,3 +1,4 @@
+import { log } from "@/lib/log";
 import { logFailure, type AnalysisFailure } from "./types";
 
 /**
@@ -31,6 +32,33 @@ const MIN_WINDOW_MS = 4_000;
  * contestar con un mensaje.
  */
 export async function postJson(
+  label: string,
+  url: string,
+  headers: Record<string, string>,
+  body: string,
+  deadline?: number
+): Promise<PostOutcome> {
+  const started = Date.now();
+  const outcome = await attemptJson(label, url, headers, body, deadline);
+
+  /*
+    Cada llamada a un modelo queda registrada, salga bien o mal: cuál
+    modelo, cuánto tardó y por qué falló. La pantalla de registro muestra
+    así qué modelo se está quedando sin cuota antes de que la gente lo note.
+  */
+  log({
+    level: outcome.ok ? "info" : outcome.kind === "quota" || outcome.kind === "overloaded" ? "warn" : "error",
+    source: "ai",
+    event: outcome.ok ? "ai.call" : `ai.${outcome.kind}`,
+    message: outcome.ok ? label : `${label} falló: ${outcome.kind}`,
+    durationMs: Date.now() - started,
+    detail: { model: label, host: new URL(url).host, requestBytes: body.length, deadline: deadline ? new Date(deadline).toISOString() : null },
+  });
+
+  return outcome;
+}
+
+async function attemptJson(
   label: string,
   url: string,
   headers: Record<string, string>,

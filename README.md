@@ -75,6 +75,11 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    menú, comidas y el candado de sus avisos.
 5. [`0016`](supabase/migrations/0016_fuel_week.sql) agrega el menú de la semana
    (lunes a sábado) y las recetas detalladas que se exportan en PDF.
+6. [`0017`](supabase/migrations/0017_logs.sql) crea el registro (`app_logs` y
+   `audit_log`) y engancha el trigger de auditoría a todas las tablas.
+   **Toda migración nueva que cree una tabla tiene que terminar con
+   `select lifestyle_utilities.audit_attach_all();`**, o esa tabla queda
+   fuera del registro de cambios.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de
@@ -241,3 +246,21 @@ sitemap y datos estructurados.
 Pensado para Vercel: importá el repo, cargá las variables de entorno del bloque
 de arriba (con `NEXT_PUBLIC_SITE_URL` apuntando al dominio final) y desplegá.
 Cualquier host con soporte para Node y el runtime de Next 16 también sirve.
+
+---
+
+## Registro
+
+Nada se pierde: todo queda en dos tablas que solo lee `service_role`, y se
+consulta desde **Perfil → Registro** (`/hub/registro`), visible únicamente
+para `POCKET_ADMIN_EMAIL`.
+
+| Tabla | Qué guarda | Quién escribe |
+| --- | --- | --- |
+| `app_logs` | Cada llamada a la IA (modelo, duración, falla), errores del servidor (`instrumentation.ts`) y del navegador, corridas de cron con su respuesta, push enviados y fallidos, correos, tipo de cambio, LaTeX, Canvas, y **toda consulta a Supabase que falló** (`lib/supabase/watched-fetch.ts`). | La app, con `lib/log.ts` |
+| `audit_log` | Cada insert, update y delete de todas las tablas, con la fila antes y después. | Postgres, con un trigger |
+
+Cada evento también sale por consola, así que si la base se cae queda al menos
+en los logs de Vercel. No se registran llaves, tokens, credenciales de push ni
+imágenes: se reemplazan por `[oculto]` o `[imagen]`. El registro no se purga
+solo; la pantalla permite exportar a JSON lo filtrado.

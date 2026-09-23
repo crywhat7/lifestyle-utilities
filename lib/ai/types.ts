@@ -1,3 +1,4 @@
+import { log } from "@/lib/log";
 import type { PurchaseType, Verdict } from "@/lib/money";
 
 export type AnalysisFailure =
@@ -57,10 +58,16 @@ export function shouldFailOver(kind: AnalysisFailure) {
   return kind === "quota" || kind === "overloaded" || kind === "bad_response";
 }
 
-/** Se registra solo cuando algo falla: el camino feliz no ensucia los logs. */
+/**
+ * Lo que la IA contestó mal o no contestó: el texto crudo que devolvió va al
+ * registro para poder ver después qué fue lo que no supimos leer.
+ */
 export function logFailure(reason: string, detail?: string) {
-  console.error(
-    `[should-i-buy-it] ${reason}`,
-    detail ? detail.slice(0, 300) : ""
-  );
+  log({
+    level: "warn",
+    source: "ai",
+    event: "ai.failure",
+    message: reason,
+    detail: detail ? { response: detail.slice(0, 4_000) } : undefined,
+  });
 }

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { watchedFetch } from "./watched-fetch";
 
 /**
  * Cliente de Supabase para Server Components, Route Handlers y Server Actions.
@@ -13,6 +14,8 @@ export async function createClient(schema?: string) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       ...(schema ? { db: { schema } } : {}),
+      // Toda consulta que falle queda en el registro (ver watched-fetch).
+      global: { fetch: watchedFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();

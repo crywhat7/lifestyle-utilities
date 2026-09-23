@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "@/lib/log";
 
 const ENDPOINT = "https://open.er-api.com/v6/latest";
 
@@ -11,7 +12,17 @@ export type Conversion = {
  * Convierte a la moneda del perfil. Las tasas se cachean 6 horas: para decidir
  * si una compra vale la pena, el tipo de cambio del minuto no cambia nada.
  */
-export async function convert(
+/**
+ * Convierte, y si el tipo de cambio no llegó lo deja anotado: un monto que
+ * se guardó sin convertir se explica con este evento.
+ */
+export async function convert(amount: number, from: string, to: string): Promise<Conversion | null> {
+  const result = await fetchRate(amount, from, to);
+  if (!result) log({ level: "warn", source: "fx", event: "fx.unavailable", message: `Sin tipo de cambio ${from} → ${to}`, detail: { amount, from, to } });
+  return result;
+}
+
+async function fetchRate(
   amount: number,
   from: string,
   to: string

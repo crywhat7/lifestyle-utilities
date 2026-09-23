@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { traceCron } from "@/lib/log";
 import { authorizeCron, todayIn, TIMEZONE } from "@/lib/cron";
 import { salaryEmail, type SalaryLine } from "@/lib/emails/salary";
 import { convert } from "@/lib/fx";
@@ -30,11 +31,11 @@ type Schedule = Recurrence & {
 };
 
 export async function GET(request: NextRequest) {
-  return run(request);
+  return traceCron("salarios", request, () => run(request));
 }
 
 export async function POST(request: NextRequest) {
-  return run(request);
+  return traceCron("salarios", request, () => run(request));
 }
 
 /* -------------------------------------------------------------------------- */

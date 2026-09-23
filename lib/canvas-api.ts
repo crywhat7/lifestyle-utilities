@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "@/lib/log";
 import {
   htmlToText,
   type CanvasAssignment,
@@ -43,7 +44,7 @@ export const FAILURE_MESSAGE: Record<CanvasFailure, string> = {
 };
 
 function logFailure(label: string, detail?: string) {
-  console.error(`[canvas] ${label}`, detail ? detail.slice(0, 300) : "");
+  log({ level: "error", source: "canvas", event: "canvas.failure", message: label, detail: detail ? { response: detail.slice(0, 4_000) } : undefined });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { traceCron } from "@/lib/log";
 import { authorizeCron, minutesIn, todayIn, TIMEZONE } from "@/lib/cron";
 import {
   hhmm,
@@ -52,11 +53,11 @@ export const maxDuration = 60;
 const DEFAULT_WINDOW = 15;
 
 export async function GET(request: NextRequest) {
-  return run(request);
+  return traceCron("habitos", request, () => run(request));
 }
 
 export async function POST(request: NextRequest) {
-  return run(request);
+  return traceCron("habitos", request, () => run(request));
 }
 
 async function run(request: NextRequest) {

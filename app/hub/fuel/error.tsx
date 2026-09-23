@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type CSSProperties } from "react";
+import { report } from "@/components/error-reporter";
 import { NavLink } from "@/components/nav-link";
 
 /**
@@ -16,7 +17,7 @@ export default function FuelError({
   retry: () => void;
 }) {
   useEffect(() => {
-    console.error("[fuel]", error);
+    report({ kind: "boundary", message: error.message, stack: error.stack, digest: error.digest });
   }, [error]);
 
   return (

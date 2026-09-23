@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack, Cap, Chevron, Power, Slate, Wallet } from "@/components/icons";
+import { ArrowBack, Cap, Chevron, Flame, History, Power, Slate, Wallet } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { currentUser } from "@/lib/auth";
@@ -170,6 +170,21 @@ export default async function ProfilePage() {
             note="Tus hábitos, sus horarios y sus recordatorios."
             icon={<Slate className="size-5" />}
           />
+          <SettingsLink
+            href="/hub/fuel/plan"
+            title="Fuel"
+            note="Tu meta de calorías, tus datos y los partes del día."
+            icon={<Flame className="size-5" />}
+          />
+          {/* El registro muestra datos de todas las personas: solo el administrador lo ve. */}
+          {isAdmin(user.email) ? (
+            <SettingsLink
+              href="/hub/registro"
+              title="Registro"
+              note="Todo lo que pasa en la app: IA, errores, cron, push y cambios."
+              icon={<History className="size-5" />}
+            />
+          ) : null}
         </div>
       </section>
 

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { traceCron } from "@/lib/log";
 import { authorizeCron, todayIn, TIMEZONE } from "@/lib/cron";
 import { duePayload, reminderPayload, type DueLine } from "@/lib/notifications";
 import {
@@ -29,11 +30,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  return run(request);
+  return traceCron("recordatorio", request, () => run(request));
 }
 
 export async function POST(request: NextRequest) {
-  return run(request);
+  return traceCron("recordatorio", request, () => run(request));
 }
 
 async function run(request: NextRequest) {

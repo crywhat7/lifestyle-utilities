@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { watchedFetch } from "./watched-fetch";
 
 /**
  * Cliente con service_role: se salta RLS y ve a todos los usuarios.
@@ -21,5 +22,6 @@ export function createAdminClient(schema = "lifestyle_utilities") {
   return createSupabaseClient(url, key, {
     db: { schema },
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: watchedFetch },
   });
 }

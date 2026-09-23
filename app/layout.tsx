@@ -4,6 +4,7 @@ import {
   Instrument_Serif,
   Space_Grotesk,
 } from "next/font/google";
+import { ErrorReporter } from "@/components/error-reporter";
 import { absoluteUrl, site } from "@/lib/site";
 import { THEME_BOOT_SCRIPT, THEME_COLOR } from "@/lib/theme";
 import "./globals.css";
@@ -256,6 +257,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col">
           {children}
         </div>
+        {/* Todo error del navegador que nadie atrape va al registro. */}
+        <ErrorReporter />
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { log } from "@/lib/log";
 
 /**
  * Documentos de oficina, leídos y convertidos a PDF.
@@ -139,10 +140,7 @@ export async function extractText(
     }
     if (kind === "text") return { text: bytes.toString("utf8").trim(), mono: false };
   } catch (error) {
-    console.error(
-      "[office] no se pudo leer el documento",
-      error instanceof Error ? error.message : String(error)
-    );
+    log({ level: "error", source: "office", event: "office.read", message: "No se pudo leer el documento", detail: error });
     return null;
   }
 
