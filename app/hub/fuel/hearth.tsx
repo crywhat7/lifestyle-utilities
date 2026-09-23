@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  startTransition,
-  useActionState,
   useRef,
   useState,
   useTransition,
@@ -88,7 +86,7 @@ export function Hearth({
     <>
       <button
         type="button"
-        onClick={() => camera.current?.click()}
+        onClick={() => gallery.current?.click()}
         className="hearth"
         aria-label={`Registrar una comida. ${
           over
@@ -135,7 +133,12 @@ export function Hearth({
         </button>
       </div>
 
-      {/* La cámara directo; la galería queda adentro de la hoja. */}
+      {/*
+        Dos entradas de archivo. La del fogón no lleva `capture`: así el
+        sistema ofrece las dos cosas en un solo toque —cámara o galería— en
+        vez de forzar la cámara. La de `capture` queda para el botón "Tomar
+        foto" de la hoja, que es un pedido explícito de cámara.
+      */}
       <input
         ref={camera}
         type="file"
@@ -213,13 +216,21 @@ function Capture({
   onDropPhoto: () => void;
   onDone: () => void;
 }) {
-  const [state, action, pending] = useActionState(logMeal, IDLE);
+  const [state, setState] = useState<LogState>(IDLE);
+  const [pending, startPending] = useTransition();
   const [description, setDescription] = useState("");
 
   if (state.status === "saved") {
     return <Result state={state} target={target} onDone={onDone} />;
   }
 
+  /*
+    La acción se llama a mano y no con `useActionState` por una razón:
+    si la respuesta no llega —la función se cortó, se cayó la señal—, con
+    `useActionState` el error sube hasta el borde de la página y la
+    pantalla entera queda en blanco con un botón de "Reload". Así, lo peor
+    que puede pasar es un mensaje debajo del botón y otro intento.
+  */
   function submit() {
     const data = new FormData();
     data.append("description", description);
@@ -227,7 +238,17 @@ function Capture({
       data.append("image", photo.image);
       data.append("thumb", photo.thumb);
     }
-    startTransition(() => action(data));
+
+    startPending(async () => {
+      try {
+        setState(await logMeal(IDLE, data));
+      } catch {
+        setState({
+          status: "error",
+          error: "Se cortó la conexión con el servidor. Tu foto sigue acá: probá de nuevo.",
+        });
+      }
+    });
   }
 
   const ready = Boolean(photo) || description.trim().length >= 3;

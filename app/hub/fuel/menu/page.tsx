@@ -4,7 +4,7 @@ import { ArrowBack, ArrowOut, Chevron } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import { minutesIn, TIMEZONE } from "@/lib/cron";
 import { courseAt, formatKcal } from "@/lib/fuel";
-import { FUEL_PATH, fuelClient, loadMenu, loadProfile, PLAN_PATH } from "../data";
+import { FUEL_PATH, fuelClient, loadMenu, loadProfile, PLAN_PATH, PLANNER_PATH } from "../data";
 import { MissingMigration } from "../missing";
 import { MenuBoard } from "./menu-board";
 import { Pantry } from "./pantry";
@@ -74,6 +74,23 @@ export default async function MenuPage() {
               {DAY.format(new Date(menu.createdAt))}
             </p>
           </section>
+
+          {/* La semana es lo que se hace con la carta: va antes que la carta. */}
+          <NavLink
+            href={PLANNER_PATH}
+            className="e-card kindle flex items-center gap-4 p-4"
+            style={{ "--d": "110ms" } as CSSProperties}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="e-display block text-[1.375rem]">Armá la semana</span>
+              <span className="mt-1 block text-[0.75rem] text-[var(--e-ink-3)]">
+                Lunes a sábado con estos platos, y en PDF para quien cocina
+              </span>
+            </span>
+            <span className="e-key e-key-lit grid size-11 shrink-0 place-items-center">
+              <ArrowOut className="size-4" />
+            </span>
+          </NavLink>
 
           <MenuBoard items={menu.items} initial={courseAt(minutesIn(TIMEZONE))} />
 

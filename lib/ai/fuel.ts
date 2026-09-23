@@ -11,6 +11,7 @@ import {
   type Course,
   type FuelProfile,
   type MenuItem,
+  type Recipe,
 } from "@/lib/fuel";
 import { gemini } from "./gemini";
 import { groq } from "./groq";
@@ -45,7 +46,15 @@ type Ask<T> = {
   temperature: number;
   image?: Image;
   parse: (value: unknown) => T | null;
+  /** Reloj de pared compartido por toda la cascada (ver `postJson`). */
+  deadline?: number;
 };
+
+/**
+ * Cuánto puede tardar una pregunta entera, sumando modelos y reintentos.
+ * Deja margen bajo los 60 s de la función para guardar y contestar.
+ */
+const BUDGET_MS = 45_000;
 
 type Answer<T> = { ok: true; data: T; model: string } | { ok: false; kind: "no_key" | "unavailable" };
 
@@ -89,7 +98,8 @@ async function askGemini<T>(model: string, ask: Ask<T>) {
         responseMimeType: "application/json",
         responseSchema: ask.schema,
       },
-    })
+    }),
+    ask.deadline
   );
 
   if (!outcome.ok) return null;
@@ -126,7 +136,8 @@ async function askGroq<T>(model: string, ask: Ask<T>) {
       temperature: ask.temperature,
       messages: [{ role: "user", content }],
       response_format: { type: "json_object" },
-    })
+    }),
+    ask.deadline
   );
 
   if (!outcome.ok) return null;
@@ -136,11 +147,15 @@ async function askGroq<T>(model: string, ask: Ask<T>) {
   return data ? { data, model: label } : null;
 }
 
-async function ask<T>(request: Ask<T>): Promise<Answer<T>> {
+async function ask<T>(input: Ask<T>): Promise<Answer<T>> {
   if (!gemini.isConfigured() && !groq.isConfigured()) return { ok: false, kind: "no_key" };
+
+  const request = { ...input, deadline: input.deadline ?? Date.now() + BUDGET_MS };
+  const late = () => Date.now() > request.deadline - 4_000;
 
   if (gemini.isConfigured()) {
     for (const model of gemini.models()) {
+      if (late()) break;
       const result = await askGemini(model, request);
       if (result) return { ok: true, ...result };
     }
@@ -151,6 +166,7 @@ async function ask<T>(request: Ask<T>): Promise<Answer<T>> {
     const models = request.image ? (forced ? [forced] : GROQ_VISION_MODELS) : groq.models();
 
     for (const model of models) {
+      if (late()) break;
       const result = await askGroq(model, request);
       if (result) return { ok: true, ...result };
     }
@@ -469,4 +485,79 @@ export async function estimateMeal(input: {
   const { is_food: _food, ...data } = answer.data;
   void _food;
   return { ok: true, data, model: answer.model };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Las preparaciones para quien cocina                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Convierte la frase corta de cada plato en una receta que otra persona
+ * pueda seguir sin preguntar: pasos numerados, cantidades para una porción y
+ * un truco. Está escrita para quien cocina —no para quien come—, por eso va
+ * en infinitivo ("picar la cebolla"), que es como se escriben las recetas y
+ * no le habla de vos ni de usted a nadie.
+ */
+export async function expandRecipes(dishes: MenuItem[]) {
+  const prompt = [
+    "Sos cocinero en Centroamérica. Escribí la receta de cada plato para que otra",
+    "persona la cocine sin preguntar nada. Es para UNA porción.",
+    "",
+    ...dishes.map(
+      (dish, index) =>
+        `${index + 1}. "${dish.name}" — ingredientes: ${dish.ingredients.join(", ") || "a criterio"}. Idea: ${dish.prep}`
+    ),
+    "",
+    "Para cada plato devolvé:",
+    "- name: el nombre EXACTO que te di, sin cambiarle ni una letra.",
+    "- servings: la porción en palabras caseras (\"1 plato hondo\", \"2 tortillas con relleno\").",
+    "- steps: de 3 a 7 pasos, en infinitivo (\"Picar la cebolla…\"), con tiempos y fuego",
+    "  (bajo, medio, alto) cuando importen. Máximo 28 palabras por paso.",
+    "- tip: un truco corto para que quede rico sin sumar calorías, máximo 18 palabras.",
+    "Usá solo los ingredientes dados más sal, pimienta, ajo, agua y especias básicas.",
+    "No uses emojis.",
+  ].join("\n");
+
+  const wanted = new Set(dishes.map((dish) => dish.name));
+
+  return ask<Recipe[]>({
+    prompt,
+    temperature: 0.4,
+    schema: {
+      type: "OBJECT",
+      properties: {
+        recipes: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              name: { type: "STRING" },
+              servings: { type: "STRING" },
+              steps: { type: "ARRAY", items: { type: "STRING" } },
+              tip: { type: "STRING" },
+            },
+            required: ["name", "servings", "steps", "tip"],
+          },
+        },
+      },
+      required: ["recipes"],
+    },
+    example: '{"recipes":[{"name":"","servings":"","steps":[""],"tip":""}]}',
+    parse(value) {
+      const rows = (value as { recipes?: unknown })?.recipes;
+      if (!Array.isArray(rows)) return null;
+
+      const recipes = rows
+        .map((raw): Recipe | null => {
+          const row = raw as Record<string, unknown>;
+          const name = text(row?.name, 60);
+          const steps = list(row?.steps, 8, 240);
+          if (!wanted.has(name) || steps.length === 0) return null;
+          return { name, servings: text(row.servings, 60), steps, tip: text(row.tip, 160) };
+        })
+        .filter((recipe): recipe is Recipe => recipe !== null);
+
+      return recipes.length > 0 ? recipes : null;
+    },
+  });
 }

@@ -17,13 +17,30 @@ export type PostOutcome =
   | { ok: true; payload: unknown }
   | { ok: false; kind: AnalysisFailure };
 
+/** Menos que esto no alcanza para que un modelo conteste nada útil. */
+const MIN_WINDOW_MS = 4_000;
+
+/**
+ * `deadline` es un reloj de pared (ms) compartido por toda una cascada.
+ *
+ * Sin él, tres modelos de Gemini con dos intentos de 25 s cada uno suman
+ * 150 s: mucho más que los 60 s que la plataforma le da a la función. La
+ * función moría a mitad de la cascada, el navegador recibía una respuesta
+ * rota y la pantalla entera caía en el error de Next. Con el reloj, cada
+ * intento se acorta a lo que queda y la cascada se rinde a tiempo para
+ * contestar con un mensaje.
+ */
 export async function postJson(
   label: string,
   url: string,
   headers: Record<string, string>,
-  body: string
+  body: string,
+  deadline?: number
 ): Promise<PostOutcome> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const budget = deadline ? Math.min(ATTEMPT_TIMEOUT_MS, deadline - Date.now()) : ATTEMPT_TIMEOUT_MS;
+    if (budget < MIN_WINDOW_MS) return { ok: false, kind: "timeout" };
+
     const last = attempt === MAX_ATTEMPTS;
 
     try {
@@ -31,7 +48,7 @@ export async function postJson(
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
         body,
-        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        signal: AbortSignal.timeout(budget),
       });
 
       if (!response.ok) {

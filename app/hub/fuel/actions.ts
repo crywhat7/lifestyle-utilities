@@ -8,7 +8,12 @@ import {
   CUSTOM_PREFIX,
   dayTotals,
   ingredientLabel,
+  isCourse,
+  isPlanDay,
+  PLAN_DAYS,
   PORTIONS,
+  type Course,
+  type PlanSlots,
   type Activity,
   type Confidence,
   type Goal,
@@ -24,8 +29,10 @@ import {
   loadMeals,
   loadMenu,
   loadProfile,
+  loadWeekPlan,
   MENU_PATH,
   PLAN_PATH,
+  PLANNER_PATH,
   today,
   WEEK_PATH,
 } from "./data";
@@ -35,6 +42,7 @@ function refresh() {
   revalidatePath(PLAN_PATH);
   revalidatePath(MENU_PATH);
   revalidatePath(WEEK_PATH);
+  revalidatePath(PLANNER_PATH);
 }
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -440,4 +448,87 @@ export async function sendFuelTestPush(): Promise<PushState> {
     return { status: "error", error: result.errors[0] ?? "No se pudo mandar." };
   }
   return { status: "saved" };
+}
+
+/* -------------------------------------------------------------------------- */
+/* El menú de la semana                                                        */
+/* -------------------------------------------------------------------------- */
+
+export type SlotResult = { ok: true; slots: PlanSlots } | { ok: false; error: string };
+
+const WEEK_MIGRATION_ERROR = "Falta correr la migración 0016 (menú de la semana) en Supabase.";
+
+async function saveSlots(
+  supabase: Awaited<ReturnType<typeof fuelClient>>["supabase"],
+  userId: string,
+  slots: PlanSlots
+): Promise<SlotResult> {
+  const { error } = await supabase
+    .from("fuel_week_plans")
+    .upsert({ user_id: userId, slots }, { onConflict: "user_id" });
+
+  if (error) return { ok: false, error: WEEK_MIGRATION_ERROR };
+  revalidatePath(PLANNER_PATH);
+  return { ok: true, slots };
+}
+
+/**
+ * Pone (o saca, con `index` nulo) el plato de un tiempo de comida de un día.
+ *
+ * El plato se copia del menú al plan: si mañana se rehace el menú, la semana
+ * ya armada no cambia ni apunta a nada que no exista. Y como cada tiempo es
+ * una sola llave del día, escribir un desayuno reemplaza al anterior: dos
+ * desayunos el mismo día no tienen dónde vivir.
+ */
+export async function setSlot(day: string, course: string, index: number | null): Promise<SlotResult> {
+  if (!isPlanDay(day) || !isCourse(course)) return { ok: false, error: "Ese día o tiempo no existe." };
+
+  const { supabase, user } = await fuelClient();
+  const [menu, plan] = await Promise.all([loadMenu(supabase, user.id), loadWeekPlan(supabase, user.id)]);
+  if (plan.missing) return { ok: false, error: WEEK_MIGRATION_ERROR };
+
+  const slots: PlanSlots = { ...plan.slots, [day]: { ...(plan.slots[day] ?? {}) } };
+  const chosen = slots[day]!;
+
+  if (index == null) {
+    delete chosen[course];
+  } else {
+    const item = menu?.items[index];
+    if (!item || item.course !== course) return { ok: false, error: "Ese plato ya no está en tu menú." };
+    chosen[course] = item;
+  }
+
+  return saveSlots(supabase, user.id, slots);
+}
+
+/**
+ * Rellena lo vacío de desayuno, almuerzo y cena rotando los platos del menú,
+ * para que ningún plato caiga dos días seguidos. Lo que ya estaba elegido no
+ * se toca, y los aperitivos quedan a mano: son opcionales de verdad.
+ */
+export async function fillWeek(): Promise<SlotResult> {
+  const { supabase, user } = await fuelClient();
+  const [menu, plan] = await Promise.all([loadMenu(supabase, user.id), loadWeekPlan(supabase, user.id)]);
+  if (plan.missing) return { ok: false, error: WEEK_MIGRATION_ERROR };
+  if (!menu?.items.length) return { ok: false, error: "Primero armá tu menú." };
+
+  const slots: PlanSlots = { ...plan.slots };
+  const courses: Course[] = ["breakfast", "lunch", "dinner"];
+
+  PLAN_DAYS.forEach((day, position) => {
+    const current = { ...(slots[day.key] ?? {}) };
+    for (const course of courses) {
+      if (current[course]) continue;
+      const options = menu.items.filter((item) => item.course === course);
+      if (options.length > 0) current[course] = options[position % options.length];
+    }
+    slots[day.key] = current;
+  });
+
+  return saveSlots(supabase, user.id, slots);
+}
+
+export async function clearWeek(): Promise<SlotResult> {
+  const { supabase, user } = await fuelClient();
+  return saveSlots(supabase, user.id, {});
 }

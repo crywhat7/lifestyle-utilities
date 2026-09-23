@@ -215,7 +215,7 @@ function parse(label: string, text: unknown): RawMovement[] | null {
   }
 }
 
-async function askGemini(model: string, input: ScanInput) {
+async function askGemini(model: string, input: ScanInput, deadline: number) {
   const apiKey = process.env.SHOULD_I_BUY_IT_GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -241,7 +241,8 @@ async function askGemini(model: string, input: ScanInput) {
         responseMimeType: "application/json",
         responseSchema: GEMINI_SCHEMA,
       },
-    })
+    }),
+    deadline
   );
 
   if (!outcome.ok) return null;
@@ -263,7 +264,7 @@ async function askGemini(model: string, input: ScanInput) {
  */
 const GROQ_VISION_MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct"];
 
-async function askGroq(model: string, input: ScanInput) {
+async function askGroq(model: string, input: ScanInput, deadline: number) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
@@ -293,7 +294,8 @@ async function askGroq(model: string, input: ScanInput) {
         },
       ],
       response_format: { type: "json_object" },
-    })
+    }),
+    deadline
   );
 
   if (!outcome.ok) return null;
@@ -318,9 +320,15 @@ export async function scanExpenses(input: ScanInput): Promise<ScanResult> {
 
   let answered = false;
 
+  // Toda la lectura, modelos y reintentos incluidos, bajo los 60 s de la
+  // función: pasado eso la plataforma la mata y la pantalla se rompe.
+  const deadline = Date.now() + 45_000;
+  const late = () => Date.now() > deadline - 4_000;
+
   if (gemini.isConfigured()) {
     for (const model of gemini.models()) {
-      const result = await askGemini(model, input);
+      if (late()) break;
+      const result = await askGemini(model, input, deadline);
       if (!result) continue;
       answered = true;
       if (result.rows.length > 0) {
@@ -333,7 +341,8 @@ export async function scanExpenses(input: ScanInput): Promise<ScanResult> {
   if (!answered && groq.isConfigured()) {
     const forced = process.env.POCKET_SCAN_GROQ_MODEL?.trim();
     for (const model of forced ? [forced] : GROQ_VISION_MODELS) {
-      const result = await askGroq(model, input);
+      if (late()) break;
+      const result = await askGroq(model, input, deadline);
       if (!result) continue;
       answered = true;
       if (result.rows.length > 0) {

@@ -173,7 +173,7 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/\t/g, "    "],
 ];
 
-function toWinAnsi(text: string) {
+export function toWinAnsi(text: string) {
   let clean = text;
   for (const [pattern, into] of REPLACEMENTS) clean = clean.replace(pattern, into);
 
@@ -188,7 +188,7 @@ const SIZE = 10.5;
 const LEAD = 15;
 
 /** Corta un párrafo en renglones que entren en el ancho útil. */
-function wrap(
+export function wrap(
   text: string,
   font: { widthOfTextAtSize: (text: string, size: number) => number },
   size: number,

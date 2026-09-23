@@ -73,6 +73,8 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    lugar.
 4. [`0015`](supabase/migrations/0015_fuel.sql) es la de Fuel: perfil y plan,
    menú, comidas y el candado de sus avisos.
+5. [`0016`](supabase/migrations/0016_fuel_week.sql) agrega el menú de la semana
+   (lunes a sábado) y las recetas detalladas que se exportan en PDF.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de

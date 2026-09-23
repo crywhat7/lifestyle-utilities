@@ -503,3 +503,59 @@ export function groupWeek(meals: Meal[], days: string[]): WeekDay[] {
     return { day, kcal: macros.kcal, count: own.length, macros };
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/* El menú de la semana                                                        */
+/* -------------------------------------------------------------------------- */
+
+export type PlanDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+
+export const PLAN_DAYS: { key: PlanDay; name: string; short: string }[] = [
+  { key: "mon", name: "Lunes", short: "Lun" },
+  { key: "tue", name: "Martes", short: "Mar" },
+  { key: "wed", name: "Miércoles", short: "Mié" },
+  { key: "thu", name: "Jueves", short: "Jue" },
+  { key: "fri", name: "Viernes", short: "Vie" },
+  { key: "sat", name: "Sábado", short: "Sáb" },
+];
+
+/**
+ * Un día es, a lo sumo, un plato por tiempo de comida. Que falte cualquiera
+ * —o todos— es válido: hay días que se come afuera.
+ */
+export type PlanSlots = Partial<Record<PlanDay, Partial<Record<Course, MenuItem>>>>;
+
+export type Recipe = { name: string; servings: string; steps: string[]; tip: string };
+
+export function isPlanDay(value: unknown): value is PlanDay {
+  return PLAN_DAYS.some((day) => day.key === value);
+}
+
+export function isCourse(value: unknown): value is Course {
+  return COURSES.includes(value as Course);
+}
+
+export function planDayKcal(slots: PlanSlots, day: PlanDay) {
+  return COURSES.reduce((sum, course) => sum + (slots[day]?.[course]?.kcal ?? 0), 0);
+}
+
+/**
+ * Los platos distintos de la semana, en el orden en que aparecen, con dónde
+ * se usa cada uno: el PDF describe cada preparación una sola vez aunque se
+ * repita tres días.
+ */
+export function plannedDishes(slots: PlanSlots) {
+  const byName = new Map<string, { item: MenuItem; uses: string[] }>();
+
+  for (const day of PLAN_DAYS) {
+    for (const course of COURSES) {
+      const item = slots[day.key]?.[course];
+      if (!item) continue;
+      const entry = byName.get(item.name) ?? { item, uses: [] };
+      entry.uses.push(`${day.name} (${COURSE_LABEL[course].one.toLowerCase()})`);
+      byName.set(item.name, entry);
+    }
+  }
+
+  return [...byName.values()];
+}

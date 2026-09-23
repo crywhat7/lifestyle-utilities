@@ -2,13 +2,14 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { minutesIn, TIMEZONE, todayIn } from "@/lib/cron";
-import type { FuelProfile, Meal, MenuItem } from "@/lib/fuel";
+import type { FuelProfile, Meal, MenuItem, PlanSlots, Recipe } from "@/lib/fuel";
 import { createClient } from "@/lib/supabase/server";
 
 export const FUEL_PATH = "/hub/fuel";
 export const PLAN_PATH = `${FUEL_PATH}/plan`;
 export const MENU_PATH = `${FUEL_PATH}/menu`;
 export const WEEK_PATH = `${FUEL_PATH}/semana`;
+export const PLANNER_PATH = `${MENU_PATH}/semana`;
 
 /**
  * Qué día es hoy para quien come.
@@ -114,5 +115,20 @@ export async function loadMenu(client: Client, userId: string) {
     target: data.target_kcal as number | null,
     model: data.model as string | null,
     createdAt: String(data.created_at),
+  };
+}
+
+/** El menú de la semana, o vacío si todavía no se armó (o falta la 0016). */
+export async function loadWeekPlan(client: Client, userId: string) {
+  const { data, error } = await client
+    .from("fuel_week_plans")
+    .select("slots,recipes")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return {
+    missing: Boolean(error),
+    slots: ((data?.slots as PlanSlots | null) ?? {}) as PlanSlots,
+    recipes: ((data?.recipes as Record<string, Recipe> | null) ?? {}) as Record<string, Recipe>,
   };
 }
