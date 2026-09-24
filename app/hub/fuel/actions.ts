@@ -24,6 +24,7 @@ import { fuelPayload } from "@/lib/notifications";
 import { sendPush, type PushSubscriptionRow } from "@/lib/push";
 import {
   clockLabel,
+  DISHES_PATH,
   FUEL_PATH,
   fuelClient,
   loadMeals,
@@ -43,6 +44,7 @@ function refresh() {
   revalidatePath(MENU_PATH);
   revalidatePath(WEEK_PATH);
   revalidatePath(PLANNER_PATH);
+  revalidatePath(DISHES_PATH);
 }
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -531,4 +533,46 @@ export async function fillWeek(): Promise<SlotResult> {
 export async function clearWeek(): Promise<SlotResult> {
   const { supabase, user } = await fuelClient();
   return saveSlots(supabase, user.id, {});
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lo de siempre                                                               */
+/* -------------------------------------------------------------------------- */
+
+export type RepeatResult = { ok: true; id: string; kcal: number } | { ok: false; error: string };
+
+/**
+ * "Este lo comí ahorita": copia una comida pasada a hoy, tal cual.
+ *
+ * Misma porción, mismas cifras, misma miniatura: lo que la IA calculó la
+ * primera vez se reusa sin volver a preguntarle nada, así que es instantáneo
+ * y no gasta cuota. Si esta vez fue distinta, la porción se corrige en la
+ * lista como cualquier otra comida.
+ */
+export async function repeatMeal(mealId: string): Promise<RepeatResult> {
+  const { supabase, user } = await fuelClient();
+
+  const { data: original } = await supabase
+    .from("fuel_meals")
+    .select("name,note,kcal,protein_g,carbs_g,fat_g,portion,confidence,source,thumb,model")
+    .eq("id", mealId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!original) return { ok: false, error: "Ese plato ya no está en tu historial." };
+
+  const { data, error } = await supabase
+    .from("fuel_meals")
+    .insert({ ...original, user_id: user.id, eaten_on: today() })
+    .select("id")
+    .single();
+
+  if (error || !data) return { ok: false, error: "No se pudo registrar. Probá de nuevo." };
+
+  refresh();
+  return {
+    ok: true,
+    id: String(data.id),
+    kcal: Math.round(Number(original.kcal) * (Number(original.portion) || 1)),
+  };
 }

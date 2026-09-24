@@ -2,7 +2,16 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { minutesIn, TIMEZONE, todayIn } from "@/lib/cron";
-import type { FuelProfile, Meal, MenuItem, PlanSlots, Recipe } from "@/lib/fuel";
+import {
+  groupDishes,
+  rankForNow,
+  type FuelProfile,
+  type Meal,
+  type MenuItem,
+  type PastMeal,
+  type PlanSlots,
+  type Recipe,
+} from "@/lib/fuel";
 import { createClient } from "@/lib/supabase/server";
 
 export const FUEL_PATH = "/hub/fuel";
@@ -10,6 +19,7 @@ export const PLAN_PATH = `${FUEL_PATH}/plan`;
 export const MENU_PATH = `${FUEL_PATH}/menu`;
 export const WEEK_PATH = `${FUEL_PATH}/semana`;
 export const PLANNER_PATH = `${MENU_PATH}/semana`;
+export const DISHES_PATH = `${FUEL_PATH}/platos`;
 
 /**
  * Qué día es hoy para quien come.
@@ -132,3 +142,69 @@ export async function loadWeekPlan(client: Client, userId: string) {
     recipes: ((data?.recipes as Record<string, Recipe> | null) ?? {}) as Record<string, Recipe>,
   };
 }
+
+const CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Cuántas comidas pasadas se miran. Años de registros entran de sobra. */
+const HISTORY_LIMIT = 3_000;
+
+/**
+ * Todos los platos que registraste, agrupados, con la miniatura de cada uno.
+ *
+ * Dos consultas y no una a propósito: el historial se lee SIN miniaturas
+ * —tres mil fotos de 8 KB serían 24 MB para dibujar una lista—, y después
+ * se piden solo las miniaturas de los platos que se van a mostrar.
+ */
+export async function loadDishes(client: Client, userId: string, limit?: number) {
+  const { data } = await client
+    .from("fuel_meals")
+    .select("id,name,kcal,protein_g,carbs_g,fat_g,portion,source,eaten_on,eaten_at")
+    .eq("user_id", userId)
+    .order("eaten_at", { ascending: false })
+    .limit(HISTORY_LIMIT);
+
+  const past: PastMeal[] = ((data ?? []) as Record<string, unknown>[]).map((row) => {
+    const [hours, minutes] = CLOCK.format(new Date(String(row.eaten_at))).split(":").map(Number);
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      kcal: Number(row.kcal),
+      protein_g: Number(row.protein_g),
+      carbs_g: Number(row.carbs_g),
+      fat_g: Number(row.fat_g),
+      portion: Number(row.portion),
+      source: row.source as PastMeal["source"],
+      eaten_on: String(row.eaten_on),
+      minutes: hours * 60 + minutes,
+    };
+  });
+
+  const dishes = rankForNow(groupDishes(past), minutesIn(TIMEZONE));
+  const shown = limit ? dishes.slice(0, limit) : dishes;
+
+  const { data: thumbs } = shown.length
+    ? await client
+        .from("fuel_meals")
+        .select("id,thumb")
+        .in(
+          "id",
+          shown.flatMap((dish) => dish.recentIds)
+        )
+        .not("thumb", "is", null)
+    : { data: [] };
+
+  const thumbById = new Map((thumbs ?? []).map((row) => [String(row.id), String(row.thumb)]));
+
+  return shown.map((dish) => ({
+    ...dish,
+    // La foto más reciente que exista entre las últimas veces.
+    thumb: dish.recentIds.map((id) => thumbById.get(id)).find(Boolean) ?? null,
+  }));
+}
+
+export type ShownDish = Awaited<ReturnType<typeof loadDishes>>[number];

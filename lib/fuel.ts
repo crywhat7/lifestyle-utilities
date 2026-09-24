@@ -559,3 +559,111 @@ export function plannedDishes(slots: PlanSlots) {
 
   return [...byName.values()];
 }
+
+/* -------------------------------------------------------------------------- */
+/* Lo de siempre                                                               */
+/* -------------------------------------------------------------------------- */
+
+/** Una comida pasada, con lo mínimo para agruparla (sin la miniatura). */
+export type PastMeal = Pick<Meal, "id" | "name" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "portion" | "source"> & {
+  eaten_on: string;
+  /** Minutos desde medianoche en la zona del bolsillo. */
+  minutes: number;
+};
+
+export type Dish = {
+  key: string;
+  name: string;
+  /** Lo de la última vez, porción incluida: repetir es repetir tal cual. */
+  kcal: number;
+  count: number;
+  lastId: string;
+  lastOn: string;
+  /** Hora típica en que se come, en minutos (promedio circular). */
+  usual: number;
+  /** Las últimas veces, para buscar entre ellas una con miniatura. */
+  recentIds: string[];
+};
+
+/** "Baleada  con Huevo" y "baleada con huevo" son el mismo plato. */
+export function dishKey(name: string) {
+  return slug(name.replace(/\s+/g, " ").trim());
+}
+
+/**
+ * La hora promedio de un plato, en un reloj circular: el promedio simple de
+ * 23:50 y 00:10 da mediodía; el circular da medianoche, que es lo cierto.
+ */
+function circularMean(minutes: number[]) {
+  const angle = (value: number) => (value / 1440) * Math.PI * 2;
+  const x = minutes.reduce((sum, value) => sum + Math.cos(angle(value)), 0);
+  const y = minutes.reduce((sum, value) => sum + Math.sin(angle(value)), 0);
+  const mean = (Math.atan2(y, x) / (Math.PI * 2)) * 1440;
+  return Math.round((mean + 1440) % 1440);
+}
+
+function clockDistance(a: number, b: number) {
+  const diff = Math.abs(a - b) % 1440;
+  return Math.min(diff, 1440 - diff);
+}
+
+/** Todas las comidas registradas, agrupadas por plato. Vienen de la más nueva a la más vieja. */
+export function groupDishes(meals: PastMeal[]): Dish[] {
+  const byKey = new Map<string, { dish: Dish; times: number[] }>();
+
+  for (const meal of meals) {
+    const key = dishKey(meal.name);
+    if (!key) continue;
+    const entry = byKey.get(key);
+    if (entry) {
+      entry.dish.count += 1;
+      entry.times.push(meal.minutes);
+      if (entry.dish.recentIds.length < 4) entry.dish.recentIds.push(meal.id);
+      continue;
+    }
+    byKey.set(key, {
+      dish: {
+        key,
+        name: meal.name,
+        kcal: mealMacros(meal).kcal,
+        count: 1,
+        lastId: meal.id,
+        lastOn: meal.eaten_on,
+        usual: meal.minutes,
+        recentIds: [meal.id],
+      },
+      times: [meal.minutes],
+    });
+  }
+
+  return [...byKey.values()].map(({ dish, times }) => ({ ...dish, usual: circularMean(times) }));
+}
+
+/**
+ * Los platos en el orden en que probablemente los buscás AHORA.
+ *
+ * Pesa cuántas veces lo comiste por qué tan cerca está esta hora de la hora
+ * en que lo solés comer: a las 7 de la mañana, la avena de todos los días le
+ * gana a la pizza de los viernes aunque la pizza sea más reciente. Un plato
+ * de otra hora no desaparece, solo baja.
+ */
+export function rankForNow(dishes: Dish[], minutes: number) {
+  const score = (dish: Dish) => {
+    const distance = clockDistance(dish.usual, minutes);
+    const closeness = distance <= 90 ? 1 : distance <= 180 ? 0.45 : 0.12;
+    return dish.count * closeness;
+  };
+
+  return [...dishes].sort((a, b) => score(b) - score(a) || b.lastOn.localeCompare(a.lastOn));
+}
+
+/** "Ayer", "hace 5 días", "12 de agosto". */
+export function sinceLabel(day: string, today: string) {
+  const days = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
+  if (days <= 0) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 14) return `hace ${days} días`;
+  return new Intl.DateTimeFormat("es-HN", { timeZone: "UTC", day: "numeric", month: "short" }).format(
+    new Date(`${day}T12:00:00Z`)
+  );
+}

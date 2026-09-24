@@ -17,6 +17,7 @@ import {
 } from "@/lib/fuel";
 import {
   fuelClient,
+  loadDishes,
   loadMealsBetween,
   loadMenu,
   loadProfile,
@@ -25,6 +26,7 @@ import {
   today,
   WEEK_PATH,
 } from "./data";
+import { DishStrip } from "./dish-strip";
 import { EatButton } from "./eat-button";
 import { Hearth } from "./hearth";
 import { MealList } from "./meal-list";
@@ -60,10 +62,11 @@ export default async function FuelPage() {
 
   // La semana sale en la misma consulta que hoy: son siete días de filas
   // chicas, y pedirlas aparte sería otro viaje para una franja de barras.
-  const [{ profile, missing }, weekMeals, menu] = await Promise.all([
+  const [{ profile, missing }, weekMeals, menu, dishes] = await Promise.all([
     loadProfile(supabase, user.id),
     loadMealsBetween(supabase, user.id, days[0], day),
     loadMenu(supabase, user.id),
+    loadDishes(supabase, user.id, 8),
   ]);
 
   const meals = weekMeals.filter((meal) => meal.eaten_on === day);
@@ -123,6 +126,8 @@ export default async function FuelPage() {
             </p>
             <Hearth target={target} eaten={totals.kcal} tone={status.tone} />
           </section>
+
+          <DishStrip dishes={dishes} delay={720} />
 
           <MacroRow
             totals={totals}

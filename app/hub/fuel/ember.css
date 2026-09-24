@@ -493,6 +493,99 @@
   }
 
   /* ------------------------------------------------------------------------
+     Lo de siempre — la franja de platos repetibles.
+
+     Se desliza de lado con imán (scroll-snap) y los bordes se desvanecen
+     con una máscara: se nota que sigue sin que haga falta una flecha.
+     ------------------------------------------------------------------------ */
+
+  .dish-strip {
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.25rem;
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, transparent 0, #000 1.25rem, #000 calc(100% - 1.25rem), transparent 100%);
+  }
+
+  .dish-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dish-card {
+    position: relative;
+    flex: 0 0 8.75rem;
+    scroll-snap-align: start;
+    border-radius: 22px;
+    background: var(--e-iron);
+    border: 1px solid var(--e-hair);
+    box-shadow: var(--e-shadow), 0 14px 28px -22px var(--e-drop);
+    transition:
+      transform 0.35s var(--e-ease),
+      border-color 0.35s var(--e-ease),
+      box-shadow 0.5s var(--e-ease);
+  }
+
+  .dish-card:active {
+    transform: scale(0.96);
+  }
+
+  /* Recién sumado: la tarjeta agarra brasa un instante. */
+  .dish-card[data-lit="true"] {
+    border-color: color-mix(in oklch, var(--e-lit) 60%, transparent);
+    box-shadow:
+      var(--e-shadow),
+      0 0 0 3px color-mix(in oklch, var(--e-lit) 22%, transparent),
+      0 18px 34px -16px color-mix(in oklch, var(--e-lit) 70%, transparent);
+  }
+
+  .dish-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+  }
+
+  /* La inicial del plato cuando no hay foto: tipografía en vez de un icono. */
+  .dish-initial {
+    font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+    font-style: italic;
+    font-size: 2.75rem;
+    line-height: 1;
+    color: var(--e-ink-hot);
+    background:
+      radial-gradient(90% 80% at 50% 120%, color-mix(in oklch, var(--e-lit) 22%, transparent), transparent 70%),
+      var(--e-sunk);
+    border: 1px solid var(--e-hair);
+  }
+
+  .dish-burst {
+    color: var(--e-on-lit);
+    background:
+      radial-gradient(100% 100% at 50% 110%, var(--e-core) 0%, transparent 60%),
+      color-mix(in oklch, var(--e-lit) 88%, transparent);
+    animation: burst 0.7s var(--e-ease) both;
+  }
+
+  .dish-undo {
+    position: absolute;
+    left: 50%;
+    /* Sobre el borde de abajo de la foto, adentro de la tarjeta: la franja
+       recorta todo lo que asome por fuera. */
+    top: 6rem;
+    translate: -50% 0;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    color: var(--e-ink);
+    background: var(--e-iron);
+    border: 1px solid var(--e-hair-2);
+    box-shadow: 0 8px 16px -10px var(--e-drop);
+    animation: kindle 0.4s var(--e-ease) both;
+  }
+
+  /* ------------------------------------------------------------------------
      La hoja de captura — un <dialog> nativo: foco atrapado y Esc gratis.
      ------------------------------------------------------------------------ */
 
@@ -695,6 +788,17 @@
   }
 }
 
+@keyframes burst {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes bar-rise {
   from {
     transform: scaleY(0);
@@ -776,6 +880,7 @@
   .hearth-ring,
   .macro-fill,
   .week-bar,
+  .dish-burst,
   .kindle,
   .e-sheet[open],
   .e-photo[data-busy="true"]::after,
