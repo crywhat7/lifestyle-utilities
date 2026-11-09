@@ -14,7 +14,7 @@ detrás de un login con Google:
 
 ---
 
-## Stack
+## Stack Utilizado
 
 - **Next.js 16.3** (App Router, Turbopack, Server Components y Server Actions)
 - **React 19.2** · **TypeScript 5** · **Tailwind CSS 4**
