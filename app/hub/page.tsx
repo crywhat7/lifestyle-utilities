@@ -10,6 +10,7 @@ import {
   Sliders,
   Spark,
   Wallet,
+  Wardrobe,
   WaveHand,
 } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
@@ -177,6 +178,7 @@ function ToolGlyph({
   if (iconKey === "slate") return <Slate className={size} />;
   if (iconKey === "cap") return <Cap className={size} />;
   if (iconKey === "flame") return <Flame className={size} />;
+  if (iconKey === "wardrobe") return <Wardrobe className={size} />;
   return <Spark className={wide ? "size-6" : "size-5"} />;
 }
 

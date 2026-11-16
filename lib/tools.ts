@@ -6,7 +6,7 @@ export type Tool = {
   tagline: string;
   description: string;
   href: string;
-  iconKey: "cart" | "spark" | "wallet" | "slate" | "cap" | "flame";
+  iconKey: "cart" | "spark" | "wallet" | "slate" | "cap" | "flame" | "wardrobe";
   status: ToolStatus;
 };
 
@@ -69,6 +69,16 @@ export const TOOLS: Tool[] = [
       "Tu meta diaria de calorías armada por IA, un menú con lo que tenés en casa y un botón para registrar cada comida con una foto.",
     href: "/hub/fuel",
     iconKey: "flame",
+    status: "live",
+  },
+  {
+    slug: "rooms",
+    name: "Rooms Planning",
+    tagline: "Sabés que lo tenés; esto dice dónde",
+    description:
+      "Tus cuartos, tus muebles y cada gaveta con lo que hay dentro. Guardás una vez y después solo buscás.",
+    href: "/hub/rooms",
+    iconKey: "wardrobe",
     status: "live",
   },
 ];

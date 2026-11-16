@@ -560,3 +560,60 @@ export function Plate({ className }: IconProps) {
   );
 }
 
+
+/** Armario — Rooms Planning: el cuarto visto como lo que guarda. */
+export function Wardrobe({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M4 4h16v16h-16z" />
+      <path d="M12 4v16" />
+      <path d="M9 10v2" />
+      <path d="M15 10v2" />
+    </Stroke>
+  );
+}
+
+/** Cómoda con gavetas — el mueble que se abre por niveles. */
+export function Drawer({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M4 4h16v16h-16z" />
+      <path d="M4 10h16" />
+      <path d="M4 15h16" />
+      <path d="M11 7h2" />
+      <path d="M11 12.5h2" />
+      <path d="M11 17.5h2" />
+    </Stroke>
+  );
+}
+
+/** Caja abierta — el contenedor, de cualquier tamaño. */
+export function Box({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M3 7l9 -4l9 4v10l-9 4l-9 -4z" />
+      <path d="M3 7l9 4l9 -4" />
+      <path d="M12 11v10" />
+    </Stroke>
+  );
+}
+
+/** Etiqueta — una cosa suelta del inventario. */
+export function Tag({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M7.5 7.5m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0" />
+      <path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3" />
+    </Stroke>
+  );
+}
+
+/** Lápiz — editar lo que ya existe. */
+export function Pencil({ className }: IconProps) {
+  return (
+    <Stroke className={className}>
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+    </Stroke>
+  );
+}

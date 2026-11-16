@@ -10,6 +10,7 @@ detrás de un login con Google:
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
 | **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
+| **Rooms Planning** | Tus cuartos, muebles y gavetas con lo que hay dentro. Inventario jerárquico de profundidad libre (habitación → mueble → gaveta → caja → caja), cada cosa con categoría, estado y nota. |
 | **Fuel** | Contador de calorías. La IA arma tu meta diaria con peso, altura, sexo, edad y objetivo; arma un menú (5 desayunos, 5 almuerzos, 5 cenas, 10 aperitivos) con los ingredientes que elegís; y un botón grande registra cada comida con una foto y/o una descripción. |
 
 ---
@@ -80,6 +81,9 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    **Toda migración nueva que cree una tabla tiene que terminar con
    `select lifestyle_utilities.audit_attach_all();`**, o esa tabla queda
    fuera del registro de cambios.
+7. [`0018`](supabase/migrations/0018_rooms.sql) es la de Rooms Planning: el
+   árbol de contenedores (`rooms_nodes`, una tabla recursiva que lleva su
+   propia ruta materializada por trigger) y las cosas (`rooms_items`).
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de

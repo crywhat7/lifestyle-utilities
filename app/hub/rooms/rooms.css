@@ -1,0 +1,595 @@
+/* ==========================================================================
+   Rooms Planning — el ambiente One UI.
+
+   El resto de la app es una placa mecanizada: metal, bisel, sombra dura, un
+   acento lima. Clean Daily ya es la primera excepción, de vidrio. Esta es la
+   segunda, y la razón tampoco es decorativa.
+
+   Acá no se mira un número ni se toma una decisión: se mete la mano en un
+   cajón. Es la pantalla que se abre de pie, con una mano, buscando un cable
+   mientras la otra sostiene algo. Eso pide lo que pide One UI y no lo que
+   pide un panel de instrumentos: superficies planas y clarísimas, esquinas
+   muy redondas, teclas de 56 px que no se pueden errar, lo accionable abajo
+   al alcance del pulgar y el titular arriba, grande, para que el pulgar no
+   tape lo que dice.
+
+   Y el color. El resto de la app tiene UN acento y lo defiende; este módulo
+   tiene que ser colorido porque el color es lo que hace que un inventario de
+   doscientas cosas se pueda barrer con la vista. La salida es que el color
+   venga del DATO —cada habitación el suyo, cada categoría el suyo, inyectados
+   en `--tone`— y no de reemplazar la marca. El lima sigue intacto en el hub.
+
+   Todo cuelga de `.rooms`, así que nada de este vocabulario existe fuera de
+   esta ruta: el layout importa esta hoja y las otras herramientas no se
+   enteran.
+   ========================================================================== */
+
+.rooms {
+  /* ── Fondo y superficie ───────────────────────────────────────────────────
+     La inversión de One UI: el fondo es el gris y la tarjeta es lo blanco. En
+     el tema oscuro el fondo baja casi a negro —así el OLED apaga el píxel— y
+     la tarjeta sube, que es lo contrario de lo que hace el vidrio de Clean
+     Daily. */
+  --r-ground: light-dark(#f0f1f5, #000000);
+  --r-card: light-dark(#ffffff, #1a1c1f);
+  --r-card-2: light-dark(#f7f8fa, #22252a);
+  --r-sunk: light-dark(#eceef3, #121417);
+
+  /* ── Tinta ─────────────────────────────────────────────────────────────── */
+  --r-ink: light-dark(#17181c, #f2f3f6);
+  --r-ink-2: light-dark(#5b6069, #a8adb6);
+  --r-ink-3: light-dark(#8d939d, #71767f);
+
+  /* ── Cantos ────────────────────────────────────────────────────────────────
+     One UI casi no dibuja bordes: separa por color de fondo. El canto existe
+     solo para que la tarjeta no se pierda sobre papel blanco del navegador. */
+  --r-hair: light-dark(rgba(23, 24, 28, 0.07), rgba(255, 255, 255, 0.07));
+  --r-line: light-dark(rgba(23, 24, 28, 0.06), rgba(255, 255, 255, 0.06));
+
+  /* ── El color del dato ─────────────────────────────────────────────────────
+     `--tone` lo inyecta cada tarjeta por `style`: es el color de la
+     habitación o de la categoría. El azul es solo el valor por defecto para
+     lo que todavía no tiene color propio. */
+  --tone: #2f7ef3;
+  /* Relleno suave del mismo tono: es el fondo de los iconos y de los chips.
+     Tiene que ser distinto en cada luz — un 12% de azul sobre negro
+     desaparece, y sobre blanco el mismo 12% ya es un bloque de color. */
+  --r-wash: color-mix(in oklch, var(--tone) light-dark(13%, 24%), var(--r-card));
+  --r-tone-ink: light-dark(
+    color-mix(in oklch, var(--tone) 78%, #000000),
+    color-mix(in oklch, var(--tone) 72%, #ffffff)
+  );
+
+  /* ── Estados de las cosas ──────────────────────────────────────────────────
+     Un inventario no aprueba ni reprueba: "desgastado" no es una alarma. Por
+     eso no hay rojo de semáforo, sino temperatura — lo nuevo es frío y lo
+     roto es cálido y apagado. */
+  --r-fresh: light-dark(#0f7b6c, #3ddbbd);
+  --r-worn: light-dark(#a56b00, #f0b63f);
+  --r-dead: light-dark(#a33a2a, #ff8368);
+
+  /* ── Sombra ────────────────────────────────────────────────────────────────
+     Una sola, cortísima. One UI no apila capas: la tarjeta se apoya en el
+     fondo, no flota sobre él. En oscuro no hay sombra en absoluto, porque
+     sobre negro una sombra negra es nada. */
+  --r-lift: light-dark(0 2px 8px rgba(23, 24, 28, 0.06), none);
+  --r-lift-up: light-dark(0 10px 28px -12px rgba(23, 24, 28, 0.22), none);
+
+  /* ── Movimiento ──────────────────────────────────────────────────────────── */
+  --r-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --r-ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+
+  background: var(--r-ground);
+  color: var(--r-ink);
+}
+
+@layer components {
+  /* ------------------------------------------------------------------------
+     Tipografía
+     ------------------------------------------------------------------------ */
+
+  /*
+     El titular de One UI: grande, pesado y alineado a la izquierda, arriba de
+     la pantalla donde el pulgar no llega. No es decoración — es lo que te
+     dice en qué cajón estás parado sin tener que leer la ruta.
+  */
+  .r-title {
+    font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.75rem, 7vw, 2.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .r-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--r-ink-3);
+  }
+
+  /* La ruta completa: chica, en una línea, cortada por la mitad si no cabe.
+     `direction: rtl` es el truco — lo que se pierde es el principio del
+     camino ("Cuarto ›"), no el final, que es lo que ubica de verdad. */
+  .r-crumb {
+    direction: rtl;
+    text-align: right;
+    unicode-bidi: plaintext;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8125rem;
+    color: var(--r-ink-3);
+  }
+
+  /* ------------------------------------------------------------------------
+     Superficies
+     ------------------------------------------------------------------------ */
+
+  .r-card {
+    border-radius: 26px;
+    background: var(--r-card);
+    border: 1px solid var(--r-hair);
+    box-shadow: var(--r-lift);
+  }
+
+  /* La tarjeta que además es un enlace: se hunde al toque. Sin esto, en un
+     teléfono no hay forma de saber si el toque entró. */
+  .r-tap {
+    transition:
+      transform 0.2s var(--r-ease),
+      background-color 0.2s var(--r-ease);
+  }
+
+  .r-tap:active {
+    transform: scale(0.975);
+    background: var(--r-card-2);
+  }
+
+  /* El bloque hundido: el buscador, el campo, la fila de una lista vacía. */
+  .r-sunk {
+    border-radius: 18px;
+    background: var(--r-sunk);
+  }
+
+  /* La línea entre filas de una misma tarjeta. Nunca en la última: One UI
+     cierra la lista con el canto redondo, no con una raya. */
+  .r-row + .r-row {
+    border-top: 1px solid var(--r-line);
+  }
+
+  /* ------------------------------------------------------------------------
+     El icono con su color
+     ------------------------------------------------------------------------ */
+
+  /*
+     El cuadrado redondeado con el glifo adentro, teñido con `--tone`. Es la
+     pieza que hace que la pantalla se vea colorida: cuarenta filas con su
+     color se leen de un barrido, cuarenta filas grises se leen una por una.
+  */
+  .r-glyph {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 18px;
+    background: var(--r-wash);
+    color: var(--r-tone-ink);
+  }
+
+  .r-glyph[data-size="sm"] {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 13px;
+  }
+
+  /* ------------------------------------------------------------------------
+     Controles
+     ------------------------------------------------------------------------ */
+
+  /*
+     La tecla. 56 px de alto es el número de One UI y no es un capricho: es lo
+     que se acierta caminando, sin mirar y con el teléfono en una mano.
+  */
+  .r-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3.5rem;
+    padding: 0 1.5rem;
+    border-radius: 999px;
+    background: var(--r-card);
+    border: 1px solid var(--r-hair);
+    color: var(--r-ink);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: var(--r-lift);
+    transition:
+      transform 0.2s var(--r-ease),
+      background-color 0.2s var(--r-ease),
+      opacity 0.2s var(--r-ease);
+  }
+
+  .r-key:active {
+    transform: scale(0.96);
+    background: var(--r-card-2);
+  }
+
+  .r-key:disabled {
+    opacity: 0.45;
+    transform: none;
+  }
+
+  /* La acción principal: rellena con el tono y con texto que lo contrasta. */
+  .r-key-lit {
+    background: var(--tone);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: var(--r-lift-up);
+  }
+
+  .r-key-lit:active {
+    background: color-mix(in oklch, var(--tone) 86%, #000000);
+  }
+
+  /* La redonda y chica: volver, cerrar, el menú de una fila. 44 px es el piso
+     accesible y acá sí se puede bajar del 56, porque son secundarias. */
+  .r-ico {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    background: var(--r-card);
+    border: 1px solid var(--r-hair);
+    color: var(--r-ink-2);
+    box-shadow: var(--r-lift);
+    transition:
+      transform 0.2s var(--r-ease),
+      color 0.2s var(--r-ease);
+  }
+
+  .r-ico:active {
+    transform: scale(0.92);
+    color: var(--r-ink);
+  }
+
+  /* El chip de elección: el tipo de mueble, la categoría, el estado. Se
+     prende con `data-on`, que lo pone el radio nativo de abajo. */
+  .r-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border-radius: 999px;
+    background: var(--r-sunk);
+    border: 1px solid transparent;
+    color: var(--r-ink-2);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      transform 0.18s var(--r-ease),
+      background-color 0.18s var(--r-ease),
+      color 0.18s var(--r-ease);
+  }
+
+  .r-chip:active {
+    transform: scale(0.95);
+  }
+
+  .r-chip[data-on="true"] {
+    background: var(--r-wash);
+    border-color: color-mix(in oklch, var(--tone) 42%, transparent);
+    color: var(--r-tone-ink);
+    font-weight: 600;
+  }
+
+  /* El radio real vive debajo del chip: la selección tiene que funcionar sin
+     JavaScript y llegar al `FormData` como cualquier campo. */
+  .r-chip input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .r-chip:has(input:focus-visible) {
+    outline: 2px solid var(--tone);
+    outline-offset: 2px;
+  }
+
+  /* La muestra de color de la habitación: el color ES el control. */
+  .r-swatch {
+    position: relative;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.18s var(--r-ease);
+  }
+
+  .r-swatch:active {
+    transform: scale(0.9);
+  }
+
+  .r-swatch[data-on="true"] {
+    /* El anillo va por fuera con un hueco del fondo en medio, así el color se
+       ve entero: un borde encima le comería un píxel al tono. */
+    box-shadow:
+      0 0 0 3px var(--r-card),
+      0 0 0 5px var(--r-ink);
+  }
+
+  .r-swatch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------------------------------
+     Campos
+     ------------------------------------------------------------------------ */
+
+  .r-field {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0.9375rem 1.125rem;
+    border-radius: 18px;
+    background: var(--r-sunk);
+    border: 1px solid transparent;
+    color: var(--r-ink);
+    font-family: inherit;
+    /* 1rem exacto: por debajo de 16 px, Safari en iOS hace zoom al enfocar y
+       la pantalla salta de lugar. */
+    font-size: 1rem;
+    appearance: none;
+    transition:
+      border-color 0.2s var(--r-ease),
+      background-color 0.2s var(--r-ease);
+  }
+
+  .r-field::placeholder {
+    color: var(--r-ink-3);
+  }
+
+  .r-field:focus {
+    outline: none;
+    background: var(--r-card);
+    border-color: var(--tone);
+  }
+
+  .rooms select.r-field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%238d939d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.125rem center;
+    padding-right: 2.5rem;
+  }
+
+  /* El menú nativo no hereda nada: sin esto, en oscuro sale texto claro sobre
+     fondo claro del sistema. */
+  .rooms select.r-field option {
+    background: var(--r-card);
+    color: var(--r-ink);
+  }
+
+  .r-field-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--r-ink-2);
+  }
+
+  /* ------------------------------------------------------------------------
+     La hoja de abajo
+     ------------------------------------------------------------------------ */
+
+  /*
+     Todo lo que se crea o se edita entra por acá, nunca por una pantalla
+     nueva: el formulario de "agregar caja" tiene cuatro campos y mandar a
+     navegar por eso pierde el lugar donde estabas parado. `<dialog>` nativo
+     —el foco atrapado y Escape vienen del navegador, no de una librería.
+  */
+  .r-sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 30rem;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding: 0.75rem 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 30px 30px 0 0;
+    background: var(--r-card);
+    color: var(--r-ink);
+    box-shadow: 0 -24px 60px -24px rgba(0, 0, 0, 0.35);
+  }
+
+  .r-sheet[open] {
+    animation: r-sheet-up 0.42s var(--r-ease) both;
+  }
+
+  .r-sheet::backdrop {
+    background: light-dark(rgba(23, 24, 28, 0.35), rgba(0, 0, 0, 0.66));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: r-fade 0.32s var(--r-ease-soft) both;
+  }
+
+  .r-grip {
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    margin: 0 auto 1rem;
+    border-radius: 999px;
+    background: var(--r-ink-3);
+    opacity: 0.5;
+  }
+
+  /* ------------------------------------------------------------------------
+     El pie fijo
+     ------------------------------------------------------------------------ */
+
+  /*
+     La acción de crear vive abajo, pegada, sobre un degradado que mata el
+     texto que pasa por debajo. Es la zona del pulgar: lo que más se repite en
+     este módulo es "agregar otra cosa", y tiene que estar donde la mano ya
+     está.
+  */
+  .r-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-top: auto;
+    padding: 1rem 0 max(0.75rem, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent 0%, var(--r-ground) 42%);
+  }
+
+  /* ------------------------------------------------------------------------
+     Estados y señales
+     ------------------------------------------------------------------------ */
+
+  /* El estado de un objeto, en texto chico y con temperatura. */
+  .r-state[data-tone="fresh"] {
+    color: var(--r-fresh);
+  }
+
+  .r-state[data-tone="worn"] {
+    color: var(--r-worn);
+  }
+
+  .r-state[data-tone="dead"] {
+    color: var(--r-dead);
+  }
+
+  .r-state[data-tone="ok"] {
+    color: var(--r-ink-3);
+  }
+
+  /* El punto de color de la categoría, al lado del nombre del objeto. */
+  .r-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--tone);
+  }
+
+  /* Lo que se dice cuando no hay nada. Centrado y con aire: un cajón vacío
+     tiene que verse vacío a propósito, no roto. */
+  .r-empty {
+    display: grid;
+    gap: 0.5rem;
+    place-items: center;
+    padding: 2.5rem 1.5rem;
+    border-radius: 26px;
+    background: var(--r-sunk);
+    text-align: center;
+    color: var(--r-ink-3);
+  }
+
+  /* El aviso rojo: migración sin correr, nombre repetido, lo que sea. */
+  .r-alert {
+    border-radius: 18px;
+    padding: 0.875rem 1.125rem;
+    background: color-mix(in oklch, var(--r-dead) 14%, var(--r-card));
+    color: var(--r-dead);
+    font-size: 0.875rem;
+  }
+
+  /* ------------------------------------------------------------------------
+     Entrada
+     ------------------------------------------------------------------------ */
+
+  /*
+     La lista no aparece de golpe: sube escalonada con `--d`. Es el gesto de
+     One UI y cumple una función — el orden en que entran las tarjetas es el
+     orden en que hay que leerlas.
+  */
+  .r-rise {
+    animation: r-rise 0.5s var(--r-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+}
+
+@keyframes r-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes r-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes r-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Quien pidió menos movimiento ve la pantalla quieta y completa. */
+@media (prefers-reduced-motion: reduce) {
+  .rooms .r-rise,
+  .rooms .r-sheet[open],
+  .rooms .r-sheet::backdrop {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Los huesos de la espera.
+
+   Van fuera de `@layer components` porque `loading.tsx` los combina con
+   utilidades de Tailwind (`h-11`, `rounded-full`) y el hueso tiene que ganar
+   solo en el fondo, nunca en la forma.
+   -------------------------------------------------------------------------- */
+
+.rooms .r-ghost {
+  display: block;
+  background: var(--r-sunk);
+  animation: r-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes r-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooms .r-ghost {
+    animation: none;
+  }
+}
