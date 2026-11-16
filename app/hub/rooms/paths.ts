@@ -15,3 +15,8 @@ export const OUTFITS_PATH = `${ROOMS_PATH}/outfits`;
 export function nodePath(id: string) {
   return `${ROOMS_PATH}/${id}`;
 }
+
+/** El plano isométrico de una habitación. */
+export function planPath(id: string) {
+  return `${ROOMS_PATH}/${id}/plano`;
+}

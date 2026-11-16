@@ -10,8 +10,9 @@ import {
   nextColor,
   type NodeKind,
 } from "@/lib/rooms";
+import { COLS, FLOOR_COLORS, ROWS, WALL_COLORS } from "@/lib/iso";
 import { roomsClient } from "./data";
-import { ROOMS_PATH, nodePath } from "./paths";
+import { ROOMS_PATH, nodePath, planPath } from "./paths";
 import { dropPhoto, putPhoto } from "./storage";
 
 /*
@@ -36,6 +37,11 @@ function refresh(nodeId?: string | null) {
   revalidatePath(ROOMS_PATH);
   if (nodeId) revalidatePath(nodePath(nodeId));
 }
+
+const isWallColor = (value: string): boolean =>
+  (WALL_COLORS as readonly string[]).includes(value);
+const isFloorColor = (value: string): boolean =>
+  (FLOOR_COLORS as readonly string[]).includes(value);
 
 function toText(value: FormDataEntryValue | null, max: number) {
   return String(value ?? "")
@@ -194,6 +200,73 @@ export async function deleteNode(id: string, parentId: string | null) {
   await supabase.from("rooms_nodes").delete().eq("id", id).eq("user_id", user.id);
 
   refresh(parentId);
+}
+
+/* -------------------------------------------------------------------------- */
+/* El plano                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Poner un mueble en una celda del cuarto.
+ *
+ * Los límites se vuelven a aplicar en el servidor aunque el cliente ya los
+ * haya aplicado: el arrastre los respeta, pero una llamada directa no tiene
+ * por qué, y una celda fuera del piso deja un mueble que no se puede volver
+ * a agarrar porque está dibujado afuera del lienzo.
+ */
+export async function placeNode(id: string, roomId: string, x: number, y: number) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase
+    .from("rooms_nodes")
+    .update({
+      grid_x: Math.max(0, Math.min(COLS - 1, Math.round(x))),
+      grid_y: Math.max(0, Math.min(ROWS - 1, Math.round(y))),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("kind", "furniture");
+
+  refresh(roomId);
+  revalidatePath(planPath(roomId));
+}
+
+/**
+ * Sacar un mueble del plano.
+ *
+ * Vuelve a `null`, que es "existe pero todavía no tiene lugar", no "no
+ * existe": el mueble sigue en el inventario con todo lo que guarda adentro.
+ * Son dos cosas distintas y confundirlas sería borrar una gaveta llena por
+ * reordenar un cuarto.
+ */
+export async function unplaceNode(id: string, roomId: string) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase
+    .from("rooms_nodes")
+    .update({ grid_x: null, grid_y: null })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  refresh(roomId);
+  revalidatePath(planPath(roomId));
+}
+
+/** Pintar paredes y piso. Solo de la paleta: ver `lib/iso`. */
+export async function paintRoom(id: string, wall: string, floor: string) {
+  const { supabase, user } = await roomsClient();
+
+  if (!isWallColor(wall) || !isFloorColor(floor)) return;
+
+  await supabase
+    .from("rooms_nodes")
+    .update({ wall_color: wall, floor_color: floor })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("kind", "room");
+
+  refresh(id);
+  revalidatePath(planPath(id));
 }
 
 /* -------------------------------------------------------------------------- */

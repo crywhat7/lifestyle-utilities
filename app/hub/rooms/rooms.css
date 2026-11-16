@@ -54,10 +54,13 @@
   /* Relleno suave del mismo tono: es el fondo de los iconos y de los chips.
      Tiene que ser distinto en cada luz — un 12% de azul sobre negro
      desaparece, y sobre blanco el mismo 12% ya es un bloque de color. */
-  --r-wash: color-mix(in oklch, var(--tone) light-dark(13%, 24%), var(--r-card));
+  /* En sRGB a propósito: el blanco y el negro no tienen matiz, y mezclarlos
+     en un espacio polar deja el resultado con `hue: none` — o sea, gris. Es
+     el mismo motivo por el que el sombreado del plano mezcla en sRGB. */
+  --r-wash: color-mix(in srgb, var(--tone) light-dark(13%, 24%), var(--r-card));
   --r-tone-ink: light-dark(
-    color-mix(in oklch, var(--tone) 78%, #000000),
-    color-mix(in oklch, var(--tone) 72%, #ffffff)
+    color-mix(in srgb, var(--tone) 78%, #000000),
+    color-mix(in srgb, var(--tone) 72%, #ffffff)
   );
 
   /* ── Estados de las cosas ──────────────────────────────────────────────────
@@ -255,7 +258,7 @@
   }
 
   .r-key-lit:active {
-    background: color-mix(in oklch, var(--tone) 86%, #000000);
+    background: color-mix(in srgb, var(--tone) 86%, #000000);
   }
 
   /* La redonda y chica: volver, cerrar, el menú de una fila. 44 px es el piso
@@ -308,7 +311,7 @@
 
   .r-chip[data-on="true"] {
     background: var(--r-wash);
-    border-color: color-mix(in oklch, var(--tone) 42%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 42%, transparent);
     color: var(--r-tone-ink);
     font-weight: 600;
   }
@@ -526,7 +529,7 @@
   .r-alert {
     border-radius: 18px;
     padding: 0.875rem 1.125rem;
-    background: color-mix(in oklch, var(--r-dead) 14%, var(--r-card));
+    background: color-mix(in srgb, var(--r-dead) 14%, var(--r-card));
     color: var(--r-dead);
     font-size: 0.875rem;
   }
@@ -659,4 +662,38 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+   El plano isométrico.
+   -------------------------------------------------------------------------- */
+
+/*
+   El escenario donde vive el cuarto. Fondo propio —ni el gris del módulo ni
+   el blanco de una tarjeta— porque el dibujo trae sus propios colores de
+   pared y piso, y necesita un marco neutro que no compita con ellos.
+
+   `touch-action: none` sobre el SVG es lo que permite arrastrar un mueble en
+   un teléfono: sin eso, el navegador se queda el gesto para hacer scroll y
+   la pieza no se mueve nunca.
+*/
+.rooms .r-stage {
+  border-radius: 26px;
+  overflow: hidden;
+  padding: 0.5rem;
+  background: light-dark(#e6e8ee, #101216);
+  border: 1px solid var(--r-hair);
+}
+
+.rooms .r-stage svg {
+  display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* El mueble que el dedo está moviendo no debe quedar bajo el cursor del
+   sistema ni mostrar el menú de "guardar imagen" al mantener apretado. */
+.rooms .r-stage svg g {
+  -webkit-touch-callout: none;
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack } from "@/components/icons";
+import { ArrowBack, Grid } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
   KIND_LABEL,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/rooms";
 import { Board } from "../board";
 import { ROOMS_PATH, loadIndex, loadItems, loadTree, nodePath, roomsClient } from "../data";
+import { planPath } from "../paths";
 import { Glyph, NodeGlyph } from "../glyph";
 import { MissingMigration } from "../missing";
 
@@ -71,7 +72,10 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
 
   return (
     <main className={shell} style={{ "--tone": tone } as CSSProperties}>
-      <header className="r-rise flex items-center gap-3" style={{ "--d": "0ms" } as CSSProperties}>
+      <header
+        className="r-rise flex items-center justify-between gap-2"
+        style={{ "--d": "0ms" } as CSSProperties}
+      >
         <NavLink
           href={back}
           className="r-key h-11 min-h-11 min-w-0 gap-2 pr-5 pl-4 text-[0.875rem]"
@@ -79,6 +83,17 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
           <ArrowBack className="size-4 shrink-0" />
           <span className="truncate">{backLabel}</span>
         </NavLink>
+
+        {/* Solo las habitaciones tienen plano: una gaveta no se dibuja. */}
+        {node.kind === "room" ? (
+          <NavLink
+            href={planPath(node.id)}
+            className="r-key h-11 min-h-11 shrink-0 gap-2 pr-5 pl-4 text-[0.875rem]"
+          >
+            <Grid className="size-4" />
+            El plano
+          </NavLink>
+        ) : null}
       </header>
 
       <section className="r-rise flex items-start gap-3.5" style={{ "--d": "40ms" } as CSSProperties}>
