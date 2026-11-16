@@ -10,7 +10,7 @@ detrás de un login con Google:
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
 | **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
-| **Rooms Planning** | Tus cuartos, muebles y gavetas con lo que hay dentro. Inventario jerárquico de profundidad libre (habitación → mueble → gaveta → caja → caja), cada cosa con categoría, estado y nota. |
+| **Rooms Planning** | Tus cuartos, muebles y gavetas con lo que hay dentro. Inventario jerárquico de profundidad libre (habitación → mueble → gaveta → caja → caja), buscador que devuelve la ruta exacta, foto por cosa, un plano isométrico del cuarto y un armador de conjuntos con las prendas recortadas. |
 | **Fuel** | Contador de calorías. La IA arma tu meta diaria con peso, altura, sexo, edad y objetivo; arma un menú (5 desayunos, 5 almuerzos, 5 cenas, 10 aperitivos) con los ingredientes que elegís; y un botón grande registra cada comida con una foto y/o una descripción. |
 
 ---
@@ -31,6 +31,26 @@ esmerilado sobre una aurora, en OKLCH y con serif de titular, aislado en
 [`app/hub/clean-daily/glass.css`](app/hub/clean-daily/glass.css). Todo cuelga de
 la clase `.glass`, así que nada de ese vocabulario se filtra a las otras dos
 herramientas.
+
+Rooms Planning es la segunda excepción, por el mismo motivo y con la misma
+disciplina: superficies planas y clarísimas, esquinas muy redondas y teclas de
+56 px —el vocabulario de One UI— aisladas bajo la clase `.rooms` en
+[`app/hub/rooms/rooms.css`](app/hub/rooms/rooms.css). El color lo aporta el
+dato (cada habitación y cada categoría tienen el suyo, inyectado como
+`--tone`), no el tema, así que el acento lima de la marca sigue intacto.
+
+Una trampa que ya costó un bug y conviene no repetir: las mezclas de color de
+ese módulo van **en sRGB**, no en OKLCH. El blanco y el negro son acromáticos,
+y al interpolarlos en un espacio polar el resultado sale con `hue: none` —o
+sea, gris—. Con `color-mix(in oklch, …, #000000)` todas las paredes del plano
+terminaban del mismo gris rosado sin importar el color elegido.
+
+> **Licencia de una dependencia.** El recortador de fondo
+> (`@imgly/background-removal`, fase 4) es **AGPL-3.0**: gratis en dinero, no
+> en obligaciones, y su cláusula de red alcanza al software que se sirve por
+> internet. Está aislado detrás de una sola función en
+> [`app/hub/rooms/cutout.ts`](app/hub/rooms/cutout.ts) para que reemplazarlo
+> sea tocar un archivo.
 
 ---
 
@@ -84,6 +104,14 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
 7. [`0018`](supabase/migrations/0018_rooms.sql) es la de Rooms Planning: el
    árbol de contenedores (`rooms_nodes`, una tabla recursiva que lleva su
    propia ruta materializada por trigger) y las cosas (`rooms_items`).
+8. [`0019`](supabase/migrations/0019_rooms_outfits.sql) agrega la ropa
+   recortada (`cutout_path`) y los conjuntos (`rooms_outfits`).
+
+Rooms Planning además necesita un bucket **privado** llamado `rooms-items`
+(Storage → New bucket, sin marcar *Public*). No hace falta crearle políticas:
+el módulo sube y firma con el cliente admin y arma la ruta del objeto en el
+servidor (`<user_id>/<item_id>.jpg`), así que nunca confía en una ruta que
+venga del formulario.
 
 En Supabase → **Authentication → Providers** habilitá Google, y en **URL
 Configuration** agregá `http://localhost:3000/auth/callback` y el equivalente de
