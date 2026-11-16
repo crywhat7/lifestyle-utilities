@@ -11,7 +11,7 @@ import {
   countLabel,
   sortNodes,
   variantLabel,
-  type Item,
+  type ItemWithPhoto,
   type NodeKind,
   type RoomNode,
 } from "@/lib/rooms";
@@ -47,7 +47,7 @@ export function Board({
      lo que pasa en la raíz, donde cada cuarto trae el suyo. */
   tone: string;
   childNodes: RoomNode[];
-  items: Item[];
+  items: ItemWithPhoto[];
   counts: Record<string, number>;
   places: Place[];
   usedColors: string[];
@@ -58,7 +58,7 @@ export function Board({
     | { what: "new-node"; kind: NodeKind }
     | { what: "edit-node"; node: RoomNode }
     | { what: "new-item" }
-    | { what: "edit-item"; item: Item };
+    | { what: "edit-item"; item: ItemWithPhoto };
 
   const [mode, setMode] = useState<Mode | null>(null);
 
@@ -302,7 +302,7 @@ function NodeRow({
  * Toda la fila abre la edición, sin lápiz: un objeto no tiene adentro, así
  * que no hay dos destinos posibles y el toque no es ambiguo.
  */
-function ItemRow({ item, onEdit }: { item: Item; onEdit: () => void }) {
+function ItemRow({ item, onEdit }: { item: ItemWithPhoto; onEdit: () => void }) {
   const category = categoryOf(item.category);
   const state = conditionOf(item.condition);
 
@@ -312,7 +312,16 @@ function ItemRow({ item, onEdit }: { item: Item; onEdit: () => void }) {
       onClick={onEdit}
       className="flex w-full items-center gap-3 p-3.5 text-left active:bg-[var(--r-card-2)]"
     >
-      <ItemGlyph category={item.category} />
+      {/* La miniatura reemplaza al glifo cuando existe: una foto del cable
+          dice en un vistazo lo que "Cable HDMI · Cables" no dice. */}
+      {item.thumb ? (
+        <span className="r-thumb" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.thumb} alt="" />
+        </span>
+      ) : (
+        <ItemGlyph category={item.category} />
+      )}
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">

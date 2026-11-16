@@ -9,6 +9,7 @@
  */
 
 export const ROOMS_PATH = "/hub/rooms";
+export const OUTFITS_PATH = `${ROOMS_PATH}/outfits`;
 
 /** La pantalla de un nodo: habitación, mueble, gaveta o caja. */
 export function nodePath(id: string) {

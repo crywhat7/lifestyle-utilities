@@ -1,7 +1,8 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { Trash } from "@/components/icons";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { Camera, Grid, Trash } from "@/components/icons";
+import { preparePhoto } from "@/lib/photo";
 import {
   CATEGORIES,
   CONDITIONS,
@@ -11,7 +12,7 @@ import {
   categoryOf,
   conditionOf,
   nextColor,
-  type Item,
+  type ItemWithPhoto,
   type NodeKind,
   type RoomNode,
 } from "@/lib/rooms";
@@ -20,6 +21,7 @@ import {
   createNode,
   deleteItem,
   deleteNode,
+  removeItemPhoto,
   updateItem,
   updateNode,
   type FormState,
@@ -332,6 +334,180 @@ function ColorPicker({ value, used }: { value: string | null; used: string[] }) 
 }
 
 /* -------------------------------------------------------------------------- */
+/* La foto                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La foto de una cosa: opcional, pero ofrecida.
+ *
+ * Para un cable o una prenda, la foto es el dato: "cable negro de 2 metros"
+ * describe a cuatro cables distintos y la imagen no. Por eso el campo está a
+ * la vista y no detrás de un "más opciones" — pero nunca es obligatorio,
+ * porque obligar a fotografiar un clip es la forma más rápida de que el
+ * inventario deje de llenarse.
+ *
+ * Lo que sube NO es lo que salió de la cámara. `preparePhoto` la achica a
+ * 1280 px en el teléfono y de la misma pasada saca la miniatura: 8 MB por un
+ * clip con datos móviles es la diferencia entre guardar y abandonar.
+ */
+function PhotoField({
+  item,
+  onDropped,
+}: {
+  item?: ItemWithPhoto;
+  onDropped: () => void;
+}) {
+  const field = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const gallery = useRef<HTMLInputElement>(null);
+
+  const [preview, setPreview] = useState<string | null>(item?.photo ?? item?.thumb ?? null);
+  const [thumb, setThumb] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Lo guardado y lo recién elegido se distinguen: borrar lo primero toca la
+  // base, descartar lo segundo es solo vaciar el input.
+  const [fresh, setFresh] = useState(false);
+
+  async function take(file: File | undefined) {
+    if (!file) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      const ready = await preparePhoto(file);
+
+      /*
+         El archivo que se manda es el achicado, no el que eligió la persona.
+         `DataTransfer` es la única forma de poner un File distinto dentro de
+         un input de archivo, y hace falta para que viaje en el FormData del
+         propio formulario en vez de en una petición aparte.
+      */
+      const box = new DataTransfer();
+      box.items.add(ready.image);
+      if (field.current) field.current.files = box.files;
+
+      setPreview(ready.preview);
+      setThumb(ready.thumb);
+      setFresh(true);
+    } catch {
+      setError("No se pudo leer esa imagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function discard() {
+    if (field.current) field.current.value = "";
+    setPreview(null);
+    setThumb("");
+    setFresh(false);
+  }
+
+  return (
+    <div>
+      <span className="r-field-label">Foto · opcional</span>
+
+      <input ref={field} type="file" name="photo" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" />
+      <input type="hidden" name="thumb" value={thumb} />
+
+      {/* Dos puertas: la cámara para lo que está en la mano y la galería para
+          lo que ya se fotografió. `capture` es lo que abre la cámara directo
+          en el teléfono en vez del selector del sistema. */}
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          void take(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+      <input
+        ref={gallery}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          void take(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+
+      {preview ? (
+        <div className="flex flex-col gap-2">
+          <div className="r-shot">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="" />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => gallery.current?.click()}
+              className="r-key min-h-12 flex-1 text-[0.875rem]"
+            >
+              Cambiar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (fresh || !item) {
+                  discard();
+                  return;
+                }
+                startTransition(() => {
+                  void removeItemPhoto(item.id, item.node_id);
+                  discard();
+                  onDropped();
+                });
+              }}
+              className="r-key min-h-12 flex-1 text-[0.875rem]"
+            >
+              Quitar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => camera.current?.click()}
+            className="r-key min-h-12 flex-1 gap-2 text-[0.875rem]"
+          >
+            <Camera className="size-[1.125rem]" />
+            {busy ? "Leyendo…" : "Tomar"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => gallery.current?.click()}
+            className="r-key min-h-12 flex-1 gap-2 text-[0.875rem]"
+          >
+            <Grid className="size-[1.125rem]" />
+            Elegir
+          </button>
+        </div>
+      )}
+
+      {error ? (
+        <p className="r-alert mt-2" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* El formulario de una cosa                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -350,7 +526,7 @@ export function ItemForm({
   onSaved,
 }: {
   nodeId: string;
-  item?: Item;
+  item?: ItemWithPhoto;
   places: Place[];
   onSaved: () => void;
 }) {
@@ -398,6 +574,8 @@ export function ItemForm({
           className="r-field"
         />
       </div>
+
+      <PhotoField item={item} onDropped={onSaved} />
 
       <ChipGroup
         name="category"

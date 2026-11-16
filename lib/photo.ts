@@ -1,10 +1,15 @@
 /**
- * La foto del plato, preparada en el teléfono antes de subir.
+ * Una foto, preparada en el teléfono antes de subir.
  *
- * Una foto de cámara moderna pesa entre 3 y 8 MB y la IA no ve mejor un
- * plato a 4000 px que a 1280: achicarla acá es lo que hace que el botón
- * responda en segundos con datos móviles. De la misma pasada sale la
- * miniatura cuadrada de la lista, que es lo único de la foto que se guarda.
+ * Una foto de cámara moderna pesa entre 3 y 8 MB y nadie necesita ese tamaño:
+ * ni la IA ve mejor un plato a 4000 px que a 1280, ni un cable en una gaveta
+ * se reconoce mejor. Achicarla acá es lo que hace que el botón responda en
+ * segundos con datos móviles. De la misma pasada sale la miniatura cuadrada
+ * de la lista.
+ *
+ * La usan Fuel (que descarta la foto y se queda con la miniatura) y Rooms
+ * Planning (que guarda las dos): vive en `lib` justamente porque la decisión
+ * de cuánto achicar no tiene por qué tomarse dos veces.
  */
 
 const MAX_EDGE = 1280;
@@ -51,7 +56,7 @@ export async function preparePhoto(file: File) {
     if (!thumb.startsWith("data:image/webp")) thumb = square.toDataURL("image/jpeg", 0.72);
 
     return {
-      image: new File([blob], "plato.jpg", { type: "image/jpeg" }),
+      image: new File([blob], "foto.jpg", { type: "image/jpeg" }),
       thumb,
       preview: URL.createObjectURL(blob),
     };

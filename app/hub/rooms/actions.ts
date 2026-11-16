@@ -12,6 +12,7 @@ import {
 } from "@/lib/rooms";
 import { roomsClient } from "./data";
 import { ROOMS_PATH, nodePath } from "./paths";
+import { dropPhoto, putPhoto } from "./storage";
 
 /*
    El estado de un formulario. Solo el TIPO sale de este archivo: un módulo
@@ -196,6 +197,66 @@ export async function deleteNode(id: string, parentId: string | null) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Las fotos                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Lo más grande que aceptamos. El navegador ya la achicó a ~1280 px. */
+const MAX_PHOTO = 6 * 1024 * 1024;
+
+/**
+ * Guardar la foto que vino con el formulario, si vino alguna.
+ *
+ * La ruta del objeto NO se lee del formulario: la arma el servidor con el
+ * user_id de la sesión y el id del ítem. Es la defensa que reemplaza a las
+ * políticas de `storage.objects`, porque este módulo sube con el cliente
+ * admin —que se salta RLS— y una ruta de origen desconocido sería permiso
+ * para escribir en la carpeta de cualquiera.
+ *
+ * La miniatura viaja aparte y es la que pinta las listas: son unos KB dentro
+ * de la propia fila, así que una lista de cuarenta cosas no dispara cuarenta
+ * descargas firmadas.
+ */
+async function attachPhoto(
+  userId: string,
+  itemId: string,
+  form: FormData
+): Promise<{ storage_path?: string; thumb?: string } | null> {
+  const file = form.get("photo");
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (file.size > MAX_PHOTO || !file.type.startsWith("image/")) return null;
+
+  const path = await putPhoto(userId, itemId, file);
+  if (!path) return null;
+
+  const thumb = toText(form.get("thumb"), 60000);
+
+  return { storage_path: path, ...(thumb.startsWith("data:image/") ? { thumb } : {}) };
+}
+
+/** Sacarle la foto a una cosa: el objeto del bucket y las dos columnas. */
+export async function removeItemPhoto(itemId: string, nodeId: string) {
+  const { supabase, user } = await roomsClient();
+
+  const { data } = await supabase
+    .from("rooms_items")
+    .select("id")
+    .eq("id", itemId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return;
+
+  await dropPhoto(user.id, itemId);
+  await supabase
+    .from("rooms_items")
+    .update({ storage_path: null, thumb: null, cutout_path: null })
+    .eq("id", itemId)
+    .eq("user_id", user.id);
+
+  refresh(nodeId);
+}
+
+/* -------------------------------------------------------------------------- */
 /* Las cosas                                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -219,18 +280,39 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
   const category = form.get("category");
   const condition = form.get("condition");
 
-  const { error } = await supabase.from("rooms_items").insert({
-    user_id: user.id,
-    node_id: nodeId,
-    name,
-    category: isCategory(category) ? category : "other",
-    condition: isCondition(condition) ? condition : "good",
-    note: toText(form.get("note"), 400) || null,
-    quantity: toQuantity(form.get("quantity"), 9999),
-  });
+  const { data, error } = await supabase
+    .from("rooms_items")
+    .insert({
+      user_id: user.id,
+      node_id: nodeId,
+      name,
+      category: isCategory(category) ? category : "other",
+      condition: isCondition(condition) ? condition : "good",
+      note: toText(form.get("note"), 400) || null,
+      quantity: toQuantity(form.get("quantity"), 9999),
+    })
+    .select("id")
+    .maybeSingle();
 
   const failure = explain(error);
   if (failure) return { status: "error", error: failure };
+
+  /*
+     La foto se sube DESPUÉS de insertar y no antes, porque el nombre del
+     objeto lleva el id del ítem y ese id lo genera la base. Subirla primero
+     obligaría a inventar un nombre temporal y a renombrar después, que es dos
+     veces el trabajo y una oportunidad de dejar basura en el bucket.
+
+     Si la subida falla, la cosa ya quedó guardada: perder la foto es molesto,
+     perder el registro de que el cable existe es peor.
+  */
+  const itemId = data?.id ? String(data.id) : null;
+  if (itemId) {
+    const photo = await attachPhoto(user.id, itemId, form);
+    if (photo) {
+      await supabase.from("rooms_items").update(photo).eq("id", itemId).eq("user_id", user.id);
+    }
+  }
 
   refresh(nodeId);
   return { status: "saved" };
@@ -277,9 +359,12 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
     if (owned) nodeId = target;
   }
 
+  const photo = await attachPhoto(user.id, id, form);
+
   const { error } = await supabase
     .from("rooms_items")
     .update({
+      ...(photo ?? {}),
       node_id: nodeId,
       name,
       category: isCategory(category) ? category : "other",

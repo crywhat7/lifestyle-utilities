@@ -113,14 +113,36 @@
      `direction: rtl` es el truco — lo que se pierde es el principio del
      camino ("Cuarto ›"), no el final, que es lo que ubica de verdad. */
   .r-crumb {
+    /*
+       `direction: rtl` sobre texto latino es un truco y es el único que
+       funciona: las letras se siguen leyendo de izquierda a derecha —son
+       caracteres fuertes LTR— pero la LÍNEA se compone desde la derecha, así
+       que lo que sobra se recorta por el principio y los puntos suspensivos
+       caen al inicio. Es exactamente lo que hace falta: de
+       "Cuarto › Armario › Gaveta 2 › Bolsa negra" lo que no se puede perder
+       es el final, que es dónde está la cosa. Recortando por el final queda
+       "Cuarto › Armario › Gav…", que no ubica nada.
+
+       `text-align: left` es para que una ruta corta no se vaya sola contra el
+       margen derecho. Y nada de `unicode-bidi: plaintext`: eso le devuelve la
+       dirección al contenido y desarma el recorte.
+    */
     direction: rtl;
-    text-align: right;
-    unicode-bidi: plaintext;
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.8125rem;
     color: var(--r-ink-3);
+  }
+
+  /* El input de búsqueda ya trae su propia cruz en WebKit, y con la nuestra
+     al lado quedan dos. La nuestra se queda: tiene 40 px de blanco alrededor
+     y la del sistema no se puede agrandar. */
+  .rooms input[type="search"]::-webkit-search-cancel-button,
+  .rooms input[type="search"]::-webkit-search-decoration {
+    appearance: none;
+    display: none;
   }
 
   /* ------------------------------------------------------------------------
@@ -592,4 +614,49 @@
   .rooms .r-ghost {
     animation: none;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Las fotos.
+
+   Fuera de `@layer components` porque la miniatura se combina con utilidades
+   de tamaño y tiene que ganar solo en el recorte, nunca en la caja.
+   -------------------------------------------------------------------------- */
+
+/* La miniatura de la lista: cuadrada, del tamaño exacto del glifo al que
+   reemplaza, para que una lista mitad con foto y mitad sin foto no quede
+   escalonada. */
+.rooms .r-thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--r-sunk);
+}
+
+.rooms .r-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* La foto dentro de la hoja. `contain` y no `cover`: acá la imagen es el
+   dato, y recortarle los bordes a un cable largo es perder justo la parte
+   que dice cuánto mide. */
+.rooms .r-shot {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--r-sunk);
+}
+
+.rooms .r-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }

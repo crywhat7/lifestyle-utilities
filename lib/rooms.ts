@@ -34,6 +34,14 @@ export type RoomNode = {
   color: string | null;
   wall_color: string | null;
   floor_color: string | null;
+  /* Dónde está puesto el mueble en la grilla del cuarto. Nulo mientras nadie
+     lo haya colocado en la vista isométrica: el inventario funciona entero
+     sin esto, y la vista solo dibuja lo que ya tiene lugar. */
+  grid_x: number | null;
+  grid_y: number | null;
+  grid_w: number | null;
+  grid_h: number | null;
+  rotation: number;
   sort_order: number;
   path: string[];
   path_ids: string[];
@@ -41,7 +49,7 @@ export type RoomNode = {
   created_at: string;
 };
 
-/** Una cosa. Las dos columnas de foto llegan vacías hasta la Fase 2. */
+/** Una cosa. */
 export type Item = {
   id: string;
   node_id: string;
@@ -50,15 +58,71 @@ export type Item = {
   condition: Condition;
   note: string | null;
   quantity: number;
+  /* La miniatura viaja dentro de la fila y pinta la lista sin pedir nada a la
+     red. Las otras dos son rutas del bucket privado: no se pueden mostrar sin
+     firmar, y por eso el loader agrega `photo` y `cutout` ya firmadas. */
   thumb: string | null;
+  storage_path: string | null;
+  cutout_path: string | null;
+  created_at: string;
+};
+
+/** Un ítem con sus enlaces firmados, que es como llega a la pantalla. */
+export type ItemWithPhoto = Item & {
+  photo: string | null;
+  cutout: string | null;
+};
+
+/**
+ * La versión liviana de una cosa: dónde está, cómo se llama y cuántas son.
+ *
+ * Es lo que la portada necesita para contar y para buscar. Sin notas ni
+ * imágenes, el inventario entero entra en una consulta que no crece con el
+ * peso de las fotos.
+ */
+export type IndexEntry = {
+  id: string;
+  node_id: string;
+  name: string;
+  category: string;
+  condition: Condition;
+  quantity: number;
+};
+
+/** Una prenda recortada, lista para combinar. */
+export type Garment = {
+  id: string;
+  node_id: string;
+  name: string;
+  category: string;
+  cutout: string | null;
+};
+
+/** Dónde quedó puesta una prenda sobre el lienzo. */
+export type Piece = {
+  item_id: string;
+  /* Porcentajes del lienzo, no píxeles: el conjunto se ve igual en un
+     teléfono angosto que en una pantalla ancha. */
+  x: number;
+  y: number;
+  scale: number;
+  rot: number;
+};
+
+/** Un conjunto guardado. */
+export type Outfit = {
+  id: string;
+  name: string;
+  note: string | null;
+  pieces: Piece[];
   created_at: string;
 };
 
 export const NODE_COLUMNS =
-  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,sort_order,path,path_ids,depth,created_at";
+  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,sort_order,path,path_ids,depth,created_at";
 
 export const ITEM_COLUMNS =
-  "id,node_id,name,category,condition,note,quantity,thumb,created_at";
+  "id,node_id,name,category,condition,note,quantity,thumb,storage_path,cutout_path,created_at";
 
 /* -------------------------------------------------------------------------- */
 /* Qué es cada cosa                                                            */
@@ -403,4 +467,83 @@ export function placesOf(nodes: RoomNode[]) {
   return nodes
     .map((node) => ({ id: node.id, label: pathLabel(node.path) }))
     .sort((a, b) => a.label.localeCompare(b.label, "es"));
+}
+
+/* -------------------------------------------------------------------------- */
+/* El buscador                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * "Bolígrafo" tiene que aparecer escribiendo "boligrafo".
+ *
+ * Nadie pone tildes buscando algo en su propio cuarto, y un buscador que
+ * exige escribir "memoria RAM" con mayúsculas no se usa dos veces. Se
+ * normaliza a minúsculas y se le quitan los diacríticos a las dos puntas de
+ * la comparación.
+ */
+export function fold(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export type Hit = {
+  item: IndexEntry;
+  /** La ruta exacta: "Cuarto › Armario › Gaveta 2 › Bolsa negra". */
+  where: string;
+  nodeId: string;
+};
+
+/**
+ * Lo que coincide con lo que se escribió, con su ubicación.
+ *
+ * Busca en el nombre y en la categoría: quien escribe "cable" quiere el cable
+ * HDMI, y quien escribe "ropa" quiere ver la ropa aunque ninguna prenda se
+ * llame así.
+ *
+ * Ordena por dónde cae la coincidencia, no alfabéticamente: lo que *empieza*
+ * con lo escrito va primero, porque buscando "cable" el "Cable HDMI" importa
+ * más que la "Caja de cables viejos". Dentro de cada grupo, el nombre más
+ * corto arriba — es el que más se parece a lo que se buscó.
+ */
+export function search(index: IndexEntry[], nodes: RoomNode[], query: string, limit = 40) {
+  const needle = fold(query);
+  if (needle.length < 2) return [] as Hit[];
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+  const hits = index.flatMap((item) => {
+    const name = fold(item.name);
+    const category = fold(categoryOf(item.category).label);
+
+    const at = name.indexOf(needle);
+    const byCategory = at < 0 && category.includes(needle);
+    if (at < 0 && !byCategory) return [];
+
+    const node = nodeById.get(item.node_id);
+
+    return [
+      {
+        hit: {
+          item,
+          where: node ? pathLabel(node.path) : "Sin ubicación",
+          nodeId: item.node_id,
+        } satisfies Hit,
+        // 0 empieza con lo escrito · 1 lo contiene · 2 solo la categoría
+        rank: byCategory ? 2 : at === 0 ? 0 : 1,
+      },
+    ];
+  });
+
+  return hits
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        a.hit.item.name.length - b.hit.item.name.length ||
+        a.hit.item.name.localeCompare(b.hit.item.name, "es")
+    )
+    .slice(0, limit)
+    .map((entry) => entry.hit);
 }

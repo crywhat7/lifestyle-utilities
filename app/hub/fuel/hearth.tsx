@@ -10,7 +10,7 @@ import { Camera, Check, Cross, Spark, Trash } from "@/components/icons";
 import { dayStatus, formatKcal, mealMacros, PORTIONS, type DayTone } from "@/lib/fuel";
 import { deleteMeal, logMeal, setPortion, type LogState } from "./actions";
 import { CountUp } from "./count-up";
-import { preparePhoto } from "./photo";
+import { preparePhoto } from "@/lib/photo";
 
 const IDLE: LogState = { status: "idle" };
 
