@@ -110,8 +110,16 @@ export function PlanView({
     // Capturar el puntero es lo que deja seguir el dedo aunque se salga del
     // mueble: sin esto, mover rápido suelta la pieza a mitad de camino.
     const target = event.target as Element;
-    target.setPointerCapture?.(event.pointerId);
-    capture.current = { el: target, id: event.pointerId };
+
+    // Igual que en el armador de conjuntos: la captura ayuda pero no puede
+    // ser condición para que el arrastre arranque.
+    try {
+      target.setPointerCapture?.(event.pointerId);
+      capture.current = { el: target, id: event.pointerId };
+    } catch {
+      capture.current = null;
+    }
+
     setDrag({ id: piece.id, x: piece.x, y: piece.y });
   }
 

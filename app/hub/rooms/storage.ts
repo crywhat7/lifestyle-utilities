@@ -24,6 +24,17 @@ export function photoPath(userId: string, itemId: string) {
   return `${userId}/${itemId}.jpg`;
 }
 
+/**
+ * El recorte vive al lado del original, no en su lugar.
+ *
+ * Quitar el fondo se puede reintentar, y un recorte que salió mal —media
+ * manga comida, el cuello recortado— no puede costar la foto. Son dos
+ * objetos y dos columnas.
+ */
+export function cutoutPath(userId: string, itemId: string) {
+  return `${userId}/${itemId}-recorte.png`;
+}
+
 /** Sube —o reemplaza— la foto de un ítem. Devuelve la ruta guardada. */
 export async function putPhoto(userId: string, itemId: string, file: File) {
   const admin = createAdminClient();
@@ -38,9 +49,26 @@ export async function putPhoto(userId: string, itemId: string, file: File) {
   return path;
 }
 
+/** Sube el recorte sin fondo. Devuelve la ruta guardada. */
+export async function putCutout(userId: string, itemId: string, file: File) {
+  const admin = createAdminClient();
+  const path = cutoutPath(userId, itemId);
+
+  const { error } = await admin.storage.from(BUCKET).upload(path, file, {
+    contentType: "image/png",
+    upsert: true,
+  });
+
+  if (error) return null;
+  return path;
+}
+
+/** Al sacar la foto se va también el recorte: sin original no hay recorte. */
 export async function dropPhoto(userId: string, itemId: string) {
   const admin = createAdminClient();
-  await admin.storage.from(BUCKET).remove([photoPath(userId, itemId)]);
+  await admin.storage
+    .from(BUCKET)
+    .remove([photoPath(userId, itemId), cutoutPath(userId, itemId)]);
 }
 
 /**

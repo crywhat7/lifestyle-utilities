@@ -12,8 +12,8 @@ import {
 } from "@/lib/rooms";
 import { COLS, FLOOR_COLORS, ROWS, WALL_COLORS } from "@/lib/iso";
 import { roomsClient } from "./data";
-import { ROOMS_PATH, nodePath, planPath } from "./paths";
-import { dropPhoto, putPhoto } from "./storage";
+import { OUTFITS_PATH, ROOMS_PATH, nodePath, planPath } from "./paths";
+import { dropPhoto, putCutout, putPhoto } from "./storage";
 
 /*
    El estado de un formulario. Solo el TIPO sale de este archivo: un módulo
@@ -48,6 +48,9 @@ function toText(value: FormDataEntryValue | null, max: number) {
     .trim()
     .slice(0, max);
 }
+
+const clamp = (value: number, min: number, max: number) =>
+  Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : min;
 
 function toQuantity(value: FormDataEntryValue | null, max: number) {
   const parsed = Number(String(value ?? "1").replace(",", "."));
@@ -327,6 +330,143 @@ export async function removeItemPhoto(itemId: string, nodeId: string) {
     .eq("user_id", user.id);
 
   refresh(nodeId);
+}
+
+/**
+ * Guardar la prenda ya recortada.
+ *
+ * El recorte lo hizo el navegador —ver `cutout.ts`—, así que acá solo llega
+ * un PNG con transparencia. El servidor no lo mira: lo pone al lado del
+ * original y anota la ruta.
+ */
+export async function saveCutout(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const id = toText(form.get("id"), 40);
+  const nodeId = toText(form.get("node_id"), 40);
+  const file = form.get("cutout");
+
+  if (!id || !(file instanceof File) || file.size === 0) {
+    return { status: "error", error: "No llegó el recorte." };
+  }
+  if (file.size > MAX_PHOTO || file.type !== "image/png") {
+    return { status: "error", error: "Ese recorte no sirve." };
+  }
+
+  // Que el ítem sea de quien dice serlo: la ruta del objeto se arma con el
+  // user_id de la sesión, pero el id del ítem viene del formulario.
+  const { data } = await supabase
+    .from("rooms_items")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return { status: "error", error: "Esa cosa no existe." };
+
+  const path = await putCutout(user.id, id, file);
+  if (!path) return { status: "error", error: "No se pudo guardar el recorte." };
+
+  const { error } = await supabase
+    .from("rooms_items")
+    .update({ cutout_path: path })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  const failure = explain(error);
+  if (failure) return { status: "error", error: failure };
+
+  refresh(nodeId);
+  revalidatePath(OUTFITS_PATH);
+
+  return { status: "saved" };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Los conjuntos                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Guardar un conjunto.
+ *
+ * El lienzo entero viaja como JSON y se reescribe completo: no hay "mover
+ * una prenda" del lado del servidor, hay "así quedó el conjunto". Guardar
+ * cada arrastre sería una escritura por gesto para reconstruir, al final,
+ * exactamente este mismo objeto.
+ *
+ * Las prendas se verifican contra el inventario propio antes de guardar: un
+ * `item_id` inventado dejaría un conjunto con un hueco que no se puede
+ * explicar al abrirlo.
+ */
+export async function saveOutfit(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const name = toText(form.get("name"), 60);
+  if (!name) return { status: "error", error: "Ponele un nombre al conjunto." };
+
+  let pieces: unknown;
+  try {
+    pieces = JSON.parse(toText(form.get("pieces"), 20000) || "[]");
+  } catch {
+    return { status: "error", error: "No se entendió el lienzo." };
+  }
+
+  if (!Array.isArray(pieces) || pieces.length === 0) {
+    return { status: "error", error: "Poné al menos una prenda." };
+  }
+
+  const clean = pieces.slice(0, 20).map((piece) => {
+    const row = piece as Record<string, unknown>;
+    return {
+      item_id: String(row.item_id ?? ""),
+      x: clamp(Number(row.x), 0, 100),
+      y: clamp(Number(row.y), 0, 100),
+      scale: clamp(Number(row.scale), 0.2, 3),
+      rot: clamp(Number(row.rot), -180, 180),
+    };
+  });
+
+  const ids = [...new Set(clean.map((piece) => piece.item_id))].filter(Boolean);
+
+  const { data: mine } = await supabase
+    .from("rooms_items")
+    .select("id")
+    .eq("user_id", user.id)
+    .in("id", ids);
+
+  const owned = new Set(((mine ?? []) as { id: string }[]).map((row) => row.id));
+  const kept = clean.filter((piece) => owned.has(piece.item_id));
+
+  if (kept.length === 0) return { status: "error", error: "Ninguna prenda es tuya." };
+
+  const id = toText(form.get("id"), 40);
+
+  const { error } = id
+    ? await supabase
+        .from("rooms_outfits")
+        .update({ name, note: toText(form.get("note"), 280) || null, pieces: kept })
+        .eq("id", id)
+        .eq("user_id", user.id)
+    : await supabase.from("rooms_outfits").insert({
+        user_id: user.id,
+        name,
+        note: toText(form.get("note"), 280) || null,
+        pieces: kept,
+      });
+
+  const failure = explain(error);
+  if (failure) return { status: "error", error: failure };
+
+  revalidatePath(OUTFITS_PATH);
+  return { status: "saved" };
+}
+
+export async function deleteOutfit(id: string) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase.from("rooms_outfits").delete().eq("id", id).eq("user_id", user.id);
+
+  revalidatePath(OUTFITS_PATH);
 }
 
 /* -------------------------------------------------------------------------- */

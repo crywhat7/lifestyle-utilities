@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
-import { Camera, Grid, Trash } from "@/components/icons";
+import { Camera, Grid, Scan, Trash } from "@/components/icons";
 import { preparePhoto } from "@/lib/photo";
 import {
   CATEGORIES,
@@ -22,10 +22,21 @@ import {
   deleteItem,
   deleteNode,
   removeItemPhoto,
+  saveCutout,
   updateItem,
   updateNode,
   type FormState,
 } from "./actions";
+import { CUTOUT_FIRST_RUN, cutOut } from "./cutout";
+
+/**
+ * Qué se puede combinar en un conjunto.
+ *
+ * Quitar el fondo tiene sentido en lo que se usa puesto. Un cable recortado
+ * no sirve para nada y el botón solo ensuciaría la hoja de todas las demás
+ * cosas del inventario.
+ */
+const WEARABLE = new Set(["clothing", "shoes", "accessories"]);
 
 /** Un lugar al que se puede mover una cosa, con su ruta completa. */
 export type Place = { id: string; label: string };
@@ -448,6 +459,10 @@ function PhotoField({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="" />
           </div>
+
+          {item && WEARABLE.has(item.category) && !fresh ? (
+            <Cutout item={item} />
+          ) : null}
           <div className="flex gap-2">
             <button
               type="button"
@@ -501,6 +516,99 @@ function PhotoField({
       {error ? (
         <p className="r-alert mt-2" role="alert">
           {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Quitar el fondo, a pedido.
+ *
+ * Nunca al guardar: el recorte tarda segundos y la primera vez descarga un
+ * modelo de varios MB. Anotar que tenés una camisa no puede costar eso. El
+ * botón está para el día que quieras armar conjuntos con ella.
+ *
+ * El trabajo ocurre entero en el teléfono —ver `cutout.ts`— y lo único que
+ * viaja al servidor es el PNG ya recortado.
+ */
+function Cutout({ item }: { item: ItemWithPhoto }) {
+  const [state, setState] = useState<
+    { status: "idle" | "done" } | { status: "busy"; step: string } | { status: "error"; error: string }
+  >({ status: item.cutout ? "done" : "idle" });
+
+  const [shot, setShot] = useState<string | null>(item.cutout);
+
+  async function run() {
+    if (!item.photo) return;
+
+    setState({ status: "busy", step: "Cargando el recortador…" });
+
+    try {
+      const source = await fetch(item.photo).then((response) => response.blob());
+      const cut = await cutOut(source, (step) => setState({ status: "busy", step }));
+
+      const form = new FormData();
+      form.set("id", item.id);
+      form.set("node_id", item.node_id);
+      form.set("cutout", cut.file);
+
+      const saved = await saveCutout({ status: "idle" }, form);
+
+      if (saved.status === "error") {
+        setState({ status: "error", error: saved.error });
+        return;
+      }
+
+      setShot(cut.preview);
+      setState({ status: "done" });
+    } catch {
+      setState({
+        status: "error",
+        error: "No se pudo recortar. Probá con una foto donde la prenda se vea entera.",
+      });
+    }
+  }
+
+  if (state.status === "done" && shot) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="r-cut">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shot} alt={`${item.name} sin fondo`} />
+        </div>
+        <button
+          type="button"
+          onClick={() => void run()}
+          className="r-key min-h-12 w-full text-[0.875rem]"
+        >
+          Recortar de nuevo
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        disabled={state.status === "busy"}
+        onClick={() => void run()}
+        className="r-key min-h-12 w-full gap-2 text-[0.875rem]"
+      >
+        <Scan className="size-[1.125rem]" />
+        {state.status === "busy" ? state.step : "Quitar el fondo"}
+      </button>
+
+      {state.status === "idle" ? (
+        <p className="px-1 text-[0.75rem] leading-relaxed text-[var(--r-ink-3)]">
+          {CUTOUT_FIRST_RUN}
+        </p>
+      ) : null}
+
+      {state.status === "error" ? (
+        <p className="r-alert" role="alert">
+          {state.error}
         </p>
       ) : null}
     </div>

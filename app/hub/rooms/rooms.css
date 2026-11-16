@@ -697,3 +697,154 @@
 .rooms .r-stage svg g {
   -webkit-touch-callout: none;
 }
+
+/* La prenda recortada. El damero detrás es la convención universal de
+   "esto es transparente": sobre un fondo liso, un recorte con halo blanco
+   se ve idéntico a uno perfecto, y así se nota el que salió mal. */
+.rooms .r-cut {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 20px;
+  overflow: hidden;
+  background-color: light-dark(#ffffff, #1a1c1f);
+  background-image:
+    linear-gradient(45deg, var(--r-sunk) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--r-sunk) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--r-sunk) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--r-sunk) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.rooms .r-cut img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+   El armador de conjuntos.
+   -------------------------------------------------------------------------- */
+
+/*
+   El lienzo. Vertical como un cuerpo —3:4— porque es lo que se está armando,
+   y con el damero de transparencia detrás para que un recorte con halo se
+   note antes de guardarlo.
+*/
+.rooms .r-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  overflow: hidden;
+  touch-action: none;
+  background-color: light-dark(#ffffff, #141619);
+  background-image:
+    linear-gradient(45deg, var(--r-sunk) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--r-sunk) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--r-sunk) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--r-sunk) 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  border: 1px solid var(--r-hair);
+}
+
+.rooms .r-canvas-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--r-ink-3);
+}
+
+/* Una prenda sobre el lienzo. El ancho fijo en porcentaje es la escala base;
+   de ahí la mueve el `scale` que guarda cada pieza. */
+.rooms .r-piece {
+  position: absolute;
+  width: 46%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.rooms .r-piece img {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  /* Una sombra de contacto: sin ella las prendas se ven pegadas al fondo y
+     el conjunto no se lee como ropa apilada. */
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+}
+
+/* La elegida lleva un contorno punteado alrededor del recorte, no una caja:
+   la prenda no es rectangular. */
+.rooms .r-piece[data-on="true"] img {
+  filter: drop-shadow(0 0 0 var(--tone)) drop-shadow(0 0 2px var(--tone))
+    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+}
+
+/* El perchero: la tira de prendas recortadas, que se desliza a lo ancho. */
+.rooms .r-rack {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+
+.rooms .r-rack::-webkit-scrollbar {
+  display: none;
+}
+
+.rooms .r-hanger {
+  display: flex;
+  width: 5.5rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-radius: 18px;
+  background: var(--r-sunk);
+  font-size: 0.75rem;
+  color: var(--r-ink-2);
+  transition: transform 0.18s var(--r-ease);
+}
+
+.rooms .r-hanger:active {
+  transform: scale(0.94);
+}
+
+.rooms .r-hanger img {
+  width: 100%;
+  height: 3.5rem;
+  object-fit: contain;
+}
+
+.rooms .r-hanger span {
+  max-width: 100%;
+}
+
+/* La miniatura de un conjunto guardado: el mismo lienzo, en chico. */
+.rooms .r-thumbnail {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: var(--r-sunk);
+  overflow: hidden;
+}
+
+.rooms .r-thumbnail img {
+  position: absolute;
+  width: 46%;
+  height: auto;
+}
