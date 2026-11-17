@@ -62,6 +62,32 @@ export async function dropNodePhoto(userId: string, nodeId: string) {
   await admin.storage.from(BUCKET).remove([nodePhotoPath(userId, nodeId)]);
 }
 
+/**
+ * La lámina de un póster. Mismo bucket, otro prefijo: los tres tipos de foto
+ * —cosa, contenedor y póster— pueden compartir id sin pisarse.
+ */
+export function propPhotoPath(userId: string, propId: string) {
+  return `${userId}/poster-${propId}.jpg`;
+}
+
+export async function putPropPhoto(userId: string, propId: string, file: File) {
+  const admin = createAdminClient();
+  const path = propPhotoPath(userId, propId);
+
+  const { error } = await admin.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: true,
+  });
+
+  if (error) return null;
+  return path;
+}
+
+export async function dropPropPhoto(userId: string, propId: string) {
+  const admin = createAdminClient();
+  await admin.storage.from(BUCKET).remove([propPhotoPath(userId, propId)]);
+}
+
 /** Sube —o reemplaza— la foto de un ítem. Devuelve la ruta guardada. */
 export async function putPhoto(userId: string, itemId: string, file: File) {
   const admin = createAdminClient();

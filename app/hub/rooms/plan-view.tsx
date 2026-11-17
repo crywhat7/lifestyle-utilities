@@ -9,7 +9,17 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Grid as GridIcon, PlusSlot, Refresh, Sliders, Spark, Trash } from "@/components/icons";
+import {
+  Camera,
+  Check,
+  Grid as GridIcon,
+  PlusSlot,
+  Refresh,
+  Sliders,
+  Spark,
+  Trash,
+} from "@/components/icons";
+import { preparePhoto } from "@/lib/photo";
 import {
   COLS,
   FLOORS,
@@ -47,6 +57,7 @@ import {
   paintRoomFloor,
   placeNode,
   removeProp,
+  savePropPhoto,
   turnNode,
   turnProp,
   unplaceNode,
@@ -461,7 +472,9 @@ export function PlanView({
                   onPointerDown={(event) => {
                     if (mode !== "place") return;
                     event.stopPropagation();
-                    startTransition(() => void removeProp(thing.id, room.id));
+                    // Elegir, no borrar: un póster se toca para cambiarle la
+                    // lámina mucho más seguido que para descolgarlo.
+                    setPicked(`thing:${thing.id}`);
                   }}
                   style={{ cursor: mode === "place" ? "pointer" : "default" }}
                   aria-label={propSkin(thing.variant).label}
@@ -472,6 +485,7 @@ export function PlanView({
                     y={thing.grid_y}
                     side={thing.side as WallSide}
                     seed={thing.seed}
+                    art={thing.photo ?? thing.thumb ?? null}
                   />
                 </g>
               );
@@ -730,7 +744,7 @@ export function PlanView({
 
 /* -------------------------------------------------------------------------- */
 
-/** La barra de la cosa elegida: girarla o sacarla. */
+/** La barra de la cosa elegida: su lámina, girarla o sacarla. */
 function ThingBar({
   id,
   things,
@@ -742,33 +756,114 @@ function ThingBar({
   roomId: string;
   onDone: () => void;
 }) {
+  const picker = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const thing = things.find((item) => item.id === id);
   if (!thing) return null;
 
   const skin = propSkin(thing.variant);
+  const hangs = thing.side !== null;
+
+  /**
+   * Pegarle una imagen al póster.
+   *
+   * La foto se achica en el teléfono antes de subir, igual que en todo el
+   * resto de la app: una lámina de ocho megas para mirarla del tamaño de una
+   * uña es la diferencia entre que cargue y que no.
+   */
+  /* Declarada como const y no como `function`: las declaraciones se izan,
+     así que TypeScript no puede dar por hecho que la guarda de arriba ya
+     corrió y `thing` sigue siendo "o undefined" adentro. */
+  const dress = async (file: File | undefined) => {
+    if (!file) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      // 256 px de miniatura: la lámina se tiene que LEER en la pared, no
+      // solo reconocerse como en el caso de una gaveta.
+      const ready = await preparePhoto(file, 256);
+
+      const form = new FormData();
+      form.set("id", thing.id);
+      form.set("room_id", roomId);
+      form.set("photo", ready.image);
+      form.set("thumb", ready.thumb);
+
+      const saved = await savePropPhoto({ status: "idle" }, form);
+      if (saved.status === "error") setError(saved.error);
+    } catch {
+      setError("No se pudo leer esa imagen.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="r-card flex items-center gap-2 p-2">
-      <span className="r-eyebrow min-w-0 flex-1 truncate px-1">{skin.label}</span>
-      <button
-        type="button"
-        onClick={() => startTransition(() => void turnProp(thing.id, roomId, thing.rotation))}
-        className="r-ico"
-        aria-label={`Girar ${skin.label}`}
-      >
-        <Refresh className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          startTransition(() => void removeProp(thing.id, roomId));
-          onDone();
-        }}
-        className="r-ico"
-        aria-label={`Sacar ${skin.label}`}
-      >
-        <Trash className="size-4" />
-      </button>
+    <div className="r-card flex flex-col gap-2 p-2">
+      <div className="flex items-center gap-2">
+        <span className="r-eyebrow min-w-0 flex-1 truncate px-1">{skin.label}</span>
+
+        {/* Solo el póster: es el único que se mira de verdad. */}
+        {thing.variant === "poster" ? (
+          <>
+            <input
+              ref={picker}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(event) => {
+                void dress(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => picker.current?.click()}
+              className="r-key min-h-11 gap-2 px-4 text-[0.8125rem]"
+            >
+              <Camera className="size-4" />
+              {busy ? "Subiendo…" : thing.photo || thing.thumb ? "Cambiar" : "Tu imagen"}
+            </button>
+          </>
+        ) : null}
+
+        {/* Lo colgado no gira: la pared decide hacia dónde mira. */}
+        {hangs ? null : (
+          <button
+            type="button"
+            onClick={() => startTransition(() => void turnProp(thing.id, roomId, thing.rotation))}
+            className="r-ico"
+            aria-label={`Girar ${skin.label}`}
+          >
+            <Refresh className="size-4" />
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            startTransition(() => void removeProp(thing.id, roomId));
+            onDone();
+          }}
+          className="r-ico"
+          aria-label={`Sacar ${skin.label}`}
+        >
+          <Trash className="size-4" />
+        </button>
+      </div>
+
+      {error ? (
+        <p className="r-alert" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

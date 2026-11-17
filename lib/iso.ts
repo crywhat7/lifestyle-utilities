@@ -427,6 +427,10 @@ export type Prop = {
   seed: number;
   /** Nulo si está en el piso; si no, de qué pared cuelga. */
   side: WallSide | null;
+  /* La lámina propia de un póster: la miniatura viaja en la fila y el
+     enlace firmado lo agrega el loader. */
+  thumb?: string | null;
+  photo?: string | null;
 };
 
 /**

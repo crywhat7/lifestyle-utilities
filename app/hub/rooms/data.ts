@@ -193,7 +193,7 @@ export async function loadWardrobe(client: Client, userId: string) {
 export async function loadProps(client: Client, userId: string, roomId: string) {
   const { data, error } = await client
     .from("rooms_props")
-    .select("id,variant,grid_x,grid_y,rotation,seed,side")
+    .select("id,variant,grid_x,grid_y,rotation,seed,side,storage_path,thumb")
     .eq("user_id", userId)
     .eq("room_id", roomId);
 
@@ -201,8 +201,16 @@ export async function loadProps(client: Client, userId: string, roomId: string) 
   // en vez de reventar la pantalla entera.
   if (error) return { props: [] as Prop[], missing: true };
 
+  const rows = (data ?? []) as Record<string, unknown>[];
+
+  // Las láminas de los pósters, firmadas en lote. Casi siempre son cero o
+  // una, así que esto no cuesta nada en un cuarto normal.
+  const art = await signPhotos(
+    rows.map((row) => row.storage_path).filter((path): path is string => Boolean(path))
+  );
+
   return {
-    props: ((data ?? []) as Record<string, unknown>[]).map(
+    props: rows.map(
       (row) =>
         ({
           id: String(row.id),
@@ -212,6 +220,8 @@ export async function loadProps(client: Client, userId: string, roomId: string) 
           rotation: Number(row.rotation ?? 0),
           seed: Number(row.seed),
           side: row.side === "left" || row.side === "right" ? row.side : null,
+          thumb: (row.thumb as string | null) ?? null,
+          photo: row.storage_path ? (art.get(String(row.storage_path)) ?? null) : null,
         }) satisfies Prop
     ),
     missing: false,

@@ -21,7 +21,15 @@ import {
 } from "@/lib/iso";
 import { roomsClient } from "./data";
 import { OUTFITS_PATH, ROOMS_PATH, nodePath, planPath } from "./paths";
-import { dropNodePhoto, dropPhoto, putCutout, putNodePhoto, putPhoto } from "./storage";
+import {
+  dropNodePhoto,
+  dropPhoto,
+  dropPropPhoto,
+  putCutout,
+  putNodePhoto,
+  putPhoto,
+  putPropPhoto,
+} from "./storage";
 
 /*
    El estado de un formulario. Solo el TIPO sale de este archivo: un módulo
@@ -422,6 +430,60 @@ export async function addProp(
   revalidatePath(planPath(roomId));
 }
 
+/**
+ * Ponerle su lámina a un póster.
+ *
+ * Un póster dibujado por nosotros es un rectángulo de color. Lo que hace que
+ * el cuarto se parezca al tuyo es que ahí cuelgue lo que de verdad está
+ * colgado, así que esto acepta cualquier imagen y la pega sobre la pared.
+ */
+export async function savePropPhoto(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const id = toText(form.get("id"), 40);
+  const roomId = toText(form.get("room_id"), 40);
+  const file = form.get("photo");
+
+  if (!id) return { status: "error", error: "No se encontró el póster." };
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", error: "No llegó la imagen." };
+  }
+  if (file.size > MAX_PHOTO || !file.type.startsWith("image/")) {
+    return { status: "error", error: "Esa imagen no sirve." };
+  }
+
+  // La fila tiene que ser propia: la ruta del objeto la arma el servidor con
+  // el user_id de la sesión, pero el id del póster viene del formulario.
+  const { data } = await supabase
+    .from("rooms_props")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return { status: "error", error: "Ese póster no existe." };
+
+  const path = await putPropPhoto(user.id, id, file);
+  if (!path) return { status: "error", error: "No se pudo guardar la imagen." };
+
+  const thumb = toText(form.get("thumb"), 90000);
+
+  const { error } = await supabase
+    .from("rooms_props")
+    .update({
+      storage_path: path,
+      ...(thumb.startsWith("data:image/") ? { thumb } : {}),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  const failure = explain(error);
+  if (failure) return { status: "error", error: failure };
+
+  revalidatePath(planPath(roomId));
+  return { status: "saved" };
+}
+
 /** Dar vuelta una cosa: el monitor mira para el otro lado. */
 export async function turnProp(id: string, roomId: string, rotation: number) {
   const { supabase, user } = await roomsClient();
@@ -438,6 +500,9 @@ export async function turnProp(id: string, roomId: string, rotation: number) {
 export async function removeProp(id: string, roomId: string) {
   const { supabase, user } = await roomsClient();
 
+  // Si tenía lámina, se va con el póster: un objeto huérfano en el bucket no
+  // lo va a borrar nadie nunca.
+  await dropPropPhoto(user.id, id);
   await supabase.from("rooms_props").delete().eq("id", id).eq("user_id", user.id);
 
   revalidatePath(planPath(roomId));

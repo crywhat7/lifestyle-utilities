@@ -996,12 +996,15 @@ export function WallSprite({
   y,
   side,
   seed,
+  art,
 }: {
   kind: string;
   x: number;
   y: number;
   side: WallSide;
   seed: number;
+  /** La lámina propia de un póster, si tiene. */
+  art?: string | null;
 }) {
   /** Un cuadrilátero sobre la pared, entre dos anchos y dos alturas. */
   const quad = (t0: number, t1: number, u0: number, u1: number) => {
@@ -1051,6 +1054,17 @@ export function WallSprite({
       );
 
     case "poster": {
+      // Con lámina propia, el póster ES la imagen. El marco de papel queda
+      // igual: es lo que la despega de la pared.
+      if (art) {
+        return (
+          <g>
+            <polygon points={quad(0.17, 0.83, 0.39, 0.87)} fill="#efe6d2" />
+            <WallImage href={art} x={x} y={y} side={side} t0={0.2} t1={0.8} u0={0.42} u1={0.84} />
+          </g>
+        );
+      }
+
       const tones = ["#e0734f", "#4f87e0", "#55a86a", "#c9679b"];
       const tone = tones[Math.floor(noise(x, y, seed) * tones.length) % tones.length];
 
@@ -1101,6 +1115,69 @@ export function WallSprite({
     default:
       return <polygon points={quad(0.3, 0.7, 0.4, 0.7)} fill="#8e94a3" />;
   }
+}
+
+/**
+ * Una imagen pegada sobre el plano de una pared.
+ *
+ * Acá está el único truco de verdad de todo el dibujo. Una foto es un
+ * rectángulo y la pared es un paralelogramo inclinado: para que la lámina
+ * quede PEGADA y no flotando de frente hay que deformarla igual que la
+ * pared.
+ *
+ * SVG no sabe hacer eso solo, pero sí acepta una matriz. Se dibuja la imagen
+ * dentro de un cuadrado de 1x1 y se la manda al paralelogramo con
+ * `matrix(ux, uy, vx, vy, ox, oy)`, donde `u` es el vector que recorre la
+ * pared a lo ancho, `v` el que baja, y `o` la esquina de arriba a la
+ * izquierda. Son tres puntos del plano y sale exacta, sin aproximar.
+ *
+ * `preserveAspectRatio="none"` es a propósito: la lámina llena su marco. Una
+ * foto cuadrada en un marco apaisado dejaría dos franjas vacías, y en la
+ * pared eso se ve como un error, no como respeto por la proporción.
+ */
+function WallImage({
+  href,
+  x,
+  y,
+  side,
+  t0,
+  t1,
+  u0,
+  u1,
+}: {
+  href: string;
+  x: number;
+  y: number;
+  side: WallSide;
+  t0: number;
+  t1: number;
+  u0: number;
+  u1: number;
+}) {
+  const origin = wallPoint(x, y, side, t0, u1);
+  const across = wallPoint(x, y, side, t1, u1);
+  const down = wallPoint(x, y, side, t0, u0);
+
+  const matrix = [
+    across.sx - origin.sx,
+    across.sy - origin.sy,
+    down.sx - origin.sx,
+    down.sy - origin.sy,
+    origin.sx,
+    origin.sy,
+  ].join(" ");
+
+  return (
+    <image
+      href={href}
+      x={0}
+      y={0}
+      width={1}
+      height={1}
+      preserveAspectRatio="none"
+      transform={`matrix(${matrix})`}
+    />
+  );
 }
 
 /**

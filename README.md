@@ -118,13 +118,19 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    propia ruta materializada por trigger) y las cosas (`rooms_items`).
 8. [`0019`](supabase/migrations/0019_rooms_outfits.sql) agrega la ropa
    recortada (`cutout_path`) y los conjuntos (`rooms_outfits`).
-9. [`0022`](supabase/migrations/0022_rooms_walls.sql) cuelga cosas de las
+9. [`0024`](supabase/migrations/0024_rooms_poster_art.sql) deja que un
+   póster lleve **tu** imagen, pegada sobre el plano de la pared con una
+   matriz (ver `WallImage` en
+   [`room-svg.tsx`](app/hub/rooms/room-svg.tsx)): una foto es un rectángulo
+   y la pared un paralelogramo, así que hay que deformarla igual que la
+   pared o queda flotando de frente.
+10. [`0022`](supabase/migrations/0022_rooms_walls.sql) cuelga cosas de las
    paredes (`side` en `rooms_props`) y
    [`0023`](supabase/migrations/0023_rooms_node_photos.sql) le da foto propia
    a cada contenedor, que es lo que permite la **ruta en fotos**: el buscador
    muestra el camino hasta una cosa —el armario, la gaveta, la bolsa— para
    poder explicarle a alguien dónde está sin que conozca el cuarto.
-10. [`0020`](supabase/migrations/0020_rooms_scenery.sql) y
+11. [`0020`](supabase/migrations/0020_rooms_scenery.sql) y
    [`0021`](supabase/migrations/0021_rooms_interior.sql) convierten el plano
    en un cuarto de verdad: el piso pasa a ser la PLANTA del lugar —una letra
    por celda, y `.` es "fuera del cuarto", que es lo que permite cuartos en
