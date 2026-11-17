@@ -19,7 +19,7 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
-export async function preparePhoto(file: File) {
+export async function preparePhoto(file: File, thumbEdge = THUMB_EDGE) {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
 
   try {
@@ -35,8 +35,8 @@ export async function preparePhoto(file: File) {
     // La miniatura es el centro cuadrado: el plato casi siempre está ahí.
     const side = Math.min(bitmap.width, bitmap.height);
     const square = document.createElement("canvas");
-    square.width = THUMB_EDGE;
-    square.height = THUMB_EDGE;
+    square.width = thumbEdge;
+    square.height = thumbEdge;
     square
       .getContext("2d")
       ?.drawImage(
@@ -47,8 +47,8 @@ export async function preparePhoto(file: File) {
         side,
         0,
         0,
-        THUMB_EDGE,
-        THUMB_EDGE
+        thumbEdge,
+        thumbEdge
       );
 
     // Safari viejo no codifica WebP y devuelve PNG en silencio: ahí, JPEG.

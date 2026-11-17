@@ -1025,3 +1025,48 @@
     transform: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+   La ruta para encontrar algo
+   -------------------------------------------------------------------------- */
+
+/* El número del paso. Es lo que convierte una lista de lugares en un
+   camino: sin el orden a la vista, son cuatro tarjetas sueltas. */
+.rooms .r-step {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 8px;
+  background: var(--r-sunk);
+  border: 1px solid var(--r-edge);
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--r-ink-2);
+}
+
+.rooms .r-step-end {
+  background: var(--r-gold);
+  border-color: var(--r-gold-dim);
+  color: #2a1d08;
+}
+
+/* La foto del contenedor dentro de la ruta: cuadrada y del tamaño del
+   escudo al que reemplaza, para que los pasos no queden escalonados. */
+.rooms .r-trail-shot {
+  display: block;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid var(--r-edge);
+  background: var(--r-sunk);
+}
+
+.rooms .r-trail-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

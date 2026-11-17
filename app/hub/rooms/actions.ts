@@ -21,7 +21,7 @@ import {
 } from "@/lib/iso";
 import { roomsClient } from "./data";
 import { OUTFITS_PATH, ROOMS_PATH, nodePath, planPath } from "./paths";
-import { dropPhoto, putCutout, putPhoto } from "./storage";
+import { dropNodePhoto, dropPhoto, putCutout, putNodePhoto, putPhoto } from "./storage";
 
 /*
    El estado de un formulario. Solo el TIPO sale de este archivo: un módulo
@@ -151,10 +151,21 @@ export async function createNode(_state: FormState, form: FormData): Promise<For
   const failure = explain(error);
   if (failure) return { status: "error", error: failure };
 
+  /* La foto se sube DESPUÉS de insertar porque el nombre del objeto lleva el
+     id, y ese id lo genera la base. Si la subida falla, el mueble ya quedó
+     guardado: perder la foto es molesto, perder el mueble es peor. */
+  const newId = data?.id ? String(data.id) : null;
+  if (newId) {
+    const photo = await attachNodePhoto(user.id, newId, form);
+    if (photo) {
+      await supabase.from("rooms_nodes").update(photo).eq("id", newId).eq("user_id", user.id);
+    }
+  }
+
   refresh(parentId);
   // Una habitación recién creada está vacía y lo siguiente es llenarla, así
   // que su propia pantalla también tiene que quedar fresca.
-  if (data?.id) refresh(String(data.id));
+  if (newId) refresh(newId);
 
   return { status: "saved" };
 }
@@ -173,9 +184,12 @@ export async function updateNode(_state: FormState, form: FormData): Promise<For
   const color = form.get("color");
   const variant = form.get("variant");
 
+  const photo = await attachNodePhoto(user.id, id, form);
+
   const { data, error } = await supabase
     .from("rooms_nodes")
     .update({
+      ...(photo ?? {}),
       name,
       variant: isVariant(kindRaw, variant) ? variant : null,
       note: toText(form.get("note"), 280) || null,
@@ -477,6 +491,55 @@ async function attachPhoto(
   const thumb = toText(form.get("thumb"), 60000);
 
   return { storage_path: path, ...(thumb.startsWith("data:image/") ? { thumb } : {}) };
+}
+
+/**
+ * Guardar la foto de un contenedor, si vino alguna.
+ *
+ * Misma defensa que con las cosas: la ruta del objeto la arma el servidor
+ * con el user_id de la sesión, nunca el formulario. Acá importa el doble,
+ * porque un armario y un cable pueden tener el mismo id —son tablas
+ * distintas— y el prefijo del nombre es lo que impide que uno pise al otro.
+ */
+async function attachNodePhoto(
+  userId: string,
+  nodeId: string,
+  form: FormData
+): Promise<{ storage_path?: string; thumb?: string } | null> {
+  const file = form.get("photo");
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (file.size > MAX_PHOTO || !file.type.startsWith("image/")) return null;
+
+  const path = await putNodePhoto(userId, nodeId, file);
+  if (!path) return null;
+
+  const thumb = toText(form.get("thumb"), 24000);
+
+  return { storage_path: path, ...(thumb.startsWith("data:image/") ? { thumb } : {}) };
+}
+
+/** Sacarle la foto a un contenedor. */
+export async function removeNodePhoto(nodeId: string, parentId: string | null) {
+  const { supabase, user } = await roomsClient();
+
+  const { data } = await supabase
+    .from("rooms_nodes")
+    .select("id")
+    .eq("id", nodeId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return;
+
+  await dropNodePhoto(user.id, nodeId);
+  await supabase
+    .from("rooms_nodes")
+    .update({ storage_path: null, thumb: null })
+    .eq("id", nodeId)
+    .eq("user_id", user.id);
+
+  refresh(nodeId);
+  refresh(parentId);
 }
 
 /** Sacarle la foto a una cosa: el objeto del bucket y las dos columnas. */

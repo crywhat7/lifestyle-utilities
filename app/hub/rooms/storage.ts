@@ -35,6 +35,33 @@ export function cutoutPath(userId: string, itemId: string) {
   return `${userId}/${itemId}-recorte.png`;
 }
 
+/**
+ * La foto de un contenedor vive en la misma carpeta que las de las cosas,
+ * con un prefijo que las separa. Un armario y un cable pueden tener el mismo
+ * id —son tablas distintas— y sin el prefijo uno pisaría al otro.
+ */
+export function nodePhotoPath(userId: string, nodeId: string) {
+  return `${userId}/mueble-${nodeId}.jpg`;
+}
+
+export async function putNodePhoto(userId: string, nodeId: string, file: File) {
+  const admin = createAdminClient();
+  const path = nodePhotoPath(userId, nodeId);
+
+  const { error } = await admin.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: true,
+  });
+
+  if (error) return null;
+  return path;
+}
+
+export async function dropNodePhoto(userId: string, nodeId: string) {
+  const admin = createAdminClient();
+  await admin.storage.from(BUCKET).remove([nodePhotoPath(userId, nodeId)]);
+}
+
 /** Sube —o reemplaza— la foto de un ítem. Devuelve la ruta guardada. */
 export async function putPhoto(userId: string, itemId: string, file: File) {
   const admin = createAdminClient();

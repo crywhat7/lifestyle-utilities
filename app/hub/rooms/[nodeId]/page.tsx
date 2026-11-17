@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
-import { ArrowBack, Grid } from "@/components/icons";
+import { ArrowBack } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
   KIND_LABEL,
@@ -13,8 +13,9 @@ import {
   variantLabel,
 } from "@/lib/rooms";
 import { Board } from "../board";
-import { ROOMS_PATH, loadIndex, loadItems, loadTree, nodePath, roomsClient } from "../data";
-import { planPath } from "../paths";
+import { safeLight } from "@/lib/iso";
+import { ROOMS_PATH, loadIndex, loadItems, loadProps, loadTree, nodePath, roomsClient } from "../data";
+import { PlanView } from "../plan-view";
 import { Glyph, NodeGlyph } from "../glyph";
 import { MissingMigration } from "../missing";
 
@@ -31,10 +32,11 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
     que no tiene que esperar al árbol: encadenarlas sería pedirle a la
     pantalla de una gaveta tres viajes en fila para dibujar una lista.
   */
-  const [tree, index, items] = await Promise.all([
+  const [tree, index, items, scenery] = await Promise.all([
     loadTree(supabase, user.id),
     loadIndex(supabase, user.id),
     loadItems(supabase, user.id, nodeId),
+    loadProps(supabase, user.id, nodeId),
   ]);
 
   const shell =
@@ -59,8 +61,10 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
   if (!node) notFound();
 
   const children = tree.nodes.filter((candidate) => candidate.parent_id === node.id);
+  const furniture = children.filter((candidate) => candidate.kind === "furniture");
   const counts = countsByNode(tree.nodes, index);
   const tone = branchTone(node, tree.nodes);
+  const light = safeLight(node.floor_color);
 
   const back = node.parent_id ? nodePath(node.parent_id) : ROOMS_PATH;
   const backLabel = node.parent_id
@@ -71,7 +75,7 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
   const copies = node.quantity > 1 ? `${node.quantity} iguales` : null;
 
   return (
-    <main className={shell} style={{ "--tone": tone } as CSSProperties}>
+    <main className={shell} style={{ "--tone": tone, "--sky": light } as CSSProperties}>
       <header
         className="r-rise flex items-center justify-between gap-2"
         style={{ "--d": "0ms" } as CSSProperties}
@@ -84,16 +88,6 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
           <span className="truncate">{backLabel}</span>
         </NavLink>
 
-        {/* Solo las habitaciones tienen plano: una gaveta no se dibuja. */}
-        {node.kind === "room" ? (
-          <NavLink
-            href={planPath(node.id)}
-            className="r-key h-11 min-h-11 shrink-0 gap-2 pr-5 pl-4 text-[0.875rem]"
-          >
-            <Grid className="size-4" />
-            El plano
-          </NavLink>
-        ) : null}
       </header>
 
       <section className="r-rise flex items-start gap-3.5" style={{ "--d": "40ms" } as CSSProperties}>
@@ -119,6 +113,15 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
           ) : null}
         </div>
       </section>
+
+      {/* El plano va ANTES de la lista y no detrás de un botón: entrar a un
+          cuarto es ver el cuarto. La lista de lo que hay dentro sigue abajo,
+          que es donde se la busca cuando ya se sabe qué se quiere. */}
+      {node.kind === "room" ? (
+        <div className="r-rise" style={{ "--d": "60ms" } as CSSProperties}>
+          <PlanView room={node} furniture={furniture} props={scenery.props} tone={tone} />
+        </div>
+      ) : null}
 
       <Board
         node={node}

@@ -22,6 +22,7 @@ import {
   deleteItem,
   deleteNode,
   removeItemPhoto,
+  removeNodePhoto,
   saveCutout,
   updateItem,
   updateNode,
@@ -249,6 +250,23 @@ export function NodeForm({
         value={node?.variant ?? null}
       />
 
+      {/* La foto del contenedor existe para una sola cosa, y conviene
+          decirlo: para que el buscador pueda mostrar el camino en imágenes
+          cuando haya que explicarle a alguien dónde está algo. */}
+      <PhotoField
+        saved={node?.photo ?? node?.thumb ?? null}
+        thumbEdge={96}
+        note="No se ve en el plano. Sirve para que el buscador arme la ruta en fotos: así se le puede mostrar a alguien dónde está algo."
+        onDrop={
+          node
+            ? () => {
+                void removeNodePhoto(node.id, node.parent_id);
+                onSaved();
+              }
+            : undefined
+        }
+      />
+
       {/* Tres cajas iguales en la misma repisa son una fila con cantidad 3.
           En un mueble o una habitación la pregunta no tiene sentido. */}
       {kind === "container" ? (
@@ -362,17 +380,26 @@ function ColorPicker({ value, used }: { value: string | null; used: string[] }) 
  * clip con datos móviles es la diferencia entre guardar y abandonar.
  */
 function PhotoField({
-  item,
-  onDropped,
+  saved,
+  thumbEdge,
+  note,
+  onDrop,
+  children,
 }: {
-  item?: ItemWithPhoto;
-  onDropped: () => void;
+  /** Lo que ya está guardado: el enlace firmado o la miniatura. */
+  saved?: string | null;
+  thumbEdge?: number;
+  note?: string;
+  /** Qué hacer cuando se quita una foto que YA estaba guardada. */
+  onDrop?: () => void;
+  /** Lo que va debajo de la foto — por ejemplo, quitar el fondo. */
+  children?: (fresh: boolean) => React.ReactNode;
 }) {
   const field = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
 
-  const [preview, setPreview] = useState<string | null>(item?.photo ?? item?.thumb ?? null);
+  const [preview, setPreview] = useState<string | null>(saved ?? null);
   const [thumb, setThumb] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -388,7 +415,7 @@ function PhotoField({
     setError(null);
 
     try {
-      const ready = await preparePhoto(file);
+      const ready = await preparePhoto(file, thumbEdge);
 
       /*
          El archivo que se manda es el achicado, no el que eligió la persona.
@@ -453,6 +480,10 @@ function PhotoField({
         }}
       />
 
+      {note ? (
+        <p className="mb-2 px-1 text-[0.75rem] leading-relaxed text-[var(--r-ink-3)]">{note}</p>
+      ) : null}
+
       {preview ? (
         <div className="flex flex-col gap-2">
           <div className="r-shot">
@@ -460,9 +491,7 @@ function PhotoField({
             <img src={preview} alt="" />
           </div>
 
-          {item && WEARABLE.has(item.category) && !fresh ? (
-            <Cutout item={item} />
-          ) : null}
+          {children?.(fresh)}
           <div className="flex gap-2">
             <button
               type="button"
@@ -474,14 +503,13 @@ function PhotoField({
             <button
               type="button"
               onClick={() => {
-                if (fresh || !item) {
+                if (fresh || !onDrop) {
                   discard();
                   return;
                 }
                 startTransition(() => {
-                  void removeItemPhoto(item.id, item.node_id);
+                  onDrop();
                   discard();
-                  onDropped();
                 });
               }}
               className="r-key min-h-12 flex-1 text-[0.875rem]"
@@ -683,7 +711,21 @@ export function ItemForm({
         />
       </div>
 
-      <PhotoField item={item} onDropped={onSaved} />
+      <PhotoField
+        saved={item?.photo ?? item?.thumb ?? null}
+        onDrop={
+          item
+            ? () => {
+                void removeItemPhoto(item.id, item.node_id);
+                onSaved();
+              }
+            : undefined
+        }
+      >
+        {(fresh) =>
+          item && WEARABLE.has(item.category) && !fresh ? <Cutout item={item} /> : null
+        }
+      </PhotoField>
 
       <ChipGroup
         name="category"

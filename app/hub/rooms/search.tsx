@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties } from "react";
-import { Cross, Search as SearchIcon } from "@/components/icons";
+import { Cross, Pin, Search as SearchIcon } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
   categoryOf,
   conditionOf,
   search,
+  type Hit,
   type IndexEntry,
   type RoomNode,
 } from "@/lib/rooms";
 import { nodePath } from "./paths";
 import { ItemGlyph } from "./glyph";
+import { Trail } from "./trail";
 
 /**
  * El buscador.
@@ -28,6 +30,7 @@ import { ItemGlyph } from "./glyph";
  */
 export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[] }) {
   const [query, setQuery] = useState("");
+  const [route, setRoute] = useState<Hit | null>(null);
 
   const hits = useMemo(() => search(index, nodes, query), [index, nodes, query]);
 
@@ -81,10 +84,10 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
             const state = conditionOf(hit.item.condition);
 
             return (
-              <li key={hit.item.id} className="r-row">
+              <li key={hit.item.id} className="r-row flex items-center gap-1 pr-2">
                 <NavLink
                   href={nodePath(hit.nodeId)}
-                  className="flex w-full items-center gap-3 p-3.5 active:bg-[var(--r-card-2)]"
+                  className="flex min-w-0 flex-1 items-center gap-3 p-3.5"
                 >
                   <ItemGlyph category={hit.item.category} />
 
@@ -114,12 +117,25 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
                     </span>
                   </span>
                 </NavLink>
+
+                {/* El atajo que justifica todo el módulo: no ir hasta la
+                    cosa, sino poder MOSTRAR el camino. */}
+                <button
+                  type="button"
+                  onClick={() => setRoute(hit)}
+                  className="grid size-11 shrink-0 place-items-center rounded-xl text-[var(--r-gold)] active:translate-y-0.5"
+                  aria-label={`Cómo llegar a ${hit.item.name}`}
+                >
+                  <Pin className="size-[1.0625rem]" />
+                </button>
               </li>
             );
           })}
           </ul>
         </>
       )}
+
+      <Trail hit={route} nodes={nodes} onClose={() => setRoute(null)} />
     </section>
   );
 }

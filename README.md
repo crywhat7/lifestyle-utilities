@@ -10,7 +10,7 @@ detrás de un login con Google:
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
 | **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
-| **Rooms Planning** | Tus cuartos, muebles y gavetas con lo que hay dentro. Inventario jerárquico de profundidad libre (habitación → mueble → gaveta → caja → caja), buscador que devuelve la ruta exacta, foto por cosa, un plano isométrico del cuarto y un armador de conjuntos con las prendas recortadas. |
+| **Rooms Planning** | Tu cuarto, dibujado y navegable. El plano isométrico es la vista principal: paredes que siguen la forma (cuartos en L), pisos, muebles que giran, cosas apoyadas sobre el escritorio y colgadas de la pared. Debajo, el inventario jerárquico de profundidad libre, y un buscador que arma **la ruta en fotos** hasta cualquier cosa. Más el armador de conjuntos con las prendas recortadas. |
 | **Fuel** | Contador de calorías. La IA arma tu meta diaria con peso, altura, sexo, edad y objetivo; arma un menú (5 desayunos, 5 almuerzos, 5 cenas, 10 aperitivos) con los ingredientes que elegís; y un botón grande registra cada comida con una foto y/o una descripción. |
 
 ---
@@ -118,7 +118,13 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    propia ruta materializada por trigger) y las cosas (`rooms_items`).
 8. [`0019`](supabase/migrations/0019_rooms_outfits.sql) agrega la ropa
    recortada (`cutout_path`) y los conjuntos (`rooms_outfits`).
-9. [`0020`](supabase/migrations/0020_rooms_scenery.sql) y
+9. [`0022`](supabase/migrations/0022_rooms_walls.sql) cuelga cosas de las
+   paredes (`side` en `rooms_props`) y
+   [`0023`](supabase/migrations/0023_rooms_node_photos.sql) le da foto propia
+   a cada contenedor, que es lo que permite la **ruta en fotos**: el buscador
+   muestra el camino hasta una cosa —el armario, la gaveta, la bolsa— para
+   poder explicarle a alguien dónde está sin que conozca el cuarto.
+10. [`0020`](supabase/migrations/0020_rooms_scenery.sql) y
    [`0021`](supabase/migrations/0021_rooms_interior.sql) convierten el plano
    en un cuarto de verdad: el piso pasa a ser la PLANTA del lugar —una letra
    por celda, y `.` es "fuera del cuarto", que es lo que permite cuartos en

@@ -45,6 +45,13 @@ export type RoomNode = {
   /* El piso pintado de una habitación: una letra por celda. Nulo mientras
      nadie lo haya tocado, y entonces la vista dibuja pasto parejo. */
   terrain: string | null;
+  /* La foto del contenedor. No se dibuja en el plano —el plano es un dibujo—:
+     existe para la ruta de búsqueda, que es donde vale oro. La miniatura
+     viaja en la fila y por eso la ruta se pinta sin pedir nada a la red. */
+  storage_path: string | null;
+  thumb: string | null;
+  /** El enlace firmado, que agrega el loader. */
+  photo?: string | null;
   sort_order: number;
   path: string[];
   path_ids: string[];
@@ -122,7 +129,7 @@ export type Outfit = {
 };
 
 export const NODE_COLUMNS =
-  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,terrain,sort_order,path,path_ids,depth,created_at";
+  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,terrain,storage_path,thumb,sort_order,path,path_ids,depth,created_at";
 
 export const ITEM_COLUMNS =
   "id,node_id,name,category,condition,note,quantity,thumb,storage_path,cutout_path,created_at";

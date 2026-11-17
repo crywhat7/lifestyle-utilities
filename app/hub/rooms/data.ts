@@ -59,8 +59,17 @@ export async function loadTree(client: Client, userId: string) {
 
   if (error) return { nodes: [] as RoomNode[], missing: true };
 
+  const rows = ((data ?? []) as Record<string, unknown>[]);
+
+  /* Las fotos de los contenedores se firman en lote. Son pocas —un cuarto
+     tiene decenas de muebles, no miles— y tenerlas firmadas de entrada es lo
+     que permite abrir la ruta de búsqueda sin un viaje más. */
+  const signed = await signPhotos(
+    rows.map((row) => row.storage_path).filter((path): path is string => Boolean(path))
+  );
+
   return {
-    nodes: ((data ?? []) as Record<string, unknown>[]).map(
+    nodes: rows.map(
       (row) =>
         ({
           ...row,
@@ -75,6 +84,7 @@ export async function loadTree(client: Client, userId: string) {
           terrain: (row.terrain as string | null) ?? null,
           path: (row.path as string[] | null) ?? [],
           path_ids: (row.path_ids as string[] | null) ?? [],
+          photo: row.storage_path ? (signed.get(String(row.storage_path)) ?? null) : null,
         }) as RoomNode
     ),
     missing: false,
