@@ -343,10 +343,16 @@ export type PropKind =
   | "lamp"
   | "chair"
   | "rug"
-  | "mirror"
   | "guitar"
   | "basket"
-  | "poster";
+  | "fan"
+  | "figure"
+  | "window"
+  | "door"
+  | "poster"
+  | "mirror"
+  | "clock"
+  | "board";
 
 export type PropSkin = {
   key: PropKind;
@@ -354,8 +360,8 @@ export type PropSkin = {
   lift: number;
   w: number;
   h: number;
-  /** Dónde puede ir: en el suelo, sobre un mueble, o en los dos lados. */
-  surface: "floor" | "top" | "both";
+  /** Dónde puede ir: en el suelo, sobre un mueble, en la pared, o varios. */
+  surface: "floor" | "top" | "both" | "wall";
   /** Las que iluminan tiñen el piso alrededor. */
   glow?: string;
 };
@@ -384,10 +390,22 @@ export const PROPS: PropSkin[] = [
   { key: "lamp", label: "Lámpara", lift: 84, w: 1, h: 1, surface: "floor", glow: "#ffd9a0" },
   { key: "chair", label: "Silla", lift: 46, w: 1, h: 1, surface: "floor" },
   { key: "guitar", label: "Guitarra", lift: 66, w: 1, h: 1, surface: "floor" },
-  { key: "mirror", label: "Espejo", lift: 72, w: 1, h: 1, surface: "floor" },
-  { key: "poster", label: "Póster", lift: 54, w: 1, h: 1, surface: "floor" },
+  { key: "fan", label: "Ventilador", lift: 72, w: 1, h: 1, surface: "floor" },
+  { key: "figure", label: "Figura", lift: 26, w: 1, h: 1, surface: "both" },
   { key: "rug", label: "Alfombra", lift: 0, w: 2, h: 2, surface: "floor" },
+
+  /* Las de pared. Un cuarto sin ventana no es un cuarto, es una caja. */
+  { key: "window", label: "Ventana", lift: 0, w: 1, h: 1, surface: "wall", glow: "#ffe6b8" },
+  { key: "door", label: "Puerta", lift: 0, w: 1, h: 1, surface: "wall" },
+  { key: "poster", label: "Póster", lift: 0, w: 1, h: 1, surface: "wall" },
+  { key: "mirror", label: "Espejo", lift: 0, w: 1, h: 1, surface: "wall" },
+  { key: "clock", label: "Reloj", lift: 0, w: 1, h: 1, surface: "wall" },
+  { key: "board", label: "Repisa", lift: 0, w: 1, h: 1, surface: "wall" },
 ];
+
+/** Las que se cuelgan, separadas de las que se apoyan. */
+export const WALL_PROPS = PROPS.filter((skin) => skin.surface === "wall");
+export const FLOOR_PROPS = PROPS.filter((skin) => skin.surface !== "wall");
 
 const PROP_MAP = new Map(PROPS.map((skin) => [skin.key, skin]));
 
@@ -407,7 +425,40 @@ export type Prop = {
   grid_y: number;
   rotation: number;
   seed: number;
+  /** Nulo si está en el piso; si no, de qué pared cuelga. */
+  side: WallSide | null;
 };
+
+/**
+ * Un punto sobre el plano de una pared.
+ *
+ * `t` recorre la pared a lo ancho (0 a 1) y `u` a lo alto (0 abajo, 1 en el
+ * techo). Es lo que permite dibujar una ventana EN la pared en vez de
+ * flotando delante: todo lo que se cuelga usa estas dos coordenadas y sale
+ * inclinado igual que la pared que lo sostiene.
+ */
+export function wallPoint(
+  x: number,
+  y: number,
+  side: WallSide,
+  t: number,
+  u: number
+) {
+  const a = toScreen(x, y);
+  const b = side === "left" ? toScreen(x, y + 1) : toScreen(x + 1, y);
+
+  return {
+    sx: a.sx + (b.sx - a.sx) * t,
+    sy: a.sy + (b.sy - a.sy) * t - WALL_H * u,
+  };
+}
+
+/** ¿Hay pared donde se quiere colgar algo? */
+export function hasWall(plan: string, x: number, y: number, side: WallSide) {
+  if (!inside(plan, x, y)) return false;
+
+  return side === "left" ? !inside(plan, x - 1, y) : !inside(plan, x, y - 1);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Reglas del piso                                                             */
@@ -476,12 +527,15 @@ export function firstFreeCell(
  * él, y si se dibujara antes el monitor quedaría detrás del escritorio.
  */
 export function depthOrder<
-  T extends { x: number; y: number; w: number; h: number; above?: boolean },
+  T extends { x: number; y: number; w: number; h: number; layer?: number },
 >(pieces: T[]) {
   return [...pieces].sort((a, b) => {
     const depth = a.x + a.y + a.w + a.h - (b.x + b.y + b.w + b.h);
     if (depth !== 0) return depth;
 
-    return Number(a.above ?? false) - Number(b.above ?? false);
+    /* La capa desempata lo que cae a la misma distancia: lo colgado de la
+       pared va detrás de todo, y lo apoyado SOBRE un mueble va delante de
+       ese mueble. Sin esto el monitor quedaba dentro del escritorio. */
+    return (a.layer ?? 1) - (b.layer ?? 1);
   });
 }

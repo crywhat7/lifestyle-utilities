@@ -16,6 +16,7 @@ import {
   propSkin,
   tilePoints,
   toScreen,
+  wallPoint,
   wallsOf,
   type WallSide,
 } from "@/lib/iso";
@@ -912,6 +913,43 @@ function Sprite({ kind, seed, x, y }: { kind: string; seed: number; x: number; y
         </g>
       );
 
+    case "fan":
+      return (
+        <g>
+          <ellipse cx={0} cy={-2} rx={13} ry={6} fill="#4a4f58" />
+          <rect x={-2.5} y={-44} width={5} height={42} fill="#6b7078" />
+          {/* La jaula: un círculo con radios. A esta escala es lo que dice
+              "ventilador" y no "lámpara". */}
+          <circle cx={0} cy={-58} r={17} fill="#8d939c" />
+          <circle cx={0} cy={-58} r={14} fill="#c3c8cf" />
+          {[0, 45, 90, 135].map((deg) => (
+            <line
+              key={deg}
+              x1={-14 * Math.cos((deg * Math.PI) / 180)}
+              y1={-58 - 14 * Math.sin((deg * Math.PI) / 180)}
+              x2={14 * Math.cos((deg * Math.PI) / 180)}
+              y2={-58 + 14 * Math.sin((deg * Math.PI) / 180)}
+              stroke="#8d939c"
+              strokeWidth={1.5}
+            />
+          ))}
+          <circle cx={0} cy={-58} r={4} fill="#5a5f68" />
+        </g>
+      );
+
+    case "figure":
+      return (
+        <g>
+          <ellipse cx={0} cy={-1} rx={9} ry={4} fill="#3b3f47" />
+          <rect x={-8} y={-5} width={16} height={5} rx={1.5} fill="#4a4f58" />
+          {/* Una silueta chiquita: cuerpo, pelo y una mancha de color. */}
+          <path d="M -5 -5 q 0 -9 5 -9 q 5 0 5 9 z" fill="#5a8fd8" />
+          <circle cx={0} cy={-18} r={5.5} fill="#f0cba8" />
+          <path d="M -6 -19 q 2 -7 6 -7 q 4 0 6 7 q -3 -3 -6 -3 q -3 0 -6 3 z" fill="#c1543f" />
+          <rect x={-1} y={-9} width={2} height={5} fill="#f0cba8" />
+        </g>
+      );
+
     case "rug": {
       // Va plana sobre el piso: es la única que no se levanta.
       const a = toScreen(0, 0);
@@ -934,6 +972,178 @@ function Sprite({ kind, seed, x, y }: { kind: string; seed: number; x: number; y
     default:
       return <rect x={-8} y={-16} width={16} height={16} rx={2} fill="#8e94a3" />;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lo que cuelga de la pared                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Una cosa colgada, dibujada SOBRE el plano de la pared.
+ *
+ * Todo sale de `wallPoint(t, u)`: `t` recorre la pared a lo ancho y `u` a lo
+ * alto. Eso es lo que hace que una ventana salga inclinada igual que la
+ * pared que la sostiene en vez de flotando de frente — que es exactamente la
+ * diferencia entre un cuarto y un collage.
+ *
+ * La pared izquierda y la derecha tienen inclinaciones opuestas, así que
+ * ninguna forma se puede dibujar con rectángulos: todas son polígonos de
+ * cuatro puntos calculados sobre el plano.
+ */
+export function WallSprite({
+  kind,
+  x,
+  y,
+  side,
+  seed,
+}: {
+  kind: string;
+  x: number;
+  y: number;
+  side: WallSide;
+  seed: number;
+}) {
+  /** Un cuadrilátero sobre la pared, entre dos anchos y dos alturas. */
+  const quad = (t0: number, t1: number, u0: number, u1: number) => {
+    const a = wallPoint(x, y, side, t0, u0);
+    const b = wallPoint(x, y, side, t1, u0);
+    const c = wallPoint(x, y, side, t1, u1);
+    const d = wallPoint(x, y, side, t0, u1);
+
+    return `${a.sx},${a.sy} ${b.sx},${b.sy} ${c.sx},${c.sy} ${d.sx},${d.sy}`;
+  };
+
+  const dot = (t: number, u: number) => wallPoint(x, y, side, t, u);
+
+  // La pared izquierda recibe más luz que la derecha, y lo que cuelga tiene
+  // que seguir esa misma regla o se despega del fondo.
+  const key = side === "left" ? 1 : 0.84;
+
+  switch (kind) {
+    case "window": {
+      const glass = side === "left" ? "#bfe4f5" : "#a4cfe4";
+
+      return (
+        <g>
+          <polygon points={quad(0.12, 0.88, 0.3, 0.82)} fill="#6b5a46" />
+          <polygon points={quad(0.17, 0.83, 0.34, 0.78)} fill={glass} />
+          {/* El cielo que se ve por el vidrio: más claro arriba. */}
+          <polygon points={quad(0.17, 0.83, 0.58, 0.78)} fill={lift(glass, 0.3)} />
+          {/* Los parteluces. Sin la cruz, el vidrio se ve como un agujero. */}
+          <polygon points={quad(0.49, 0.51, 0.34, 0.78)} fill="#6b5a46" />
+          <polygon points={quad(0.17, 0.83, 0.55, 0.57)} fill="#6b5a46" />
+          {/* El alféizar. */}
+          <polygon points={quad(0.08, 0.92, 0.27, 0.31)} fill={dim("#8a7050", key)} />
+        </g>
+      );
+    }
+
+    case "door":
+      return (
+        <g>
+          <polygon points={quad(0.14, 0.86, 0, 0.92)} fill="#6b5a46" />
+          <polygon points={quad(0.19, 0.81, 0, 0.87)} fill={dim("#a8824f", key)} />
+          {/* Los dos entrepaños que hacen que se lea como puerta. */}
+          <polygon points={quad(0.26, 0.74, 0.1, 0.42)} fill={dim("#946f42", key)} />
+          <polygon points={quad(0.26, 0.74, 0.5, 0.8)} fill={dim("#946f42", key)} />
+          <circle cx={dot(0.73, 0.44).sx} cy={dot(0.73, 0.44).sy} r={3} fill="#e8c86a" />
+        </g>
+      );
+
+    case "poster": {
+      const tones = ["#e0734f", "#4f87e0", "#55a86a", "#c9679b"];
+      const tone = tones[Math.floor(noise(x, y, seed) * tones.length) % tones.length];
+
+      return (
+        <g>
+          <polygon points={quad(0.2, 0.8, 0.42, 0.84)} fill="#efe6d2" />
+          <polygon points={quad(0.25, 0.75, 0.46, 0.7)} fill={dim(tone, key)} />
+          <polygon points={quad(0.25, 0.75, 0.7, 0.8)} fill={dim(lift(tone, 0.3), key)} />
+        </g>
+      );
+    }
+
+    case "mirror":
+      return (
+        <g>
+          <polygon points={quad(0.28, 0.72, 0.38, 0.86)} fill="#8a6244" />
+          <polygon points={quad(0.32, 0.68, 0.41, 0.83)} fill={dim("#cfe0ea", key)} />
+          {/* El reflejo: una diagonal más clara, que es lo que dice "vidrio". */}
+          <polygon points={quad(0.32, 0.5, 0.41, 0.83)} fill="#ffffff" opacity={0.35} />
+        </g>
+      );
+
+    case "clock":
+      return (
+        <g>
+          <polygon points={quad(0.38, 0.62, 0.6, 0.78)} fill="#5c5042" />
+          <polygon points={quad(0.41, 0.59, 0.62, 0.76)} fill={dim("#f4ead4", key)} />
+          <polygon points={quad(0.49, 0.51, 0.65, 0.73)} fill="#3b3228" />
+          <polygon points={quad(0.5, 0.57, 0.68, 0.7)} fill="#3b3228" />
+        </g>
+      );
+
+    case "board":
+      return (
+        <g>
+          {/* La repisa: una tabla y dos escuadras. */}
+          <polygon points={quad(0.12, 0.88, 0.5, 0.56)} fill={dim("#b08b5c", key)} />
+          <polygon points={quad(0.12, 0.88, 0.47, 0.5)} fill={dim("#8d6c40", key)} />
+          <polygon points={quad(0.2, 0.26, 0.38, 0.5)} fill="#6b5a46" />
+          <polygon points={quad(0.74, 0.8, 0.38, 0.5)} fill="#6b5a46" />
+          {/* Tres libros encima, que es para lo que existe una repisa. */}
+          <polygon points={quad(0.26, 0.33, 0.56, 0.76)} fill="#c1543f" />
+          <polygon points={quad(0.35, 0.41, 0.56, 0.72)} fill="#3f7bc1" />
+          <polygon points={quad(0.43, 0.5, 0.56, 0.8)} fill="#c9a227" />
+        </g>
+      );
+
+    default:
+      return <polygon points={quad(0.3, 0.7, 0.4, 0.7)} fill="#8e94a3" />;
+  }
+}
+
+/**
+ * Las zonas que se pueden tocar para colgar algo.
+ *
+ * Existen solo mientras hay una herramienta de pared elegida: son la pared
+ * entera vuelta botón. Sin ellas habría que acertarle a una ventana que
+ * todavía no está dibujada.
+ */
+export function WallTargets({
+  plan,
+  onPick,
+}: {
+  plan: string;
+  onPick: (x: number, y: number, side: WallSide) => void;
+}) {
+  return (
+    <g>
+      {wallsOf(plan).map(({ x, y, side }) => {
+        const a = wallPoint(x, y, side, 0, 0);
+        const b = wallPoint(x, y, side, 1, 0);
+        const c = wallPoint(x, y, side, 1, 1);
+        const d = wallPoint(x, y, side, 0, 1);
+
+        return (
+          <polygon
+            key={`${x}-${y}-${side}`}
+            points={`${a.sx},${a.sy} ${b.sx},${b.sy} ${c.sx},${c.sy} ${d.sx},${d.sy}`}
+            fill="#ffffff"
+            fillOpacity={0.08}
+            stroke="#ffffff"
+            strokeOpacity={0.3}
+            strokeDasharray="5 5"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onPick(x, y, side);
+            }}
+            style={{ cursor: "pointer" }}
+          />
+        );
+      })}
+    </g>
+  );
 }
 
 /** La luz que tiran las cosas que brillan, pintada sobre el piso. */

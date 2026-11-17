@@ -183,7 +183,7 @@ export async function loadWardrobe(client: Client, userId: string) {
 export async function loadProps(client: Client, userId: string, roomId: string) {
   const { data, error } = await client
     .from("rooms_props")
-    .select("id,variant,grid_x,grid_y,rotation,seed")
+    .select("id,variant,grid_x,grid_y,rotation,seed,side")
     .eq("user_id", userId)
     .eq("room_id", roomId);
 
@@ -201,6 +201,7 @@ export async function loadProps(client: Client, userId: string, roomId: string) 
           grid_y: Number(row.grid_y),
           rotation: Number(row.rotation ?? 0),
           seed: Number(row.seed),
+          side: row.side === "left" || row.side === "right" ? row.side : null,
         }) satisfies Prop
     ),
     missing: false,

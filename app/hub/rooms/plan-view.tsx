@@ -13,9 +13,10 @@ import { Check, Grid as GridIcon, PlusSlot, Refresh, Sliders, Spark, Trash } fro
 import {
   COLS,
   FLOORS,
+  FLOOR_PROPS,
   LIGHT_COLORS,
-  PROPS,
   ROWS,
+  WALL_PROPS,
   VIEW_H,
   VIEW_W,
   WALL_COLORS,
@@ -24,6 +25,7 @@ import {
   firstFreeCell,
   fits,
   footprint,
+  hasWall,
   inside,
   overlaps,
   paintCell,
@@ -36,6 +38,7 @@ import {
   woodOf,
   type Floor,
   type Prop,
+  type WallSide,
 } from "@/lib/iso";
 import { variantLabel, type RoomNode } from "@/lib/rooms";
 import {
@@ -57,6 +60,8 @@ import {
   PropGlow,
   PropSprite,
   Vacant,
+  WallSprite,
+  WallTargets,
   Walls,
   type Piece,
 } from "./room-svg";
@@ -137,6 +142,12 @@ export function PlanView({
 
   const loose = furniture.filter((node) => node.grid_x === null || node.grid_y === null);
   const chosen = placed.find((piece) => piece.id === picked) ?? null;
+
+  // Lo que está en el piso y lo que cuelga se dibujan distinto y se tocan
+  // distinto, así que conviene tenerlos separados de una vez.
+  const onFloor = things.filter((thing) => thing.side === null);
+  const onWall = things.filter((thing) => thing.side !== null);
+  const hanging = tool.what === "thing" && propSkin(tool.kind).surface === "wall";
 
   /**
    * La altura de la superficie en una celda.
@@ -247,13 +258,15 @@ export function PlanView({
     // Poner una cosa.
     if (!inside(plan, cell.x, cell.y)) return;
 
-    const there = things.find((thing) => thing.grid_x === cell.x && thing.grid_y === cell.y);
+    const there = onFloor.find((thing) => thing.grid_x === cell.x && thing.grid_y === cell.y);
     if (there) {
       startTransition(() => void removeProp(there.id, room.id));
       return;
     }
 
     const skin = propSkin(tool.kind);
+    if (skin.surface === "wall") return;
+
     const base = baseAt(cell.x, cell.y);
 
     // Un monitor no se apoya en el piso y una alfombra no va sobre el
@@ -262,6 +275,23 @@ export function PlanView({
     if (skin.surface === "floor" && base > 0) return;
 
     startTransition(() => void addProp(room.id, tool.kind, cell.x, cell.y));
+  }
+
+  /** Colgar algo de una pared, o sacar lo que ya estaba colgado ahí. */
+  function hang(x: number, y: number, side: WallSide) {
+    if (!hasWall(plan, x, y, side)) return;
+
+    const there = onWall.find(
+      (thing) => thing.grid_x === x && thing.grid_y === y && thing.side === side
+    );
+
+    if (there) {
+      startTransition(() => void removeProp(there.id, room.id));
+      return;
+    }
+
+    if (tool.what !== "thing") return;
+    startTransition(() => void addProp(room.id, tool.kind, x, y, side));
   }
 
   function onStageDown(event: ReactPointerEvent) {
@@ -377,11 +407,14 @@ export function PlanView({
           <FloorLayer plan={plan} grid={mode !== "look"} />
           {mode === "build" ? <Vacant plan={plan} /> : null}
 
-          {/* La luz de las lámparas va sobre el piso y debajo de todo lo
-              demás: es luz, no un objeto. */}
+          {/* La luz de las lámparas y las ventanas va sobre el piso y debajo
+              de todo lo demás: es luz, no un objeto. */}
           {things.map((thing) => (
             <PropGlow key={`g${thing.id}`} kind={thing.variant} x={thing.grid_x} y={thing.grid_y} />
           ))}
+
+          {/* Las paredes vueltas botón, solo mientras hay algo para colgar. */}
+          {mode === "place" && hanging ? <WallTargets plan={plan} onPick={hang} /> : null}
 
           {drag && dragging ? (
             <Ghost x={drag.x} y={drag.y} w={dragging.w} h={dragging.h} bad={badSpot} />
@@ -398,18 +431,52 @@ export function PlanView({
               y: piece.y,
               w: piece.w,
               h: piece.h,
-              above: false,
+              layer: 1,
             })),
-            ...things.map((thing) => ({
+            ...onFloor.map((thing) => ({
               kind: "thing" as const,
               thing,
               x: thing.grid_x,
               y: thing.grid_y,
               w: 1,
               h: 1,
-              above: baseAt(thing.grid_x, thing.grid_y) > 0,
+              layer: baseAt(thing.grid_x, thing.grid_y) > 0 ? 2 : 1,
+            })),
+            ...onWall.map((thing) => ({
+              kind: "wall" as const,
+              thing,
+              x: thing.grid_x,
+              y: thing.grid_y,
+              w: 0,
+              h: 0,
+              layer: 0,
             })),
           ]).map((entry) => {
+            if (entry.kind === "wall") {
+              const thing = entry.thing;
+
+              return (
+                <g
+                  key={thing.id}
+                  onPointerDown={(event) => {
+                    if (mode !== "place") return;
+                    event.stopPropagation();
+                    startTransition(() => void removeProp(thing.id, room.id));
+                  }}
+                  style={{ cursor: mode === "place" ? "pointer" : "default" }}
+                  aria-label={propSkin(thing.variant).label}
+                >
+                  <WallSprite
+                    kind={thing.variant}
+                    x={thing.grid_x}
+                    y={thing.grid_y}
+                    side={thing.side as WallSide}
+                    seed={thing.seed}
+                  />
+                </g>
+              );
+            }
+
             if (entry.kind === "thing") {
               const thing = entry.thing;
 
@@ -542,12 +609,13 @@ export function PlanView({
       {mode === "place" ? (
         <>
           <p className="r-hint">
-            Arrastrá los muebles para moverlos y tocalos para girarlos. Las cosas se ponen
-            tocando el suelo — o el escritorio, si van encima.
+            {hanging
+              ? "Tocá una de las paredes marcadas para colgarlo. Tocá algo colgado para sacarlo."
+              : "Arrastrá los muebles para moverlos y tocalos para girarlos. Las cosas se ponen tocando el suelo — o el escritorio, si van encima."}
           </p>
 
           <Shelf title="Poner cosas">
-            {PROPS.map((skin) => (
+            {FLOOR_PROPS.map((skin) => (
               <button
                 key={skin.key}
                 type="button"
@@ -557,6 +625,23 @@ export function PlanView({
               >
                 {skin.label}
                 {skin.surface === "top" ? <span className="r-tag">encima</span> : null}
+              </button>
+            ))}
+          </Shelf>
+
+          <Shelf
+            title="Colgar de la pared"
+            note="Elegí una y las paredes se marcan: tocá la que quieras."
+          >
+            {WALL_PROPS.map((skin) => (
+              <button
+                key={skin.key}
+                type="button"
+                onClick={() => setTool({ what: "thing", kind: skin.key })}
+                className="r-chip"
+                data-on={tool.what === "thing" && tool.kind === skin.key}
+              >
+                {skin.label}
               </button>
             ))}
           </Shelf>

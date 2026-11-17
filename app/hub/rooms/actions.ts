@@ -346,10 +346,17 @@ export async function paintRoomFloor(id: string, terrain: string) {
  * ocupada, reemplaza. Preguntar primero sería un viaje de ida y vuelta para
  * llegar a la misma fila.
  */
-export async function addProp(roomId: string, kind: string, x: number, y: number) {
+export async function addProp(
+  roomId: string,
+  kind: string,
+  x: number,
+  y: number,
+  side: "left" | "right" | null = null
+) {
   const { supabase, user } = await roomsClient();
 
   if (!isPropKind(kind)) return;
+  if (side !== null && side !== "left" && side !== "right") return;
 
   const gx = Math.max(0, Math.min(COLS - 1, Math.round(x)));
   const gy = Math.max(0, Math.min(ROWS - 1, Math.round(y)));
@@ -366,19 +373,37 @@ export async function addProp(roomId: string, kind: string, x: number, y: number
 
   if (!room) return;
 
-  await supabase.from("rooms_props").upsert(
-    {
-      user_id: user.id,
-      room_id: roomId,
-      variant: kind,
-      grid_x: gx,
-      grid_y: gy,
-      rotation: 0,
-      // Lo que tuerce el dibujo para que dos cosas iguales no sean gemelas.
-      seed: Math.floor(Math.random() * 1000),
-    },
-    { onConflict: "room_id,grid_x,grid_y" }
-  );
+  /*
+     Borrar y volver a poner, en vez de un upsert.
+
+     El índice único que guarda "una cosa por lugar" usa
+     `coalesce(side, 'floor')`, porque en Postgres dos NULL son distintos
+     entre sí y si no se podrían apilar veinte cosas en el mismo piso. Pero
+     PostgREST solo acepta NOMBRES de columna en `on_conflict`, no
+     expresiones: el upsert no encontraría el índice y fallaría. Dos
+     sentencias son más honestas que una que no funciona.
+  */
+  const spot = supabase
+    .from("rooms_props")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("room_id", roomId)
+    .eq("grid_x", gx)
+    .eq("grid_y", gy);
+
+  await (side === null ? spot.is("side", null) : spot.eq("side", side));
+
+  await supabase.from("rooms_props").insert({
+    user_id: user.id,
+    room_id: roomId,
+    variant: kind,
+    grid_x: gx,
+    grid_y: gy,
+    side,
+    rotation: 0,
+    // Lo que tuerce el dibujo para que dos cosas iguales no sean gemelas.
+    seed: Math.floor(Math.random() * 1000),
+  });
 
   revalidatePath(planPath(roomId));
 }
