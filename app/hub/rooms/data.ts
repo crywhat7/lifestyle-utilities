@@ -9,6 +9,7 @@ import {
   type Outfit,
   type RoomNode,
 } from "@/lib/rooms";
+import type { Prop } from "@/lib/iso";
 import { createClient } from "@/lib/supabase/server";
 import { signPhotos } from "./storage";
 
@@ -71,6 +72,7 @@ export async function loadTree(client: Client, userId: string) {
           grid_w: row.grid_w === null ? null : Number(row.grid_w),
           grid_h: row.grid_h === null ? null : Number(row.grid_h),
           rotation: Number(row.rotation ?? 0),
+          terrain: (row.terrain as string | null) ?? null,
           path: (row.path as string[] | null) ?? [],
           path_ids: (row.path_ids as string[] | null) ?? [],
         }) as RoomNode
@@ -170,6 +172,39 @@ export async function loadWardrobe(client: Client, userId: string) {
     category: String(row.category),
     cutout: signed.get(String(row.cutout_path)) ?? null,
   }));
+}
+
+/**
+ * Las decoraciones de una habitación.
+ *
+ * Van en su propia consulta y no dentro del árbol porque no son parte del
+ * inventario: un pino no guarda nada. Solo las pide la pantalla del plano.
+ */
+export async function loadProps(client: Client, userId: string, roomId: string) {
+  const { data, error } = await client
+    .from("rooms_props")
+    .select("id,variant,grid_x,grid_y,rotation,seed")
+    .eq("user_id", userId)
+    .eq("room_id", roomId);
+
+  // Sin la 0020 el plano sigue siendo un plano: se dibuja sin decoraciones
+  // en vez de reventar la pantalla entera.
+  if (error) return { props: [] as Prop[], missing: true };
+
+  return {
+    props: ((data ?? []) as Record<string, unknown>[]).map(
+      (row) =>
+        ({
+          id: String(row.id),
+          variant: String(row.variant),
+          grid_x: Number(row.grid_x),
+          grid_y: Number(row.grid_y),
+          rotation: Number(row.rotation ?? 0),
+          seed: Number(row.seed),
+        }) satisfies Prop
+    ),
+    missing: false,
+  };
 }
 
 /** Los conjuntos guardados, el último arriba. */

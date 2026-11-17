@@ -10,7 +10,15 @@ import {
   nextColor,
   type NodeKind,
 } from "@/lib/rooms";
-import { COLS, FLOOR_COLORS, ROWS, WALL_COLORS } from "@/lib/iso";
+import {
+  CELLS,
+  COLS,
+  LIGHT_COLORS,
+  ROWS,
+  WALL_COLORS,
+  isPropKind,
+  turn,
+} from "@/lib/iso";
 import { roomsClient } from "./data";
 import { OUTFITS_PATH, ROOMS_PATH, nodePath, planPath } from "./paths";
 import { dropPhoto, putCutout, putPhoto } from "./storage";
@@ -38,10 +46,8 @@ function refresh(nodeId?: string | null) {
   if (nodeId) revalidatePath(nodePath(nodeId));
 }
 
-const isWallColor = (value: string): boolean =>
-  (WALL_COLORS as readonly string[]).includes(value);
-const isFloorColor = (value: string): boolean =>
-  (FLOOR_COLORS as readonly string[]).includes(value);
+const isWall = (value: string): boolean => (WALL_COLORS as readonly string[]).includes(value);
+const isLight = (value: string): boolean => (LIGHT_COLORS as readonly string[]).includes(value);
 
 function toText(value: FormDataEntryValue | null, max: number) {
   return String(value ?? "")
@@ -255,21 +261,160 @@ export async function unplaceNode(id: string, roomId: string) {
   revalidatePath(planPath(roomId));
 }
 
-/** Pintar paredes y piso. Solo de la paleta: ver `lib/iso`. */
-export async function paintRoom(id: string, wall: string, floor: string) {
+/**
+ * De qué color están pintadas las paredes y qué luz entra por la ventana.
+ *
+ * `wall_color` vuelve a significar exactamente lo que dice su nombre.
+ * `floor_color` guarda el tinte de la luz: se reaprovecha en vez de migrar
+ * porque sigue guardando lo mismo —un color del cuarto— y una migración
+ * solo para renombrar una columna sería mover datos para no ganar nada.
+ */
+export async function dressRoom(id: string, wall: string, light: string) {
   const { supabase, user } = await roomsClient();
 
-  if (!isWallColor(wall) || !isFloorColor(floor)) return;
+  if (!isWall(wall) || !isLight(light)) return;
 
   await supabase
     .from("rooms_nodes")
-    .update({ wall_color: wall, floor_color: floor })
+    .update({ wall_color: wall, floor_color: light })
     .eq("id", id)
     .eq("user_id", user.id)
     .eq("kind", "room");
 
   refresh(id);
   revalidatePath(planPath(id));
+}
+
+/**
+ * Dar un cuarto de vuelta a un mueble.
+ *
+ * El giro se guarda en grados y la huella se recalcula al dibujar: a 90° y
+ * 270° un escritorio de 2x1 pasa a ocupar 1x2. Por eso no alcanza con rotar
+ * la imagen — cambia dónde está parado.
+ */
+export async function turnNode(id: string, roomId: string, rotation: number) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase
+    .from("rooms_nodes")
+    .update({ rotation: turn(rotation) })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("kind", "furniture");
+
+  refresh(roomId);
+  revalidatePath(planPath(roomId));
+}
+
+/**
+ * Guardar el piso pintado.
+ *
+ * Llega el terreno ENTERO, no la celda que se tocó: un brochazo pinta diez
+ * casilleros mientras el dedo se mueve, y mandar cada uno sería diez
+ * escrituras para dejar la misma cadena. Se valida la forma acá porque la
+ * base acepta cualquier texto de 64 letras válidas y la vista confía en que
+ * mide exactamente eso.
+ */
+export async function paintRoomFloor(id: string, terrain: string) {
+  const { supabase, user } = await roomsClient();
+
+  if (terrain.length !== CELLS || !/^[.wtcs]+$/.test(terrain)) return;
+
+  // Un cuarto sin una sola celda de piso no es un cuarto: es un plano vacío
+  // del que ya no se puede salir, porque no quedaría dónde tocar.
+  if (!/[wtcs]/.test(terrain)) return;
+
+  await supabase
+    .from("rooms_nodes")
+    .update({ terrain })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("kind", "room");
+
+  revalidatePath(planPath(id));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Las decoraciones                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Poner un árbol, una roca, un farol.
+ *
+ * Una celda admite una sola decoración y lo garantiza un índice único en la
+ * base, así que esto no pregunta antes: inserta y, si la celda estaba
+ * ocupada, reemplaza. Preguntar primero sería un viaje de ida y vuelta para
+ * llegar a la misma fila.
+ */
+export async function addProp(roomId: string, kind: string, x: number, y: number) {
+  const { supabase, user } = await roomsClient();
+
+  if (!isPropKind(kind)) return;
+
+  const gx = Math.max(0, Math.min(COLS - 1, Math.round(x)));
+  const gy = Math.max(0, Math.min(ROWS - 1, Math.round(y)));
+
+  // El cuarto tiene que ser propio: RLS protege la fila que se escribe, no
+  // el `room_id` que se escribe dentro.
+  const { data: room } = await supabase
+    .from("rooms_nodes")
+    .select("id")
+    .eq("id", roomId)
+    .eq("user_id", user.id)
+    .eq("kind", "room")
+    .maybeSingle();
+
+  if (!room) return;
+
+  await supabase.from("rooms_props").upsert(
+    {
+      user_id: user.id,
+      room_id: roomId,
+      variant: kind,
+      grid_x: gx,
+      grid_y: gy,
+      rotation: 0,
+      // Lo que tuerce el dibujo para que dos cosas iguales no sean gemelas.
+      seed: Math.floor(Math.random() * 1000),
+    },
+    { onConflict: "room_id,grid_x,grid_y" }
+  );
+
+  revalidatePath(planPath(roomId));
+}
+
+/** Dar vuelta una cosa: el monitor mira para el otro lado. */
+export async function turnProp(id: string, roomId: string, rotation: number) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase
+    .from("rooms_props")
+    .update({ rotation: turn(rotation) })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  revalidatePath(planPath(roomId));
+}
+
+export async function removeProp(id: string, roomId: string) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase.from("rooms_props").delete().eq("id", id).eq("user_id", user.id);
+
+  revalidatePath(planPath(roomId));
+}
+
+/** Vaciar el cuarto de decoraciones, para empezar de nuevo sin tocar de a una. */
+export async function clearProps(roomId: string) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase
+    .from("rooms_props")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("user_id", user.id);
+
+  revalidatePath(planPath(roomId));
 }
 
 /* -------------------------------------------------------------------------- */

@@ -33,11 +33,23 @@ la clase `.glass`, así que nada de ese vocabulario se filtra a las otras dos
 herramientas.
 
 Rooms Planning es la segunda excepción, por el mismo motivo y con la misma
-disciplina: superficies planas y clarísimas, esquinas muy redondas y teclas de
-56 px —el vocabulario de One UI— aisladas bajo la clase `.rooms` en
-[`app/hub/rooms/rooms.css`](app/hub/rooms/rooms.css). El color lo aporta el
-dato (cada habitación y cada categoría tienen el suyo, inyectado como
-`--tone`), no el tema, así que el acento lima de la marca sigue intacto.
+disciplina: madera y latón, teclas gruesas con zócalo que se hunden al
+tocarlas, titulares de píxeles y un aire de anochecer con luciérnagas —el
+vocabulario de un juego pequeño— aislado bajo la clase `.rooms` en
+[`app/hub/rooms/rooms.css`](app/hub/rooms/rooms.css). Es la única herramienta
+que se parece a jugar, y eso no es un capricho: una herramienta que da gusto
+abrir se mantiene, y un inventario solo sirve si se mantiene. El color lo
+aporta el dato (cada habitación y cada categoría tienen el suyo, inyectado
+como `--tone`), no el tema, así que el acento lima de la marca sigue intacto.
+
+El cuarto isométrico se dibuja entero con polígonos en
+[`lib/iso.ts`](lib/iso.ts) y [`app/hub/rooms/room-svg.tsx`](app/hub/rooms/room-svg.tsx).
+Dos cosas que conviene no romper: las paredes **no se guardan**, se calculan
+donde una celda con piso toca el vacío (por eso un cuarto en L tiene paredes
+en L sin que nadie las dibuje), y la textura del piso sale de `noise()`, que
+usa aritmética entera y no `Math.sin` — las funciones trigonométricas no
+están especificadas al último bit, y Node y el navegador devolvían vetas con
+decimales distintos, lo que cancelaba la hidratación de la página entera.
 
 Una trampa que ya costó un bug y conviene no repetir: las mezclas de color de
 ese módulo van **en sRGB**, no en OKLCH. El blanco y el negro son acromáticos,
@@ -106,6 +118,12 @@ Corré las migraciones en **Supabase Studio → SQL Editor**, en orden (son idem
    propia ruta materializada por trigger) y las cosas (`rooms_items`).
 8. [`0019`](supabase/migrations/0019_rooms_outfits.sql) agrega la ropa
    recortada (`cutout_path`) y los conjuntos (`rooms_outfits`).
+9. [`0020`](supabase/migrations/0020_rooms_scenery.sql) y
+   [`0021`](supabase/migrations/0021_rooms_interior.sql) convierten el plano
+   en un cuarto de verdad: el piso pasa a ser la PLANTA del lugar —una letra
+   por celda, y `.` es "fuera del cuarto", que es lo que permite cuartos en
+   L— y aparecen las cosas que no guardan nada (`rooms_props`): el monitor
+   sobre el escritorio, la torre en el piso, la planta del rincón.
 
 Rooms Planning además necesita un bucket **privado** llamado `rooms-items`
 (Storage → New bucket, sin marcar *Public*). No hace falta crearle políticas:

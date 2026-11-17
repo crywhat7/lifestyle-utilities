@@ -42,6 +42,9 @@ export type RoomNode = {
   grid_w: number | null;
   grid_h: number | null;
   rotation: number;
+  /* El piso pintado de una habitación: una letra por celda. Nulo mientras
+     nadie lo haya tocado, y entonces la vista dibuja pasto parejo. */
+  terrain: string | null;
   sort_order: number;
   path: string[];
   path_ids: string[];
@@ -119,7 +122,7 @@ export type Outfit = {
 };
 
 export const NODE_COLUMNS =
-  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,sort_order,path,path_ids,depth,created_at";
+  "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,terrain,sort_order,path,path_ids,depth,created_at";
 
 export const ITEM_COLUMNS =
   "id,node_id,name,category,condition,note,quantity,thumb,storage_path,cutout_path,created_at";

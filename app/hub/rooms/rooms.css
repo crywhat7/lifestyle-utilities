@@ -1,89 +1,149 @@
 /* ==========================================================================
-   Rooms Planning — el ambiente One UI.
+   Rooms Planning — el ambiente de juego.
 
    El resto de la app es una placa mecanizada: metal, bisel, sombra dura, un
-   acento lima. Clean Daily ya es la primera excepción, de vidrio. Esta es la
-   segunda, y la razón tampoco es decorativa.
+   acento lima. Clean Daily es la primera excepción, de vidrio. Esta es la
+   segunda, y la razón no es decorativa.
 
-   Acá no se mira un número ni se toma una decisión: se mete la mano en un
-   cajón. Es la pantalla que se abre de pie, con una mano, buscando un cable
-   mientras la otra sostiene algo. Eso pide lo que pide One UI y no lo que
-   pide un panel de instrumentos: superficies planas y clarísimas, esquinas
-   muy redondas, teclas de 56 px que no se pueden errar, lo accionable abajo
-   al alcance del pulgar y el titular arriba, grande, para que el pulgar no
-   tape lo que dice.
+   Acá no se mira un número ni se toma una decisión: se entra a un cuarto, se
+   mueven muebles, se planta un árbol. Es lo único de la app que se parece a
+   jugar, y una herramienta que se siente como jugar se abre sin que haga
+   falta una razón — que es exactamente lo que necesita un inventario, porque
+   un inventario solo sirve si uno lo mantiene.
 
-   Y el color. El resto de la app tiene UN acento y lo defiende; este módulo
-   tiene que ser colorido porque el color es lo que hace que un inventario de
-   doscientas cosas se pueda barrer con la vista. La salida es que el color
-   venga del DATO —cada habitación el suyo, cada categoría el suyo, inyectados
-   en `--tone`— y no de reemplazar la marca. El lima sigue intacto en el hub.
+   De ahí el vocabulario: madera y latón en vez de aluminio, teclas gruesas
+   con zócalo que se hunden al tocarlas, títulos de píxeles, un aire de
+   anochecer con luciérnagas. Nada de esto es gratis en bytes, y todo está
+   acá porque hace que volver sea agradable.
 
    Todo cuelga de `.rooms`, así que nada de este vocabulario existe fuera de
-   esta ruta: el layout importa esta hoja y las otras herramientas no se
-   enteran.
+   esta ruta: el módulo importa esta hoja en su layout y el lima de la marca
+   sigue intacto en el hub.
+
+   Dos reglas que ya costaron un bug cada una:
+
+   · Las mezclas van en sRGB, nunca en OKLCH. El blanco y el negro son
+     acromáticos y al interpolarlos en un espacio polar el resultado sale con
+     `hue: none` —o sea gris—, y toda la paleta se apaga.
+   · El color del dato entra por `--tone` y el del aire por `--sky`. Ninguna
+     regla de acá escribe un color de habitación a mano.
    ========================================================================== */
 
 .rooms {
-  /* ── Fondo y superficie ───────────────────────────────────────────────────
-     La inversión de One UI: el fondo es el gris y la tarjeta es lo blanco. En
-     el tema oscuro el fondo baja casi a negro —así el OLED apaga el píxel— y
-     la tarjeta sube, que es lo contrario de lo que hace el vidrio de Clean
-     Daily. */
-  --r-ground: light-dark(#f0f1f5, #000000);
-  --r-card: light-dark(#ffffff, #1a1c1f);
-  --r-card-2: light-dark(#f7f8fa, #22252a);
-  --r-sunk: light-dark(#eceef3, #121417);
+  /* ── El mundo ─────────────────────────────────────────────────────────────
+     De noche, un bosque al anochecer; de día, pergamino tibio. No son el
+     mismo diseño invertido: de noche la luz viene de los faroles —por eso
+     los cantos brillan— y de día viene de arriba, así que los cantos se
+     hunden y lo que marca el relieve es la sombra. */
+  --r-ground: light-dark(#e8dcc2, #141326);
+  --r-ground-2: light-dark(#f2e9d5, #1d1b35);
+  --r-panel: light-dark(#fbf4e4, #262544);
+  --r-panel-2: light-dark(#f0e5cd, #1f1e3a);
+  --r-sunk: light-dark(#e2d4b6, #171631);
 
   /* ── Tinta ─────────────────────────────────────────────────────────────── */
-  --r-ink: light-dark(#17181c, #f2f3f6);
-  --r-ink-2: light-dark(#5b6069, #a8adb6);
-  --r-ink-3: light-dark(#8d939d, #71767f);
+  --r-ink: light-dark(#3b2f1e, #f3ecdb);
+  --r-ink-2: light-dark(#6d5c42, #b6adcd);
+  --r-ink-3: light-dark(#93806191, #8e86a8);
 
-  /* ── Cantos ────────────────────────────────────────────────────────────────
-     One UI casi no dibuja bordes: separa por color de fondo. El canto existe
-     solo para que la tarjeta no se pierda sobre papel blanco del navegador. */
-  --r-hair: light-dark(rgba(23, 24, 28, 0.07), rgba(255, 255, 255, 0.07));
-  --r-line: light-dark(rgba(23, 24, 28, 0.06), rgba(255, 255, 255, 0.06));
+  /* ── Latón ────────────────────────────────────────────────────────────────
+     El metal del módulo. Es lo que ata el pergamino y la madera: sin un
+     metal común, cada tarjeta se ve de un juego distinto. */
+  --r-gold: light-dark(#b58338, #e8b65c);
+  --r-gold-dim: light-dark(#8d6428, #a67c34);
+
+  /* ── Cantos y zócalos ─────────────────────────────────────────────────────
+     `--r-plinth` es el grosor de la tecla: la sombra dura de abajo que la
+     hace parecer una pieza apoyada y no un rectángulo pintado. Es el truco
+     entero del botón de juego. */
+  --r-edge: light-dark(#cbb48a, #3a3763);
+  --r-hair: light-dark(#00000014, #ffffff14);
+  --r-plinth: light-dark(#c3a97f, #141230);
 
   /* ── El color del dato ─────────────────────────────────────────────────────
      `--tone` lo inyecta cada tarjeta por `style`: es el color de la
-     habitación o de la categoría. El azul es solo el valor por defecto para
-     lo que todavía no tiene color propio. */
-  --tone: #2f7ef3;
-  /* Relleno suave del mismo tono: es el fondo de los iconos y de los chips.
-     Tiene que ser distinto en cada luz — un 12% de azul sobre negro
-     desaparece, y sobre blanco el mismo 12% ya es un bloque de color. */
-  /* En sRGB a propósito: el blanco y el negro no tienen matiz, y mezclarlos
-     en un espacio polar deja el resultado con `hue: none` — o sea, gris. Es
-     el mismo motivo por el que el sombreado del plano mezcla en sRGB. */
-  --r-wash: color-mix(in srgb, var(--tone) light-dark(13%, 24%), var(--r-card));
+     habitación o de la categoría. `--sky` es el aire del cuarto abierto. */
+  --tone: #b58338;
+  --sky: #5ec8e0;
+  --r-wash: color-mix(in srgb, var(--tone) light-dark(16%, 26%), var(--r-panel));
   --r-tone-ink: light-dark(
-    color-mix(in srgb, var(--tone) 78%, #000000),
-    color-mix(in srgb, var(--tone) 72%, #ffffff)
+    color-mix(in srgb, var(--tone) 72%, #000000),
+    color-mix(in srgb, var(--tone) 74%, #ffffff)
   );
 
   /* ── Estados de las cosas ──────────────────────────────────────────────────
      Un inventario no aprueba ni reprueba: "desgastado" no es una alarma. Por
-     eso no hay rojo de semáforo, sino temperatura — lo nuevo es frío y lo
-     roto es cálido y apagado. */
-  --r-fresh: light-dark(#0f7b6c, #3ddbbd);
-  --r-worn: light-dark(#a56b00, #f0b63f);
-  --r-dead: light-dark(#a33a2a, #ff8368);
-
-  /* ── Sombra ────────────────────────────────────────────────────────────────
-     Una sola, cortísima. One UI no apila capas: la tarjeta se apoya en el
-     fondo, no flota sobre él. En oscuro no hay sombra en absoluto, porque
-     sobre negro una sombra negra es nada. */
-  --r-lift: light-dark(0 2px 8px rgba(23, 24, 28, 0.06), none);
-  --r-lift-up: light-dark(0 10px 28px -12px rgba(23, 24, 28, 0.22), none);
+     eso no hay rojo de semáforo, sino temperatura. */
+  --r-fresh: light-dark(#2f7d5a, #6fe0b0);
+  --r-worn: light-dark(#9a6b17, #e8b65c);
+  --r-dead: light-dark(#a3402f, #f08a72);
 
   /* ── Movimiento ──────────────────────────────────────────────────────────── */
   --r-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --r-ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
 
-  background: var(--r-ground);
+  position: relative;
+  isolation: isolate;
   color: var(--r-ink);
+  background: var(--r-ground);
+}
+
+/*
+   El cielo del módulo: un aura del color del cuarto arriba, la tierra abajo
+   y —de noche— luciérnagas quietas. Va en un pseudo-elemento fijo para que
+   no se mueva con el scroll: el fondo es el lugar, no parte de la lista.
+*/
+.rooms::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 60% at 50% -10%,
+      color-mix(in srgb, var(--sky) light-dark(26%, 34%), transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(90% 50% at 100% 104%, light-dark(#d8c49c66, #2a2a5066) 0%, transparent 60%),
+    linear-gradient(180deg, var(--r-ground-2) 0%, var(--r-ground) 55%, var(--r-ground) 100%);
+}
+
+/* Las luciérnagas. Solo de noche: de día serían manchas. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rooms::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, #ffe9a8 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 78% 12%, #bfe9ff 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 33% 42%, #ffd9a8 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 88% 55%, #ffe9a8 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 22% 74%, #c8ffe0 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 62% 86%, #ffe9a8 50%, transparent 50%);
+    animation: r-twinkle 5s ease-in-out infinite alternate;
+  }
+}
+
+:root[data-theme="dark"] .rooms::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, #ffe9a8 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 78% 12%, #bfe9ff 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 33% 42%, #ffd9a8 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 88% 55%, #ffe9a8 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 22% 74%, #c8ffe0 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 62% 86%, #ffe9a8 50%, transparent 50%);
+  animation: r-twinkle 5s ease-in-out infinite alternate;
 }
 
 @layer components {
@@ -92,44 +152,37 @@
      ------------------------------------------------------------------------ */
 
   /*
-     El titular de One UI: grande, pesado y alineado a la izquierda, arriba de
-     la pantalla donde el pulgar no llega. No es decoración — es lo que te
-     dice en qué cajón estás parado sin tener que leer la ruta.
+     El titular de píxeles. Es la firma del módulo y dice "esto es un juego"
+     antes de que se lea una palabra. Lleva una sombra dura —desplazada, sin
+     difuminar— porque así es como se dibuja el texto en un juego: el
+     contorno es parte de la letra, no un efecto.
   */
   .r-title {
-    font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-    font-weight: 700;
-    font-size: clamp(1.75rem, 7vw, 2.25rem);
-    line-height: 1.1;
-    letter-spacing: -0.03em;
+    font-family: var(--font-pixel), ui-monospace, monospace;
+    font-weight: 600;
+    font-size: clamp(1.5rem, 6vw, 1.9rem);
+    line-height: 1.15;
+    letter-spacing: 0.01em;
     text-wrap: balance;
+    text-shadow: 2px 2px 0 light-dark(#00000018, #0c0a1e);
   }
 
   .r-eyebrow {
+    font-family: var(--font-pixel), ui-monospace, monospace;
     font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--r-ink-3);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--r-gold);
   }
 
-  /* La ruta completa: chica, en una línea, cortada por la mitad si no cabe.
-     `direction: rtl` es el truco — lo que se pierde es el principio del
-     camino ("Cuarto ›"), no el final, que es lo que ubica de verdad. */
+  /* La ruta completa, cortada por el principio: lo que no se puede perder es
+     dónde TERMINA. `direction: rtl` sobre texto latino es un truco y el
+     único que funciona — las letras se siguen leyendo de izquierda a derecha
+     pero la línea se compone desde la derecha, así que los puntos
+     suspensivos caen al inicio. Nada de `unicode-bidi: plaintext`: eso le
+     devuelve la dirección al contenido y desarma el recorte. */
   .r-crumb {
-    /*
-       `direction: rtl` sobre texto latino es un truco y es el único que
-       funciona: las letras se siguen leyendo de izquierda a derecha —son
-       caracteres fuertes LTR— pero la LÍNEA se compone desde la derecha, así
-       que lo que sobra se recorta por el principio y los puntos suspensivos
-       caen al inicio. Es exactamente lo que hace falta: de
-       "Cuarto › Armario › Gaveta 2 › Bolsa negra" lo que no se puede perder
-       es el final, que es dónde está la cosa. Recortando por el final queda
-       "Cuarto › Armario › Gav…", que no ubica nada.
-
-       `text-align: left` es para que una ruta corta no se vaya sola contra el
-       margen derecho. Y nada de `unicode-bidi: plaintext`: eso le devuelve la
-       dirección al contenido y desarma el recorte.
-    */
     direction: rtl;
     text-align: left;
     white-space: nowrap;
@@ -139,59 +192,73 @@
     color: var(--r-ink-3);
   }
 
-  /* El input de búsqueda ya trae su propia cruz en WebKit, y con la nuestra
-     al lado quedan dos. La nuestra se queda: tiene 40 px de blanco alrededor
-     y la del sistema no se puede agrandar. */
-  .rooms input[type="search"]::-webkit-search-cancel-button,
-  .rooms input[type="search"]::-webkit-search-decoration {
-    appearance: none;
-    display: none;
+  .r-hint {
+    padding-inline: 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--r-ink-3);
   }
 
   /* ------------------------------------------------------------------------
      Superficies
      ------------------------------------------------------------------------ */
 
+  /*
+     La tarjeta: una placa de pergamino con marco de latón. El doble borde
+     —uno afuera oscuro, una línea de luz adentro— es lo que la hace parecer
+     una pieza con grosor en vez de un rectángulo de color.
+  */
   .r-card {
-    border-radius: 26px;
-    background: var(--r-card);
-    border: 1px solid var(--r-hair);
-    box-shadow: var(--r-lift);
+    position: relative;
+    border-radius: 16px;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        light-dark(#00000005, #ffffff05) 0 2px,
+        transparent 2px 6px
+      ),
+      var(--r-panel);
+    border: 2px solid var(--r-edge);
+    box-shadow:
+      inset 0 1px 0 light-dark(#ffffffcc, #ffffff14),
+      0 3px 0 var(--r-plinth),
+      0 8px 18px -10px #00000066;
   }
 
-  /* La tarjeta que además es un enlace: se hunde al toque. Sin esto, en un
-     teléfono no hay forma de saber si el toque entró. */
   .r-tap {
     transition:
-      transform 0.2s var(--r-ease),
+      transform 0.14s var(--r-ease),
+      box-shadow 0.14s var(--r-ease),
       background-color 0.2s var(--r-ease);
   }
 
   .r-tap:active {
-    transform: scale(0.975);
-    background: var(--r-card-2);
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 light-dark(#ffffffcc, #ffffff14),
+      0 1px 0 var(--r-plinth);
   }
 
-  /* El bloque hundido: el buscador, el campo, la fila de una lista vacía. */
   .r-sunk {
-    border-radius: 18px;
+    border-radius: 12px;
     background: var(--r-sunk);
+    box-shadow: inset 0 2px 4px #00000033;
   }
 
-  /* La línea entre filas de una misma tarjeta. Nunca en la última: One UI
-     cierra la lista con el canto redondo, no con una raya. */
+  /* La línea entre filas de una misma tarjeta. Nunca en la última. */
   .r-row + .r-row {
-    border-top: 1px solid var(--r-line);
+    border-top: 1px solid var(--r-hair);
   }
 
   /* ------------------------------------------------------------------------
-     El icono con su color
+     El escudo con su color
      ------------------------------------------------------------------------ */
 
   /*
-     El cuadrado redondeado con el glifo adentro, teñido con `--tone`. Es la
-     pieza que hace que la pantalla se vea colorida: cuarenta filas con su
-     color se leen de un barrido, cuarenta filas grises se leen una por una.
+     El rombo con el glifo adentro, teñido con `--tone`. Es la pieza que hace
+     legible una pantalla de cuarenta filas: el color sale del dato y entra
+     como variable, así que un cable azul y una camisa rosa se distinguen
+     antes de leer la palabra.
   */
   .r-glyph {
     display: grid;
@@ -199,119 +266,133 @@
     flex-shrink: 0;
     width: 3rem;
     height: 3rem;
-    border-radius: 18px;
+    border-radius: 14px;
     background: var(--r-wash);
+    border: 2px solid color-mix(in srgb, var(--tone) 45%, transparent);
     color: var(--r-tone-ink);
+    box-shadow: inset 0 1px 0 #ffffff22;
   }
 
   .r-glyph[data-size="sm"] {
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: 13px;
+    border-radius: 11px;
+    border-width: 1px;
   }
 
   /* ------------------------------------------------------------------------
-     Controles
+     Teclas
      ------------------------------------------------------------------------ */
 
   /*
-     La tecla. 56 px de alto es el número de One UI y no es un capricho: es lo
-     que se acierta caminando, sin mirar y con el teléfono en una mano.
+     La tecla de juego. El zócalo de abajo —`0 4px 0`— es lo que la vuelve
+     una pieza física: al tocarla baja 3 px y el zócalo se achica, así que el
+     dedo siente que la apretó. Un botón plano con un cambio de color no da
+     eso, y es la diferencia entre tocar una interfaz y jugar con algo.
+
+     48 px de alto: lo que se acierta caminando, con el teléfono en una mano.
   */
   .r-key {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 3.5rem;
-    padding: 0 1.5rem;
-    border-radius: 999px;
-    background: var(--r-card);
-    border: 1px solid var(--r-hair);
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 14px;
+    background: var(--r-panel);
+    border: 2px solid var(--r-edge);
     color: var(--r-ink);
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 600;
-    box-shadow: var(--r-lift);
+    font-family: var(--font-pixel), ui-monospace, monospace;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    box-shadow:
+      inset 0 1px 0 light-dark(#ffffffcc, #ffffff18),
+      0 4px 0 var(--r-plinth);
     transition:
-      transform 0.2s var(--r-ease),
-      background-color 0.2s var(--r-ease),
-      opacity 0.2s var(--r-ease);
+      transform 0.1s var(--r-ease),
+      box-shadow 0.1s var(--r-ease),
+      background-color 0.2s var(--r-ease);
   }
 
   .r-key:active {
-    transform: scale(0.96);
-    background: var(--r-card-2);
+    transform: translateY(3px);
+    box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff18), 0 1px 0 var(--r-plinth);
   }
 
   .r-key:disabled {
-    opacity: 0.45;
+    opacity: 0.5;
     transform: none;
   }
 
-  /* La acción principal: rellena con el tono y con texto que lo contrasta. */
+  /* La acción principal: rellena con el latón del módulo. */
   .r-key-lit {
-    background: var(--tone);
-    border-color: transparent;
-    color: #ffffff;
-    box-shadow: var(--r-lift-up);
+    background: linear-gradient(180deg, var(--r-gold) 0%, var(--r-gold-dim) 100%);
+    border-color: color-mix(in srgb, var(--r-gold-dim) 70%, #000000);
+    color: #2a1d08;
+    box-shadow:
+      inset 0 1px 0 #ffffff66,
+      0 4px 0 color-mix(in srgb, var(--r-gold-dim) 60%, #000000);
   }
 
   .r-key-lit:active {
-    background: color-mix(in srgb, var(--tone) 86%, #000000);
+    box-shadow: inset 0 1px 0 #ffffff66, 0 1px 0 color-mix(in srgb, var(--r-gold-dim) 60%, #000000);
   }
 
-  /* La redonda y chica: volver, cerrar, el menú de una fila. 44 px es el piso
-     accesible y acá sí se puede bajar del 56, porque son secundarias. */
+  /* La redonda y chica: volver, cerrar, borrar. */
   .r-ico {
     display: inline-grid;
     place-items: center;
     flex-shrink: 0;
     width: 2.75rem;
     height: 2.75rem;
-    border-radius: 999px;
-    background: var(--r-card);
-    border: 1px solid var(--r-hair);
+    border-radius: 12px;
+    background: var(--r-panel);
+    border: 2px solid var(--r-edge);
     color: var(--r-ink-2);
-    box-shadow: var(--r-lift);
+    box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff18), 0 3px 0 var(--r-plinth);
     transition:
-      transform 0.2s var(--r-ease),
+      transform 0.1s var(--r-ease),
+      box-shadow 0.1s var(--r-ease),
       color 0.2s var(--r-ease);
   }
 
   .r-ico:active {
-    transform: scale(0.92);
+    transform: translateY(2px);
+    box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff18), 0 1px 0 var(--r-plinth);
     color: var(--r-ink);
   }
 
-  /* El chip de elección: el tipo de mueble, la categoría, el estado. Se
-     prende con `data-on`, que lo pone el radio nativo de abajo. */
+  /* El chip de elección: el tipo de mueble, la categoría, el árbol a
+     plantar. Más chato que la tecla porque son muchos juntos. */
   .r-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    min-height: 2.75rem;
-    padding: 0 1rem;
+    gap: 0.4rem;
+    min-height: 2.5rem;
+    padding: 0 0.875rem;
     border-radius: 999px;
     background: var(--r-sunk);
-    border: 1px solid transparent;
+    border: 2px solid transparent;
     color: var(--r-ink-2);
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition:
-      transform 0.18s var(--r-ease),
+      transform 0.12s var(--r-ease),
       background-color 0.18s var(--r-ease),
-      color 0.18s var(--r-ease);
+      color 0.18s var(--r-ease),
+      border-color 0.18s var(--r-ease);
   }
 
   .r-chip:active {
-    transform: scale(0.95);
+    transform: translateY(2px);
   }
 
   .r-chip[data-on="true"] {
     background: var(--r-wash);
-    border-color: color-mix(in srgb, var(--tone) 42%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 55%, transparent);
     color: var(--r-tone-ink);
     font-weight: 600;
   }
@@ -327,38 +408,100 @@
   }
 
   .r-chip:has(input:focus-visible) {
-    outline: 2px solid var(--tone);
+    outline: 2px solid var(--r-gold);
     outline-offset: 2px;
   }
 
-  /* La muestra de color de la habitación: el color ES el control. */
+  /* La muestra de color de una paleta: el color ES el control. */
   .r-swatch {
     position: relative;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 999px;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 10px;
     cursor: pointer;
-    transition: transform 0.18s var(--r-ease);
+    border: 2px solid #00000026;
+    box-shadow: inset 0 1px 0 #ffffff55, 0 2px 0 var(--r-plinth);
+    transition: transform 0.12s var(--r-ease), box-shadow 0.12s var(--r-ease);
   }
 
   .r-swatch:active {
-    transform: scale(0.9);
+    transform: translateY(2px);
+    box-shadow: inset 0 1px 0 #ffffff55;
   }
 
   .r-swatch[data-on="true"] {
-    /* El anillo va por fuera con un hueco del fondo en medio, así el color se
-       ve entero: un borde encima le comería un píxel al tono. */
+    /* El anillo va por fuera con un hueco en medio, así el color se ve
+       entero: un borde encima le comería un píxel al tono. */
     box-shadow:
-      0 0 0 3px var(--r-card),
-      0 0 0 5px var(--r-ink);
+      inset 0 1px 0 #ffffff55,
+      0 0 0 2px var(--r-panel),
+      0 0 0 4px var(--r-gold);
   }
 
-  .r-swatch input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
+  /* El rótulo chiquito que aclara dónde va una cosa. */
+  .r-tag {
+    padding: 0.1rem 0.35rem;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--r-gold) 24%, transparent);
+    color: var(--r-gold);
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* El chip que lleva su propia muestra de color — los suelos. */
+  .r-chip-ink[data-on="true"] {
+    border-color: var(--ink);
+  }
+
+  .r-swatch-dot {
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 4px;
+    background: var(--ink);
+    border: 1px solid #00000033;
+  }
+
+  /* ------------------------------------------------------------------------
+     La barra de modos
+     ------------------------------------------------------------------------ */
+
+  /*
+     Tres pestañas en un riel hundido. Es la pieza que explica la pantalla:
+     el dedo hace una cosa distinta en cada modo, y eso tiene que verse sin
+     leer. Por eso la elegida sobresale en vez de solo cambiar de color.
+  */
+  .r-modes {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    border-radius: 16px;
+    background: var(--r-sunk);
+    box-shadow: inset 0 2px 5px #00000040;
+  }
+
+  .r-mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--r-ink-3);
+    font-family: var(--font-pixel), ui-monospace, monospace;
+    font-size: 0.8125rem;
+    transition:
+      background-color 0.18s var(--r-ease),
+      color 0.18s var(--r-ease),
+      box-shadow 0.18s var(--r-ease);
+  }
+
+  .r-mode[data-on="true"] {
+    background: var(--r-panel);
+    color: var(--r-ink);
+    box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff18), 0 2px 0 var(--r-plinth);
   }
 
   /* ------------------------------------------------------------------------
@@ -368,20 +511,19 @@
   .r-field {
     width: 100%;
     min-width: 0;
-    min-height: 3.5rem;
-    padding: 0.9375rem 1.125rem;
-    border-radius: 18px;
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
     background: var(--r-sunk);
-    border: 1px solid transparent;
+    border: 2px solid var(--r-edge);
     color: var(--r-ink);
     font-family: inherit;
     /* 1rem exacto: por debajo de 16 px, Safari en iOS hace zoom al enfocar y
        la pantalla salta de lugar. */
     font-size: 1rem;
     appearance: none;
-    transition:
-      border-color 0.2s var(--r-ease),
-      background-color 0.2s var(--r-ease);
+    box-shadow: inset 0 2px 4px #00000026;
+    transition: border-color 0.2s var(--r-ease), box-shadow 0.2s var(--r-ease);
   }
 
   .r-field::placeholder {
@@ -390,30 +532,39 @@
 
   .r-field:focus {
     outline: none;
-    background: var(--r-card);
-    border-color: var(--tone);
+    border-color: var(--r-gold);
+    box-shadow: inset 0 2px 4px #00000026, 0 0 0 3px color-mix(in srgb, var(--r-gold) 30%, transparent);
   }
 
   .rooms select.r-field {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%238d939d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23b58338' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 1.125rem center;
+    background-position: right 1rem center;
     padding-right: 2.5rem;
   }
 
-  /* El menú nativo no hereda nada: sin esto, en oscuro sale texto claro sobre
+  /* El menú nativo no hereda nada: sin esto, de noche sale texto claro sobre
      fondo claro del sistema. */
   .rooms select.r-field option {
-    background: var(--r-card);
+    background: var(--r-panel);
     color: var(--r-ink);
   }
 
   .r-field-label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-family: var(--font-pixel), ui-monospace, monospace;
     font-size: 0.8125rem;
-    font-weight: 600;
     color: var(--r-ink-2);
+  }
+
+  /* El input de búsqueda ya trae su propia cruz en WebKit, y con la nuestra
+     al lado quedan dos. La nuestra se queda: tiene 40 px de blanco alrededor
+     y la del sistema no se puede agrandar. */
+  .rooms input[type="search"]::-webkit-search-cancel-button,
+  .rooms input[type="search"]::-webkit-search-decoration {
+    appearance: none;
+    display: none;
   }
 
   /* ------------------------------------------------------------------------
@@ -435,58 +586,52 @@
     max-height: 92dvh;
     overflow-y: auto;
     padding: 0.75rem 1.25rem max(1.5rem, env(safe-area-inset-bottom));
-    border: 0;
-    border-radius: 30px 30px 0 0;
-    background: var(--r-card);
+    border: 2px solid var(--r-edge);
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    background: var(--r-panel);
     color: var(--r-ink);
-    box-shadow: 0 -24px 60px -24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 -20px 50px -20px #000000aa;
   }
 
   .r-sheet[open] {
-    animation: r-sheet-up 0.42s var(--r-ease) both;
+    animation: r-sheet-up 0.38s var(--r-ease) both;
   }
 
   .r-sheet::backdrop {
-    background: light-dark(rgba(23, 24, 28, 0.35), rgba(0, 0, 0, 0.66));
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    animation: r-fade 0.32s var(--r-ease-soft) both;
+    background: light-dark(#3b2f1e66, #0a0918cc);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: r-fade 0.3s var(--r-ease-soft) both;
   }
 
   .r-grip {
     display: block;
-    width: 2.5rem;
-    height: 4px;
+    width: 3rem;
+    height: 5px;
     margin: 0 auto 1rem;
     border-radius: 999px;
-    background: var(--r-ink-3);
-    opacity: 0.5;
+    background: var(--r-gold);
+    opacity: 0.6;
   }
 
   /* ------------------------------------------------------------------------
      El pie fijo
      ------------------------------------------------------------------------ */
 
-  /*
-     La acción de crear vive abajo, pegada, sobre un degradado que mata el
-     texto que pasa por debajo. Es la zona del pulgar: lo que más se repite en
-     este módulo es "agregar otra cosa", y tiene que estar donde la mano ya
-     está.
-  */
   .r-bar {
     position: sticky;
     bottom: 0;
     z-index: 10;
     margin-top: auto;
     padding: 1rem 0 max(0.75rem, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, transparent 0%, var(--r-ground) 42%);
+    background: linear-gradient(180deg, transparent 0%, var(--r-ground) 45%);
   }
 
   /* ------------------------------------------------------------------------
      Estados y señales
      ------------------------------------------------------------------------ */
 
-  /* El estado de un objeto, en texto chico y con temperatura. */
   .r-state[data-tone="fresh"] {
     color: var(--r-fresh);
   }
@@ -503,33 +648,35 @@
     color: var(--r-ink-3);
   }
 
-  /* El punto de color de la categoría, al lado del nombre del objeto. */
   .r-dot {
     display: inline-block;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 999px;
+    border-radius: 2px;
     background: var(--tone);
+    box-shadow: 0 0 0 1px #00000026;
   }
 
-  /* Lo que se dice cuando no hay nada. Centrado y con aire: un cajón vacío
-     tiene que verse vacío a propósito, no roto. */
+  /* Lo que se dice cuando no hay nada. Un cajón vacío tiene que verse vacío
+     a propósito, no roto. */
   .r-empty {
     display: grid;
     gap: 0.5rem;
     place-items: center;
-    padding: 2.5rem 1.5rem;
-    border-radius: 26px;
+    padding: 2.25rem 1.5rem;
+    border-radius: 16px;
     background: var(--r-sunk);
+    box-shadow: inset 0 2px 6px #0000002e;
     text-align: center;
+    font-size: 0.9375rem;
     color: var(--r-ink-3);
   }
 
-  /* El aviso rojo: migración sin correr, nombre repetido, lo que sea. */
   .r-alert {
-    border-radius: 18px;
-    padding: 0.875rem 1.125rem;
-    background: color-mix(in srgb, var(--r-dead) 14%, var(--r-card));
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--r-dead) 16%, var(--r-panel));
+    border: 2px solid color-mix(in srgb, var(--r-dead) 40%, transparent);
     color: var(--r-dead);
     font-size: 0.875rem;
   }
@@ -538,95 +685,70 @@
      Entrada
      ------------------------------------------------------------------------ */
 
-  /*
-     La lista no aparece de golpe: sube escalonada con `--d`. Es el gesto de
-     One UI y cumple una función — el orden en que entran las tarjetas es el
-     orden en que hay que leerlas.
-  */
   .r-rise {
-    animation: r-rise 0.5s var(--r-ease) both;
+    animation: r-rise 0.45s var(--r-ease) both;
     animation-delay: var(--d, 0ms);
   }
 }
 
-@keyframes r-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes r-sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: none;
-  }
-}
-
-@keyframes r-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Quien pidió menos movimiento ve la pantalla quieta y completa. */
-@media (prefers-reduced-motion: reduce) {
-  .rooms .r-rise,
-  .rooms .r-sheet[open],
-  .rooms .r-sheet::backdrop {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* --------------------------------------------------------------------------
-   Los huesos de la espera.
+   El escenario isométrico.
 
-   Van fuera de `@layer components` porque `loading.tsx` los combina con
-   utilidades de Tailwind (`h-11`, `rounded-full`) y el hueso tiene que ganar
-   solo en el fondo, nunca en la forma.
+   Fuera de `@layer components` porque el SVG se combina con utilidades y lo
+   que importa acá es el lienzo, no la caja.
    -------------------------------------------------------------------------- */
 
-.rooms .r-ghost {
+/*
+   La ventana al cuarto. El fondo es el cielo del lugar —el color del aire
+   que eligió la persona— y no el gris del módulo: el dibujo trae sus propios
+   colores de tierra y pasto, y necesita un aire detrás, no un marco.
+
+   `touch-action: none` sobre el SVG es lo que permite arrastrar un mueble y
+   pintar el suelo en un teléfono: sin eso, el navegador se queda el gesto
+   para hacer scroll y nada se mueve nunca.
+*/
+.rooms .r-stage {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid var(--r-edge);
+  box-shadow: inset 0 2px 0 #ffffff1a, 0 4px 0 var(--r-plinth), 0 12px 24px -14px #000000aa;
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--sky) 55%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, light-dark(#cfe4ef, #1b1a38) 0%, light-dark(#e6dcc4, #121028) 100%);
+}
+
+.rooms .r-stage svg {
   display: block;
-  background: var(--r-sunk);
-  animation: r-breathe 1.6s ease-in-out infinite;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-@keyframes r-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
+.rooms .r-stage svg g {
+  -webkit-touch-callout: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rooms .r-ghost {
-    animation: none;
-  }
+/* Mientras se decora, el dedo pinta: el cursor lo dice en escritorio. */
+.rooms .r-stage[data-mode="dress"] svg {
+  cursor: crosshair;
+}
+
+/* El agua se mueve. Despacio: es un cuarto, no un río. */
+.rooms .r-wave {
+  animation: r-drift 4s ease-in-out infinite alternate;
+}
+
+/* La luz de los faroles y cristales respira. */
+.rooms .r-glow {
+  animation: r-breathe-glow 3.2s ease-in-out infinite alternate;
 }
 
 /* --------------------------------------------------------------------------
-   Las fotos.
-
-   Fuera de `@layer components` porque la miniatura se combina con utilidades
-   de tamaño y tiene que ganar solo en el recorte, nunca en la caja.
+   Las fotos
    -------------------------------------------------------------------------- */
 
-/* La miniatura de la lista: cuadrada, del tamaño exacto del glifo al que
+/* La miniatura de la lista: cuadrada, del tamaño exacto del escudo al que
    reemplaza, para que una lista mitad con foto y mitad sin foto no quede
    escalonada. */
 .rooms .r-thumb {
@@ -634,9 +756,10 @@
   flex-shrink: 0;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 13px;
+  border-radius: 11px;
   overflow: hidden;
   background: var(--r-sunk);
+  border: 1px solid var(--r-edge);
 }
 
 .rooms .r-thumb img {
@@ -653,9 +776,10 @@
   place-items: center;
   width: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 20px;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--r-sunk);
+  border: 2px solid var(--r-edge);
 }
 
 .rooms .r-shot img {
@@ -664,51 +788,12 @@
   object-fit: contain;
 }
 
-/* --------------------------------------------------------------------------
-   El plano isométrico.
-   -------------------------------------------------------------------------- */
-
-/*
-   El escenario donde vive el cuarto. Fondo propio —ni el gris del módulo ni
-   el blanco de una tarjeta— porque el dibujo trae sus propios colores de
-   pared y piso, y necesita un marco neutro que no compita con ellos.
-
-   `touch-action: none` sobre el SVG es lo que permite arrastrar un mueble en
-   un teléfono: sin eso, el navegador se queda el gesto para hacer scroll y
-   la pieza no se mueve nunca.
-*/
-.rooms .r-stage {
-  border-radius: 26px;
-  overflow: hidden;
-  padding: 0.5rem;
-  background: light-dark(#e6e8ee, #101216);
-  border: 1px solid var(--r-hair);
-}
-
-.rooms .r-stage svg {
-  display: block;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* El mueble que el dedo está moviendo no debe quedar bajo el cursor del
-   sistema ni mostrar el menú de "guardar imagen" al mantener apretado. */
-.rooms .r-stage svg g {
-  -webkit-touch-callout: none;
-}
-
-/* La prenda recortada. El damero detrás es la convención universal de
-   "esto es transparente": sobre un fondo liso, un recorte con halo blanco
-   se ve idéntico a uno perfecto, y así se nota el que salió mal. */
-.rooms .r-cut {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  border-radius: 20px;
-  overflow: hidden;
-  background-color: light-dark(#ffffff, #1a1c1f);
+/* La prenda recortada. El damero detrás es la convención universal de "esto
+   es transparente": sobre un fondo liso, un recorte con halo blanco se ve
+   idéntico a uno perfecto, y así se nota el que salió mal. */
+.rooms .r-cut,
+.rooms .r-canvas {
+  background-color: light-dark(#fbf4e4, #1a1934);
   background-image:
     linear-gradient(45deg, var(--r-sunk) 25%, transparent 25%),
     linear-gradient(-45deg, var(--r-sunk) 25%, transparent 25%),
@@ -718,6 +803,16 @@
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 
+.rooms .r-cut {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid var(--r-edge);
+}
+
 .rooms .r-cut img {
   width: 100%;
   height: 100%;
@@ -725,30 +820,18 @@
 }
 
 /* --------------------------------------------------------------------------
-   El armador de conjuntos.
+   El armador de conjuntos
    -------------------------------------------------------------------------- */
 
-/*
-   El lienzo. Vertical como un cuerpo —3:4— porque es lo que se está armando,
-   y con el damero de transparencia detrás para que un recorte con halo se
-   note antes de guardarlo.
-*/
 .rooms .r-canvas {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
-  border-radius: 22px;
+  border-radius: 16px;
   overflow: hidden;
   touch-action: none;
-  background-color: light-dark(#ffffff, #141619);
-  background-image:
-    linear-gradient(45deg, var(--r-sunk) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--r-sunk) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--r-sunk) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--r-sunk) 75%);
-  background-size: 18px 18px;
-  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
-  border: 1px solid var(--r-hair);
+  border: 2px solid var(--r-edge);
+  box-shadow: inset 0 2px 6px #00000033;
 }
 
 .rooms .r-canvas-hint {
@@ -762,8 +845,6 @@
   color: var(--r-ink-3);
 }
 
-/* Una prenda sobre el lienzo. El ancho fijo en porcentaje es la escala base;
-   de ahí la mueve el `scale` que guarda cada pieza. */
 .rooms .r-piece {
   position: absolute;
   width: 46%;
@@ -782,14 +863,14 @@
   pointer-events: none;
   /* Una sombra de contacto: sin ella las prendas se ven pegadas al fondo y
      el conjunto no se lee como ropa apilada. */
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
 }
 
-/* La elegida lleva un contorno punteado alrededor del recorte, no una caja:
-   la prenda no es rectangular. */
+/* La elegida lleva un halo alrededor del recorte, no una caja: la prenda no
+   es rectangular. */
 .rooms .r-piece[data-on="true"] img {
-  filter: drop-shadow(0 0 0 var(--tone)) drop-shadow(0 0 2px var(--tone))
-    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 0 0 var(--r-gold)) drop-shadow(0 0 3px var(--r-gold))
+    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
 }
 
 /* El perchero: la tira de prendas recortadas, que se desliza a lo ancho. */
@@ -812,15 +893,16 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.5rem;
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--r-sunk);
+  border: 2px solid var(--r-edge);
   font-size: 0.75rem;
   color: var(--r-ink-2);
-  transition: transform 0.18s var(--r-ease);
+  transition: transform 0.12s var(--r-ease);
 }
 
 .rooms .r-hanger:active {
-  transform: scale(0.94);
+  transform: translateY(2px);
 }
 
 .rooms .r-hanger img {
@@ -847,4 +929,99 @@
   position: absolute;
   width: 46%;
   height: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Los huesos de la espera
+   -------------------------------------------------------------------------- */
+
+.rooms .r-ghost {
+  display: block;
+  background: var(--r-sunk);
+  animation: r-breathe 1.6s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------------------
+   Movimiento
+   -------------------------------------------------------------------------- */
+
+@keyframes r-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes r-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes r-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes r-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes r-breathe-glow {
+  from {
+    opacity: 0.1;
+  }
+  to {
+    opacity: 0.26;
+  }
+}
+
+@keyframes r-twinkle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.65;
+  }
+}
+
+@keyframes r-drift {
+  from {
+    transform: translateX(-3px);
+  }
+  to {
+    transform: translateX(3px);
+  }
+}
+
+/* Quien pidió menos movimiento ve la pantalla quieta y completa. */
+@media (prefers-reduced-motion: reduce) {
+  .rooms .r-rise,
+  .rooms .r-ghost,
+  .rooms .r-wave,
+  .rooms .r-glow,
+  .rooms::after,
+  .rooms .r-sheet[open],
+  .rooms .r-sheet::backdrop {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
