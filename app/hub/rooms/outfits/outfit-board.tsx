@@ -1,9 +1,8 @@
-"use client";
-
-import { useCallback, useRef, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { PlusSlot } from "@/components/icons";
+import { NavLink } from "@/components/nav-link";
 import type { Garment, Outfit } from "@/lib/rooms";
-import { OutfitStudio } from "../outfit-studio";
+import { OUTFITS_PATH } from "../paths";
 
 /**
  * Los conjuntos guardados, y la puerta para armar otro.
@@ -20,19 +19,7 @@ export function OutfitBoard({
   outfits: Outfit[];
   wardrobe: Garment[];
 }) {
-  const sheet = useRef<HTMLDialogElement>(null);
-  const [editing, setEditing] = useState<Outfit | null>(null);
-  const [open, setOpen] = useState(false);
-
   const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
-
-  function start(outfit: Outfit | null) {
-    setEditing(outfit);
-    setOpen(true);
-    if (!sheet.current?.open) sheet.current?.showModal();
-  }
-
-  const close = useCallback(() => sheet.current?.close(), []);
 
   return (
     <>
@@ -47,10 +34,9 @@ export function OutfitBoard({
         <ul className="grid grid-cols-2 gap-3">
           {outfits.map((outfit, index) => (
             <li key={outfit.id} className="r-rise" style={{ "--d": `${index * 50}ms` } as CSSProperties}>
-              <button
-                type="button"
-                onClick={() => start(outfit)}
-                className="r-card r-tap w-full overflow-hidden p-0 text-left"
+              <NavLink
+                href={`${OUTFITS_PATH}/${outfit.id}`}
+                className="r-card r-tap block w-full overflow-hidden text-left"
               >
                 <span className="r-thumbnail">
                   {outfit.pieces.map((piece, spot) => {
@@ -82,7 +68,7 @@ export function OutfitBoard({
                       : `${outfit.pieces.length} prendas`}
                   </span>
                 </span>
-              </button>
+              </NavLink>
             </li>
           ))}
         </ul>
@@ -90,43 +76,16 @@ export function OutfitBoard({
 
       {wardrobe.length > 0 ? (
         <div className="r-bar">
-          <button
-            type="button"
-            onClick={() => start(null)}
+          <NavLink
+            href={`${OUTFITS_PATH}/nuevo`}
             className="r-key r-key-lit w-full"
             style={{ "--tone": "#d6456f" } as CSSProperties}
           >
             <PlusSlot className="size-[1.125rem]" />
             Armar un conjunto
-          </button>
+          </NavLink>
         </div>
       ) : null}
-
-      <dialog
-        ref={sheet}
-        className="r-sheet"
-        aria-label="Armar un conjunto"
-        onClose={() => {
-          setOpen(false);
-          setEditing(null);
-        }}
-        onClick={(event) => {
-          if (event.target === sheet.current) close();
-        }}
-      >
-        <span aria-hidden="true" className="r-grip" />
-        {/* El estudio se monta recién al abrir, y se desmonta al cerrar: así
-            cada conjunto empieza con el lienzo del que se abrió y no con el
-            del anterior. */}
-        {open ? (
-          <OutfitStudio
-            key={editing?.id ?? "nuevo"}
-            wardrobe={wardrobe}
-            outfit={editing ?? undefined}
-            onDone={close}
-          />
-        ) : null}
-      </dialog>
     </>
   );
 }

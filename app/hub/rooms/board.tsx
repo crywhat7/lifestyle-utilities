@@ -1,6 +1,4 @@
-"use client";
-
-import { useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { Chevron, Pencil, PlusSlot } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
@@ -15,22 +13,22 @@ import {
   type NodeKind,
   type RoomNode,
 } from "@/lib/rooms";
-import { nodePath } from "./paths";
-import { ItemForm, NodeForm, type Place } from "./forms";
+import { addPath, editPath, itemPath, newItemPath, newRoomPath, nodePath } from "./paths";
 import { ItemGlyph, Glyph, NodeGlyph } from "./glyph";
 
 /**
- * Todo lo que se toca de una pantalla de Rooms.
+ * Lo que hay en un contenedor: lo que contiene y lo que guarda.
  *
- * Un solo componente de cliente para las listas, el pie y la hoja, en vez de
- * uno por fila: la hoja modal es UNA y vive acá. Con un componente por fila
- * habría una `<dialog>` por tarjeta —cuarenta diálogos ocultos en una
- * pantalla de cuarenta cosas— y el estado de "qué estoy editando" tendría
- * que vivir en algún lado de todas formas.
+ * Esto no tiene estado y no abre nada: cada fila es un enlace a su propia
+ * dirección. Antes todo lo de crear y editar vivía en una hoja que subía
+ * desde abajo, y esa hoja traía tres problemas que no se arreglan con más
+ * CSS: con el teclado abierto no se alcanzaba el botón de cerrar, el scroll
+ * peleaba con el de la página detrás, y el botón de atrás del teléfono
+ * cerraba la pantalla entera en vez de la hoja.
  *
- * La navegación sigue siendo de servidor: cada contenedor es un enlace a su
- * propia URL, no un acordeón. Así el botón de atrás del teléfono hace lo que
- * tiene que hacer y una gaveta se puede compartir o guardar como dirección.
+ * Una pantalla propia no tiene ninguno de los tres. Scrollea como cualquier
+ * página, "atrás" vuelve donde tiene que volver, y además cada formulario
+ * pasa a tener una dirección que se puede compartir o guardar.
  */
 export function Board({
   node,
@@ -38,8 +36,6 @@ export function Board({
   childNodes,
   items,
   counts,
-  places,
-  usedColors,
 }: {
   node: RoomNode | null;
   /* El color de la rama, ya resuelto por el servidor: el de la habitación en
@@ -49,33 +45,11 @@ export function Board({
   childNodes: RoomNode[];
   items: ItemWithPhoto[];
   counts: Record<string, number>;
-  places: Place[];
-  usedColors: string[];
 }) {
-  const sheet = useRef<HTMLDialogElement>(null);
-
-  type Mode =
-    | { what: "new-node"; kind: NodeKind }
-    | { what: "edit-node"; node: RoomNode }
-    | { what: "new-item" }
-    | { what: "edit-item"; item: ItemWithPhoto };
-
-  const [mode, setMode] = useState<Mode | null>(null);
-
-  function open(next: Mode) {
-    setMode(next);
-    if (!sheet.current?.open) sheet.current?.showModal();
-  }
-
-  // `useCallback` no es decorativo: este cierre es la dependencia del efecto
-  // que cierra la hoja al guardar, y una función nueva en cada render lo
-  // haría correr de más.
-  const close = useCallback(() => sheet.current?.close(), []);
-
   /*
-     Qué se puede crear acá. En la raíz, habitaciones. Dentro de un nodo, lo
-     que la jerarquía permita — y nada si ya se tocó el techo de profundidad,
-     porque ofrecer un botón que la base va a rechazar es mentirle a la mano.
+    Qué se puede crear acá. En la raíz, habitaciones. Dentro de un nodo, lo
+    que la jerarquía permita — y nada si ya se tocó el techo de profundidad,
+    porque ofrecer un botón que la base va a rechazar es mentirle a la mano.
   */
   const childKinds: NodeKind[] =
     node === null ? ["room"] : allowedChildren(node.kind, node.depth);
@@ -83,14 +57,10 @@ export function Board({
   /* Los hijos agrupados por tipo: los muebles en una sección y las cajas en
      otra. Mezclados, una habitación con tres muebles y nueve cajas se lee
      como una bolsa de cosas. */
-  const groups = useMemo(() => {
-    const sorted = sortNodes(childNodes);
-    const kinds: NodeKind[] = ["room", "furniture", "compartment", "container"];
-
-    return kinds
-      .map((kind) => ({ kind, nodes: sorted.filter((child) => child.kind === kind) }))
-      .filter((group) => group.nodes.length > 0);
-  }, [childNodes]);
+  const sorted = sortNodes(childNodes);
+  const groups = (["room", "furniture", "compartment", "container"] as NodeKind[])
+    .map((kind) => ({ kind, nodes: sorted.filter((child) => child.kind === kind) }))
+    .filter((group) => group.nodes.length > 0);
 
   const empty = groups.length === 0 && items.length === 0;
   let step = 0;
@@ -121,12 +91,7 @@ export function Board({
                 className="r-rise"
                 style={{ "--d": `${(step += 1) * 40}ms` } as CSSProperties}
               >
-                <NodeRow
-                  node={child}
-                  tone={child.color ?? tone}
-                  total={counts[child.id] ?? 0}
-                  onEdit={() => open({ what: "edit-node", node: child })}
-                />
+                <NodeRow node={child} tone={child.color ?? tone} total={counts[child.id] ?? 0} />
               </li>
             ))}
           </ul>
@@ -145,7 +110,7 @@ export function Board({
           <ul className="r-card overflow-hidden">
             {items.map((item) => (
               <li key={item.id} className="r-row">
-                <ItemRow item={item} onEdit={() => open({ what: "edit-item", item })} />
+                <ItemRow item={item} />
               </li>
             ))}
           </ul>
@@ -155,24 +120,22 @@ export function Board({
       {/* El pie: la acción que más se repite, donde ya está el pulgar. */}
       <div className="r-bar flex flex-col gap-2">
         {node ? (
-          <button
-            type="button"
-            onClick={() => open({ what: "new-item" })}
+          <NavLink
+            href={newItemPath(node.id)}
             className="r-key r-key-lit w-full"
             style={{ "--tone": tone } as CSSProperties}
           >
             <PlusSlot className="size-[1.125rem]" />
             Agregar cosa
-          </button>
+          </NavLink>
         ) : null}
 
         {childKinds.length > 0 ? (
           <div className="flex gap-2">
             {childKinds.map((kind) => (
-              <button
+              <NavLink
                 key={kind}
-                type="button"
-                onClick={() => open({ what: "new-node", kind })}
+                href={node === null ? newRoomPath() : addPath(node.id, kind)}
                 className={`r-key min-w-0 flex-1 text-[0.9375rem] ${
                   node === null ? "r-key-lit" : ""
                 }`}
@@ -183,56 +146,11 @@ export function Board({
                 <span className="truncate">
                   {childKinds.length === 1 ? KIND_LABEL[kind].add : KIND_LABEL[kind].short}
                 </span>
-              </button>
+              </NavLink>
             ))}
           </div>
         ) : null}
       </div>
-
-      <dialog
-        ref={sheet}
-        className="r-sheet"
-        aria-label="Editar"
-        onClose={() => setMode(null)}
-        onClick={(event) => {
-          // Tocar el velo cierra, igual que en cualquier hoja del sistema.
-          if (event.target === sheet.current) close();
-        }}
-      >
-        <span aria-hidden="true" className="r-grip" />
-
-        {mode?.what === "new-node" ? (
-          <NodeForm
-            kind={mode.kind}
-            parentId={node?.id ?? null}
-            usedColors={usedColors}
-            onSaved={close}
-          />
-        ) : null}
-
-        {mode?.what === "edit-node" ? (
-          <NodeForm
-            kind={mode.node.kind}
-            parentId={mode.node.parent_id}
-            node={mode.node}
-            usedColors={usedColors}
-            onSaved={close}
-          />
-        ) : null}
-
-        {mode?.what === "new-item" && node ? (
-          <ItemForm nodeId={node.id} places={places} onSaved={close} />
-        ) : null}
-
-        {mode?.what === "edit-item" ? (
-          <ItemForm
-            nodeId={mode.item.node_id}
-            item={mode.item}
-            places={places}
-            onSaved={close}
-          />
-        ) : null}
-      </dialog>
     </>
   );
 }
@@ -242,21 +160,11 @@ export function Board({
 /**
  * La fila de un contenedor.
  *
- * El enlace y el lápiz son hermanos, no uno dentro del otro: un botón dentro
- * de un enlace es HTML inválido y en el teléfono se vuelve una lotería de
- * cuál de los dos se activa.
+ * El enlace y el lápiz son hermanos, no uno dentro del otro: un enlace
+ * dentro de otro enlace es HTML inválido y en el teléfono se vuelve una
+ * lotería de cuál de los dos se activa.
  */
-function NodeRow({
-  node,
-  tone,
-  total,
-  onEdit,
-}: {
-  node: RoomNode;
-  tone: string;
-  total: number;
-  onEdit: () => void;
-}) {
+function NodeRow({ node, tone, total }: { node: RoomNode; tone: string; total: number }) {
   const kind = variantLabel(node.kind, node.variant);
   const copies = node.quantity > 1 ? `${node.quantity} iguales` : null;
   const meta = [kind, copies, countLabel(total)].filter(Boolean).join(" · ");
@@ -268,11 +176,20 @@ function NodeRow({
     >
       <NavLink
         href={nodePath(node.id)}
-        className="flex min-w-0 flex-1 items-center gap-3.5 rounded-[26px] p-3.5"
+        className="flex min-w-0 flex-1 items-center gap-3.5 rounded-[14px] p-3.5"
       >
-        <Glyph tone={tone}>
-          <NodeGlyph kind={node.kind} variant={node.variant} />
-        </Glyph>
+        {/* La foto manda cuando existe: reconocer el mueble de un vistazo es
+            más rápido que leer su nombre. */}
+        {node.thumb ? (
+          <span className="r-trail-shot size-12 rounded-[14px]" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={node.thumb} alt="" />
+          </span>
+        ) : (
+          <Glyph tone={tone}>
+            <NodeGlyph kind={node.kind} variant={node.variant} />
+          </Glyph>
+        )}
 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[1.0625rem] font-semibold">{node.name}</span>
@@ -284,14 +201,13 @@ function NodeRow({
         <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--r-ink-3)]" />
       </NavLink>
 
-      <button
-        type="button"
-        onClick={onEdit}
+      <NavLink
+        href={editPath(node.id)}
         aria-label={`Editar ${node.name}`}
-        className="grid size-11 shrink-0 place-items-center rounded-full text-[var(--r-ink-3)] active:scale-90"
+        className="grid size-11 shrink-0 place-items-center rounded-xl text-[var(--r-ink-3)]"
       >
         <Pencil className="size-[1.0625rem]" />
-      </button>
+      </NavLink>
     </div>
   );
 }
@@ -299,21 +215,18 @@ function NodeRow({
 /**
  * La fila de una cosa.
  *
- * Toda la fila abre la edición, sin lápiz: un objeto no tiene adentro, así
+ * Toda la fila abre su pantalla, sin lápiz: un objeto no tiene adentro, así
  * que no hay dos destinos posibles y el toque no es ambiguo.
  */
-function ItemRow({ item, onEdit }: { item: ItemWithPhoto; onEdit: () => void }) {
+function ItemRow({ item }: { item: ItemWithPhoto }) {
   const category = categoryOf(item.category);
   const state = conditionOf(item.condition);
 
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="flex w-full items-center gap-3 p-3.5 text-left active:bg-[var(--r-card-2)]"
+    <NavLink
+      href={itemPath(item.node_id, item.id)}
+      className="flex w-full items-center gap-3 p-3.5 text-left"
     >
-      {/* La miniatura reemplaza al glifo cuando existe: una foto del cable
-          dice en un vistazo lo que "Cable HDMI · Cables" no dice. */}
       {item.thumb ? (
         <span className="r-thumb" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -353,7 +266,7 @@ function ItemRow({ item, onEdit }: { item: ItemWithPhoto; onEdit: () => void }) 
         ) : null}
       </span>
 
-      <Pencil className="size-4 shrink-0 text-[var(--r-ink-3)]" />
-    </button>
+      <Chevron className="size-4 shrink-0 -rotate-90 text-[var(--r-ink-3)]" />
+    </NavLink>
   );
 }

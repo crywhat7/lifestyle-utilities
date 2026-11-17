@@ -6,7 +6,6 @@ import { preparePhoto } from "@/lib/photo";
 import {
   CATEGORIES,
   CONDITIONS,
-  KIND_LABEL,
   ROOM_COLORS,
   VARIANTS,
   categoryOf,
@@ -198,7 +197,6 @@ export function NodeForm({
 
   useCloseOnSaved(state, onSaved);
 
-  const label = KIND_LABEL[kind];
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -206,10 +204,13 @@ export function NodeForm({
       {node ? <input type="hidden" name="id" value={node.id} /> : null}
       {parentId ? <input type="hidden" name="parent_id" value={parentId} /> : null}
 
-      <header className="flex items-start justify-between gap-3">
-        <h2 className="r-title text-[1.5rem]">{editing ? node?.name : label.add}</h2>
-        {node && !armed ? <TrashKey onClick={() => setArmed(true)} /> : null}
-      </header>
+      {/* Sin título: lo pone la pantalla. Repetirlo acá era decir dos veces
+          lo mismo a dos tamaños distintos. */}
+      {node && !armed ? (
+        <div className="flex justify-end">
+          <TrashKey onClick={() => setArmed(true)} />
+        </div>
+      ) : null}
 
       {node && armed ? (
         <ConfirmDelete
@@ -256,7 +257,7 @@ export function NodeForm({
       <PhotoField
         saved={node?.photo ?? node?.thumb ?? null}
         thumbEdge={96}
-        note="No se ve en el plano. Sirve para que el buscador arme la ruta en fotos: así se le puede mostrar a alguien dónde está algo."
+        note="Sirve para que el buscador arme la ruta en fotos: así se le puede mostrar a alguien dónde está algo sin que conozca tu cuarto."
         onDrop={
           node
             ? () => {
@@ -677,10 +678,11 @@ export function ItemForm({
       <input type="hidden" name="node_id" value={item?.node_id ?? nodeId} />
       {item ? <input type="hidden" name="id" value={item.id} /> : null}
 
-      <header className="flex items-start justify-between gap-3">
-        <h2 className="r-title text-[1.5rem]">{editing ? item?.name : "Agregar cosa"}</h2>
-        {item && !armed ? <TrashKey onClick={() => setArmed(true)} /> : null}
-      </header>
+      {item && !armed ? (
+        <div className="flex justify-end">
+          <TrashKey onClick={() => setArmed(true)} />
+        </div>
+      ) : null}
 
       {item && armed ? (
         <ConfirmDelete

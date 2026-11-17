@@ -192,13 +192,6 @@
     color: var(--r-ink-3);
   }
 
-  .r-hint {
-    padding-inline: 0.25rem;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    color: var(--r-ink-3);
-  }
-
   /* ------------------------------------------------------------------------
      Superficies
      ------------------------------------------------------------------------ */
@@ -438,72 +431,6 @@
       0 0 0 4px var(--r-gold);
   }
 
-  /* El rótulo chiquito que aclara dónde va una cosa. */
-  .r-tag {
-    padding: 0.1rem 0.35rem;
-    border-radius: 5px;
-    background: color-mix(in srgb, var(--r-gold) 24%, transparent);
-    color: var(--r-gold);
-    font-size: 0.625rem;
-    letter-spacing: 0.04em;
-  }
-
-  /* El chip que lleva su propia muestra de color — los suelos. */
-  .r-chip-ink[data-on="true"] {
-    border-color: var(--ink);
-  }
-
-  .r-swatch-dot {
-    width: 0.875rem;
-    height: 0.875rem;
-    border-radius: 4px;
-    background: var(--ink);
-    border: 1px solid #00000033;
-  }
-
-  /* ------------------------------------------------------------------------
-     La barra de modos
-     ------------------------------------------------------------------------ */
-
-  /*
-     Tres pestañas en un riel hundido. Es la pieza que explica la pantalla:
-     el dedo hace una cosa distinta en cada modo, y eso tiene que verse sin
-     leer. Por eso la elegida sobresale en vez de solo cambiar de color.
-  */
-  .r-modes {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 0.25rem;
-    padding: 0.3rem;
-    border-radius: 16px;
-    background: var(--r-sunk);
-    box-shadow: inset 0 2px 5px #00000040;
-  }
-
-  .r-mode {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    min-height: 2.75rem;
-    border-radius: 12px;
-    background: transparent;
-    color: var(--r-ink-3);
-    font-family: var(--font-pixel), ui-monospace, monospace;
-    font-size: 0.8125rem;
-    transition:
-      background-color 0.18s var(--r-ease),
-      color 0.18s var(--r-ease),
-      box-shadow 0.18s var(--r-ease);
-  }
-
-  .r-mode[data-on="true"] {
-    background: var(--r-panel);
-    color: var(--r-ink);
-    box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff18), 0 2px 0 var(--r-plinth);
-  }
-
   /* ------------------------------------------------------------------------
      Campos
      ------------------------------------------------------------------------ */
@@ -565,54 +492,6 @@
   .rooms input[type="search"]::-webkit-search-decoration {
     appearance: none;
     display: none;
-  }
-
-  /* ------------------------------------------------------------------------
-     La hoja de abajo
-     ------------------------------------------------------------------------ */
-
-  /*
-     Todo lo que se crea o se edita entra por acá, nunca por una pantalla
-     nueva: el formulario de "agregar caja" tiene cuatro campos y mandar a
-     navegar por eso pierde el lugar donde estabas parado. `<dialog>` nativo
-     —el foco atrapado y Escape vienen del navegador, no de una librería.
-  */
-  .r-sheet {
-    position: fixed;
-    inset: auto 0 0 0;
-    margin: 0 auto;
-    width: 100%;
-    max-width: 30rem;
-    max-height: 92dvh;
-    overflow-y: auto;
-    padding: 0.75rem 1.25rem max(1.5rem, env(safe-area-inset-bottom));
-    border: 2px solid var(--r-edge);
-    border-bottom: 0;
-    border-radius: 20px 20px 0 0;
-    background: var(--r-panel);
-    color: var(--r-ink);
-    box-shadow: 0 -20px 50px -20px #000000aa;
-  }
-
-  .r-sheet[open] {
-    animation: r-sheet-up 0.38s var(--r-ease) both;
-  }
-
-  .r-sheet::backdrop {
-    background: light-dark(#3b2f1e66, #0a0918cc);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    animation: r-fade 0.3s var(--r-ease-soft) both;
-  }
-
-  .r-grip {
-    display: block;
-    width: 3rem;
-    height: 5px;
-    margin: 0 auto 1rem;
-    border-radius: 999px;
-    background: var(--r-gold);
-    opacity: 0.6;
   }
 
   /* ------------------------------------------------------------------------
@@ -689,59 +568,6 @@
     animation: r-rise 0.45s var(--r-ease) both;
     animation-delay: var(--d, 0ms);
   }
-}
-
-/* --------------------------------------------------------------------------
-   El escenario isométrico.
-
-   Fuera de `@layer components` porque el SVG se combina con utilidades y lo
-   que importa acá es el lienzo, no la caja.
-   -------------------------------------------------------------------------- */
-
-/*
-   La ventana al cuarto. El fondo es el cielo del lugar —el color del aire
-   que eligió la persona— y no el gris del módulo: el dibujo trae sus propios
-   colores de tierra y pasto, y necesita un aire detrás, no un marco.
-
-   `touch-action: none` sobre el SVG es lo que permite arrastrar un mueble y
-   pintar el suelo en un teléfono: sin eso, el navegador se queda el gesto
-   para hacer scroll y nada se mueve nunca.
-*/
-.rooms .r-stage {
-  position: relative;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 2px solid var(--r-edge);
-  box-shadow: inset 0 2px 0 #ffffff1a, 0 4px 0 var(--r-plinth), 0 12px 24px -14px #000000aa;
-  background:
-    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--sky) 55%, transparent) 0%, transparent 70%),
-    linear-gradient(180deg, light-dark(#cfe4ef, #1b1a38) 0%, light-dark(#e6dcc4, #121028) 100%);
-}
-
-.rooms .r-stage svg {
-  display: block;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.rooms .r-stage svg g {
-  -webkit-touch-callout: none;
-}
-
-/* Mientras se decora, el dedo pinta: el cursor lo dice en escritorio. */
-.rooms .r-stage[data-mode="dress"] svg {
-  cursor: crosshair;
-}
-
-/* El agua se mueve. Despacio: es un cuarto, no un río. */
-.rooms .r-wave {
-  animation: r-drift 4s ease-in-out infinite alternate;
-}
-
-/* La luz de los faroles y cristales respira. */
-.rooms .r-glow {
-  animation: r-breathe-glow 3.2s ease-in-out infinite alternate;
 }
 
 /* --------------------------------------------------------------------------
@@ -956,15 +782,6 @@
   }
 }
 
-@keyframes r-sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: none;
-  }
-}
-
 @keyframes r-fade {
   from {
     opacity: 0;
@@ -984,15 +801,6 @@
   }
 }
 
-@keyframes r-breathe-glow {
-  from {
-    opacity: 0.1;
-  }
-  to {
-    opacity: 0.26;
-  }
-}
-
 @keyframes r-twinkle {
   from {
     opacity: 0.35;
@@ -1002,24 +810,11 @@
   }
 }
 
-@keyframes r-drift {
-  from {
-    transform: translateX(-3px);
-  }
-  to {
-    transform: translateX(3px);
-  }
-}
-
 /* Quien pidió menos movimiento ve la pantalla quieta y completa. */
 @media (prefers-reduced-motion: reduce) {
   .rooms .r-rise,
   .rooms .r-ghost,
-  .rooms .r-wave,
-  .rooms .r-glow,
-  .rooms::after,
-  .rooms .r-sheet[open],
-  .rooms .r-sheet::backdrop {
+  .rooms::after {
     animation: none;
     opacity: 1;
     transform: none;

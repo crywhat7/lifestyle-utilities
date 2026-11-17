@@ -9,13 +9,10 @@ import {
   countLabel,
   countsByNode,
   pathLabel,
-  placesOf,
   variantLabel,
 } from "@/lib/rooms";
 import { Board } from "../board";
-import { safeLight } from "@/lib/iso";
-import { ROOMS_PATH, loadIndex, loadItems, loadProps, loadTree, nodePath, roomsClient } from "../data";
-import { PlanView } from "../plan-view";
+import { ROOMS_PATH, loadIndex, loadItems, loadTree, nodePath, roomsClient } from "../data";
 import { Glyph, NodeGlyph } from "../glyph";
 import { MissingMigration } from "../missing";
 
@@ -32,11 +29,10 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
     que no tiene que esperar al árbol: encadenarlas sería pedirle a la
     pantalla de una gaveta tres viajes en fila para dibujar una lista.
   */
-  const [tree, index, items, scenery] = await Promise.all([
+  const [tree, index, items] = await Promise.all([
     loadTree(supabase, user.id),
     loadIndex(supabase, user.id),
     loadItems(supabase, user.id, nodeId),
-    loadProps(supabase, user.id, nodeId),
   ]);
 
   const shell =
@@ -61,10 +57,8 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
   if (!node) notFound();
 
   const children = tree.nodes.filter((candidate) => candidate.parent_id === node.id);
-  const furniture = children.filter((candidate) => candidate.kind === "furniture");
   const counts = countsByNode(tree.nodes, index);
   const tone = branchTone(node, tree.nodes);
-  const light = safeLight(node.floor_color);
 
   const back = node.parent_id ? nodePath(node.parent_id) : ROOMS_PATH;
   const backLabel = node.parent_id
@@ -75,7 +69,7 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
   const copies = node.quantity > 1 ? `${node.quantity} iguales` : null;
 
   return (
-    <main className={shell} style={{ "--tone": tone, "--sky": light } as CSSProperties}>
+    <main className={shell} style={{ "--tone": tone } as CSSProperties}>
       <header
         className="r-rise flex items-center justify-between gap-2"
         style={{ "--d": "0ms" } as CSSProperties}
@@ -114,14 +108,6 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
         </div>
       </section>
 
-      {/* El plano va ANTES de la lista y no detrás de un botón: entrar a un
-          cuarto es ver el cuarto. La lista de lo que hay dentro sigue abajo,
-          que es donde se la busca cuando ya se sabe qué se quiere. */}
-      {node.kind === "room" ? (
-        <div className="r-rise" style={{ "--d": "60ms" } as CSSProperties}>
-          <PlanView room={node} furniture={furniture} props={scenery.props} tone={tone} />
-        </div>
-      ) : null}
 
       <Board
         node={node}
@@ -129,8 +115,6 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
         childNodes={children}
         items={items}
         counts={Object.fromEntries(counts)}
-        places={placesOf(tree.nodes)}
-        usedColors={[]}
       />
     </main>
   );

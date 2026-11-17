@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { ArrowBack, Spark } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
-import { ROOM_COLORS, countsByNode, placesOf } from "@/lib/rooms";
+import { ROOM_COLORS, countsByNode } from "@/lib/rooms";
 import { Board } from "./board";
 import { loadIndex, loadTree, roomsClient } from "./data";
 import { MissingMigration } from "./missing";
@@ -74,8 +74,6 @@ export default async function RoomsPage() {
         childNodes={rooms}
         items={[]}
         counts={Object.fromEntries(counts)}
-        places={placesOf(tree.nodes)}
-        usedColors={rooms.map((room) => room.color).filter((color): color is string => Boolean(color))}
       />
     </main>
   );

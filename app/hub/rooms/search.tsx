@@ -7,13 +7,11 @@ import {
   categoryOf,
   conditionOf,
   search,
-  type Hit,
   type IndexEntry,
   type RoomNode,
 } from "@/lib/rooms";
-import { nodePath } from "./paths";
+import { nodePath, trailPath } from "./paths";
 import { ItemGlyph } from "./glyph";
-import { Trail } from "./trail";
 
 /**
  * El buscador.
@@ -30,7 +28,6 @@ import { Trail } from "./trail";
  */
 export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[] }) {
   const [query, setQuery] = useState("");
-  const [route, setRoute] = useState<Hit | null>(null);
 
   const hits = useMemo(() => search(index, nodes, query), [index, nodes, query]);
 
@@ -120,14 +117,13 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
 
                 {/* El atajo que justifica todo el módulo: no ir hasta la
                     cosa, sino poder MOSTRAR el camino. */}
-                <button
-                  type="button"
-                  onClick={() => setRoute(hit)}
-                  className="grid size-11 shrink-0 place-items-center rounded-xl text-[var(--r-gold)] active:translate-y-0.5"
+                <NavLink
+                  href={trailPath(hit.item.id)}
+                  className="grid size-11 shrink-0 place-items-center rounded-xl text-[var(--r-gold)]"
                   aria-label={`Cómo llegar a ${hit.item.name}`}
                 >
                   <Pin className="size-[1.0625rem]" />
-                </button>
+                </NavLink>
               </li>
             );
           })}
@@ -135,7 +131,6 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
         </>
       )}
 
-      <Trail hit={route} nodes={nodes} onClose={() => setRoute(null)} />
     </section>
   );
 }
