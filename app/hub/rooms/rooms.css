@@ -577,6 +577,199 @@
 }
 
 /* --------------------------------------------------------------------------
+   El alta de cosas
+
+   Fuera de `@layer` como el resto de lo específico, para que una utilidad de
+   Tailwind pueda pisar una medida sin pelear con la especificidad.
+   -------------------------------------------------------------------------- */
+
+/* El campo del nombre del alta. Es lo único que se escribe siempre, así que
+   es el único campo del módulo con cuerpo de titular: el pulgar lo encuentra
+   sin mirar y el texto se lee de reojo mientras se teclea. */
+.rooms .r-field-lg {
+  min-height: 3.5rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* La grilla de categorías: cuatro columnas fijas, dieciséis casillas, nunca
+   reordenadas. Ver `CategoryPicker` para por qué el orden no se toca. */
+.rooms .r-cats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+.rooms .r-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 4.25rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: 14px;
+  background: var(--r-sunk);
+  border: 1px solid transparent;
+  color: var(--r-ink-3);
+  cursor: pointer;
+  transition:
+    transform 0.3s var(--r-ease),
+    background-color 0.25s var(--r-ease),
+    border-color 0.25s var(--r-ease),
+    color 0.25s var(--r-ease);
+}
+
+.rooms .r-cat span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rooms .r-cat input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rooms .r-cat:active {
+  transform: scale(0.94);
+  transition-duration: 0.1s;
+}
+
+/* La elegida toma su color. Es el único relleno de color de la grilla, así
+   que de un vistazo se ve cuál está puesta aunque la pantalla esté lejos. */
+.rooms .r-cat[data-on="true"] {
+  background: var(--r-wash);
+  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+  color: var(--r-tone-ink);
+}
+
+.rooms .r-cat[data-on="true"] span {
+  font-weight: 600;
+}
+
+.rooms .r-cat:has(input:focus-visible) {
+  outline: 2px solid var(--r-tone-ink);
+  outline-offset: 2px;
+}
+
+/* El recibo de la tanda: cuántas van y cuál fue la última. Teñido con el
+   color del dato, para que se note que algo pasó sin robarse la pantalla. */
+.rooms .r-receipt {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.5rem 0.625rem 0.875rem;
+  border-radius: 14px;
+  background: var(--r-wash);
+  color: var(--r-tone-ink);
+  font-size: 0.8125rem;
+  animation: r-rise 0.5s var(--r-ease) both;
+}
+
+.rooms .r-receipt button {
+  flex-shrink: 0;
+  padding: 0.375rem 0.625rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* El cajón de los detalles. Cerrado por defecto porque todo lo que hay
+   adentro ya tiene un valor que acierta casi siempre; el resumen al costado
+   dice cuáles son sin abrirlo. */
+.rooms .r-more {
+  border-radius: 16px;
+  border: 1px solid var(--r-edge);
+  padding: 0.875rem 1rem;
+  background: var(--r-panel);
+}
+
+.rooms .r-more[open] {
+  padding-bottom: 1.125rem;
+}
+
+.rooms .r-more summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--r-ink-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.rooms .r-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.rooms .r-more-sum {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--r-ink-3);
+}
+
+/* El contador de cantidad. Dos teclas y un número: casi todo es uno, y lo
+   que no, es dos. Abrir un teclado numérico para eso era pedir demasiado. */
+.rooms .r-stepper {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 14px;
+  background: var(--r-sunk);
+  overflow: hidden;
+}
+
+.rooms .r-stepper button {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 2.875rem;
+  border: 0;
+  background: none;
+  color: var(--r-ink-2);
+  cursor: pointer;
+  transition: background-color 0.2s var(--r-ease), color 0.2s var(--r-ease);
+}
+
+.rooms .r-stepper button:active {
+  background: var(--r-panel-2);
+  color: var(--r-ink);
+}
+
+.rooms .r-stepper button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.rooms .r-stepper span {
+  min-width: 2.5rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
    Las fotos
 
    Fuera de `@layer` a propósito: así cualquier utilidad de Tailwind puede

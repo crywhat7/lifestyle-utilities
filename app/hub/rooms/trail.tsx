@@ -56,7 +56,7 @@ export function Trail({ item, nodes }: { item: IndexEntry; nodes: RoomNode[] }) 
             <NavLink
               href={nodePath(step.id)}
               className="r-card r-tap flex items-center gap-3 p-3"
-              style={{ "--tone": step.color ?? "#b58338" } as CSSProperties}
+              style={{ "--tone": step.color ?? "var(--r-ink-2)" } as CSSProperties}
             >
               <span className="r-step">{i + 1}</span>
 
@@ -68,7 +68,7 @@ export function Trail({ item, nodes }: { item: IndexEntry; nodes: RoomNode[] }) 
                   <img src={step.thumb} alt="" />
                 </span>
               ) : (
-                <Glyph tone={step.color ?? "#b58338"} size="sm">
+                <Glyph tone={step.color ?? "#6b7280"} size="sm">
                   <NodeGlyph kind={step.kind} variant={step.variant} />
                 </Glyph>
               )}
@@ -109,7 +109,7 @@ export function Trail({ item, nodes }: { item: IndexEntry; nodes: RoomNode[] }) 
       </ol>
 
       {withPhotos < steps.length ? (
-        <p className="px-1 text-[0.75rem] leading-relaxed text-[var(--r-ink-3)]">
+        <p className="r-hint">
           {withPhotos === 0
             ? "Ninguno de estos lugares tiene foto todavía. Si les ponés una, esta ruta se puede mostrar sin explicar nada."
             : "A algunos de estos lugares les falta la foto. Con todas, la ruta se entiende sola."}

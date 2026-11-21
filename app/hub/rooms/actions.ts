@@ -22,7 +22,13 @@ import { dropNodePhoto, dropPhoto, putCutout, putNodePhoto, putPhoto } from "./s
    compila sin una queja y revienta al evaluar el módulo, con la primera
    acción que alguien dispare.
 */
-export type FormState = { status: "idle" | "saved"; error?: string } | { status: "error"; error: string };
+export type FormState =
+  /* `id` solo lo llena `createItem`, y existe para el alta en cadena: sin el
+     id de lo recién guardado no hay "deshacer", y sin deshacer nadie escribe
+     rápido —se escribe con cuidado, que es justo lo contrario de lo que se
+     necesita cuando faltan trescientos objetos. */
+  | { status: "idle" | "saved"; error?: string; id?: string }
+  | { status: "error"; error: string };
 
 const MIGRATION_ERROR = "Falta correr la migración 0018 de Rooms en Supabase.";
 
@@ -523,7 +529,7 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
   }
 
   refresh(nodeId);
-  return { status: "saved" };
+  return { status: "saved", id: itemId ?? undefined };
 }
 
 /**

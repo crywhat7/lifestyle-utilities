@@ -1,7 +1,14 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
-import { Camera, Grid, Scan, Trash } from "@/components/icons";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { Camera, Grid, Minus, Pin, PlusSlot, Scan, Sliders, Trash } from "@/components/icons";
 import { CENTERED, cropSquare, openPhoto, type Square } from "@/lib/photo";
 import {
   CATEGORIES,
@@ -10,7 +17,9 @@ import {
   VARIANTS,
   categoryOf,
   conditionOf,
+  guessCategory,
   nextColor,
+  type Condition,
   type ItemWithPhoto,
   type NodeKind,
   type RoomNode,
@@ -28,7 +37,10 @@ import {
   type FormState,
 } from "./actions";
 import { CUTOUT_FIRST_RUN, cutOut } from "./cutout";
+import { NavLink } from "@/components/nav-link";
+import { CategoryGlyph } from "./category-glyph";
 import { SquareFramer, type Framed } from "./framer";
+import { trailPath } from "./paths";
 
 /**
  * Qué se puede combinar en un conjunto.
@@ -698,12 +710,104 @@ function Cutout({ item }: { item: ItemWithPhoto }) {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Elegir categoría sin leer.
+ *
+ * Dieciséis casillas con su dibujo y su color, en una grilla que NO se
+ * reordena nunca. La tentación es poner adelante las más usadas; sería más
+ * listo y más lento, porque lo que hace rápido al objeto número doscientos es
+ * que la mano ya sepa dónde está "cables" sin mirar, y eso se rompe si las
+ * casillas se mueven.
+ *
+ * El radio real vive debajo de cada casilla: la elección llega al `FormData`
+ * como cualquier campo y funcionaría sin JavaScript.
+ */
+function CategoryPicker({
+  value,
+  onPick,
+}: {
+  value: string;
+  onPick: (key: string) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className="sr-only">Categoría</legend>
+      <div className="r-cats">
+        {CATEGORIES.map((category) => (
+          <label
+            key={category.key}
+            className="r-cat"
+            data-on={value === category.key}
+            style={{ "--tone": category.hue } as React.CSSProperties}
+          >
+            <input
+              type="radio"
+              name="category"
+              value={category.key}
+              checked={value === category.key}
+              onChange={() => onPick(category.key)}
+            />
+            <CategoryGlyph category={category.key} className="size-[1.375rem]" />
+            <span>{category.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * Cuántos hay, sin abrir el teclado numérico.
+ *
+ * Casi todo en un inventario es uno, y lo que no lo es suele ser dos o tres.
+ * Un campo de número obliga a cambiar de teclado y a apuntarle a un cursor
+ * para lo que casi siempre es tocar "más" una vez.
+ */
+function Stepper({ value, onChange }: { value: number; onChange: (next: number) => void }) {
+  return (
+    <div className="r-stepper">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        disabled={value <= 1}
+        aria-label="Uno menos"
+      >
+        <Minus className="size-4" />
+      </button>
+      <span aria-live="polite">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(9999, value + 1))}
+        aria-label="Uno más"
+      >
+        <PlusSlot className="size-4" />
+      </button>
+      <input type="hidden" name="quantity" value={value} />
+    </div>
+  );
+}
+
+/**
  * Guardar un objeto.
  *
- * El orden de los campos es el orden en que la cabeza los piensa con el cajón
- * abierto: qué es, de qué clase, cómo está, cuántos hay. La nota al final
- * porque es la que casi nunca se llena, y si estuviera arriba parecería
- * obligatoria.
+ * Esta pantalla se rediseñó alrededor de un solo número: trescientos. Un
+ * inventario de verdad no son diez cosas, son cientos, y cualquier campo que
+ * cueste una decisión consciente se paga cientos de veces. Lo que quedó
+ * arriba es lo único que cambia siempre —el nombre y la categoría— y todo lo
+ * demás tiene un valor por defecto que acierta casi siempre y vive detrás de
+ * "Más detalles": estado en buen estado, cantidad en uno, sin foto y sin
+ * nota.
+ *
+ * Y al agregar, la pantalla NO se cierra. Volver a la lista y tocar otra vez
+ * "Agregar cosa" por cada objeto es la mitad del trabajo de llenar un cajón:
+ * el formulario se vacía, el cursor vuelve al nombre y arriba queda el conteo
+ * de lo que llevás con un "deshacer" para el último, que es lo que permite
+ * escribir rápido sin miedo a equivocarse.
+ *
+ * El "¿dónde está?" se fue de acá. Era un desplegable con todos los lugares
+ * de la casa y daba a entender que uno tiene que decirle a la app dónde
+ * guardó algo — cuando la app ya lo sabe, porque se agregó estando adentro.
+ * Mover sigue existiendo, pero como lo que es: una corrección, dentro de los
+ * detalles y solo al editar.
  */
 export function ItemForm({
   nodeId,
@@ -717,18 +821,92 @@ export function ItemForm({
   onSaved: () => void;
 }) {
   const editing = Boolean(item);
-  const [state, action, pending] = useActionState(editing ? updateItem : createItem, IDLE);
   const [armed, setArmed] = useState(false);
+  const [state, setState] = useState<FormState>(IDLE);
+  const [pending, run] = useTransition();
 
-  useCloseOnSaved(state, onSaved);
+  const form = useRef<HTMLFormElement>(null);
+  const nameField = useRef<HTMLInputElement>(null);
+
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState(item ? categoryOf(item.category).key : "other");
+  const [condition, setCondition] = useState<string>(item?.condition ?? "good");
+  const [quantity, setQuantity] = useState(item?.quantity ?? 1);
+  const [open, setOpen] = useState(false);
+
+  /* Si la persona ya eligió categoría a mano para ESTE objeto, la corazonada
+     se calla: nada peor que un campo que se desarma solo mientras se escribe
+     el resto del nombre. */
+  const [chosen, setChosen] = useState(editing);
+
+  /** Lo agregado en esta tanda, para el conteo y para deshacer el último. */
+  const [added, setAdded] = useState<{ id: string; name: string }[]>([]);
+
+  /**
+   * Guardar, y seguir.
+   *
+   * El resultado se atiende acá y no en un efecto sobre `useActionState`: lo
+   * que pasa después de guardar —vaciar el formulario, anotar lo que entró,
+   * devolver el cursor— es una consecuencia de ESTE envío, no del hecho de
+   * que el estado haya cambiado. Escrito como efecto, React tiene razón en
+   * quejarse: son renders en cascada para algo que ya sabíamos al enviar.
+   */
+  function submit(data: FormData) {
+    const sent = String(data.get("name") ?? "").trim();
+
+    run(async () => {
+      const result = await (editing ? updateItem : createItem)(IDLE, data);
+      setState(result);
+
+      if (result.status !== "saved") return;
+
+      if (editing) {
+        onSaved();
+        return;
+      }
+
+      /* Alta en cadena: no se cierra nada. Se limpia, se recuerda lo que
+         entró y el cursor vuelve a donde estaba. La categoría se queda
+         puesta a propósito — quien vacía una gaveta de cables agrega quince
+         cables seguidos. */
+      if (result.id) {
+        setAdded((current) => [{ id: result.id as string, name: sent }, ...current].slice(0, 20));
+      }
+
+      form.current?.reset();
+      setName("");
+      setQuantity(1);
+      setChosen(false);
+      setOpen(false);
+      nameField.current?.focus();
+    });
+  }
+
+  function rename(next: string) {
+    setName(next);
+    if (chosen) return;
+
+    const guess = guessCategory(next);
+    if (guess) setCategory(guess);
+  }
+
+  const tone = categoryOf(category).hue;
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form ref={form} action={submit} className="flex flex-col gap-4">
       <input type="hidden" name="node_id" value={item?.node_id ?? nodeId} />
       {item ? <input type="hidden" name="id" value={item.id} /> : null}
+      <input type="hidden" name="condition" value={condition} />
 
+      {/* Al editar, lo primero no es un campo: es la salida a "cómo llegar",
+          que es lo que uno quiere de una cosa ya guardada —mandarle a alguien
+          dónde está— mucho más seguido que cambiarle el nombre. */}
       {item && !armed ? (
-        <div className="flex justify-end">
+        <div className="flex items-center gap-2">
+          <NavLink href={trailPath(item.id)} className="r-key flex-1 gap-2">
+            <Pin className="size-[1.125rem]" />
+            Cómo llegar · compartir
+          </NavLink>
           <TrashKey onClick={() => setArmed(true)} />
         </div>
       ) : null}
@@ -744,119 +922,165 @@ export function ItemForm({
         />
       ) : null}
 
+      {/* El recibo de la tanda. Arriba del campo y no abajo porque es lo que
+          se mira entre objeto y objeto para saber que sí entró. */}
+      {added.length > 0 ? (
+        <div className="r-receipt">
+          <span className="min-w-0 flex-1 truncate">
+            <strong>{added.length}</strong>{" "}
+            {added.length === 1 ? "agregada" : "agregadas"} · {added[0].name}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const last = added[0];
+              setAdded((current) => current.slice(1));
+              startTransition(() => void deleteItem(last.id, item?.node_id ?? nodeId));
+            }}
+          >
+            Deshacer
+          </button>
+        </div>
+      ) : null}
+
       <div>
         <label className="r-field-label" htmlFor="item-name">
           ¿Qué cosa es?
         </label>
         <input
+          ref={nameField}
           id="item-name"
           name="name"
           type="text"
           required
           maxLength={80}
           autoComplete="off"
+          enterKeyHint={editing ? "done" : "send"}
           autoFocus={!editing}
-          defaultValue={item?.name ?? ""}
+          value={name}
+          onChange={(event) => rename(event.target.value)}
           placeholder="Cable HDMI, memoria RAM, camisa azul…"
-          className="r-field"
+          className="r-field r-field-lg"
         />
       </div>
 
-      <PhotoField
-        saved={item?.photo ?? item?.thumb ?? null}
-        onDrop={
-          item
-            ? () => {
-                void removeItemPhoto(item.id, item.node_id);
-                onSaved();
-              }
-            : undefined
-        }
-      >
-        {(fresh) =>
-          item && WEARABLE.has(item.category) && !fresh ? <Cutout item={item} /> : null
-        }
-      </PhotoField>
-
-      <ChipGroup
-        name="category"
-        legend="Categoría"
-        options={CATEGORIES.map((category) => ({
-          key: category.key,
-          label: category.label,
-          tone: category.hue,
-        }))}
-        value={item ? categoryOf(item.category).key : "other"}
+      <CategoryPicker
+        value={category}
+        onPick={(key) => {
+          setCategory(key);
+          setChosen(true);
+        }}
       />
 
-      <ChipGroup
-        name="condition"
-        legend="Estado"
-        options={CONDITIONS.map((condition) => ({
-          key: condition.key,
-          label: condition.label,
-        }))}
-        value={item ? conditionOf(item.condition).key : "good"}
-      />
+      {/* Todo lo que tiene un valor por defecto que acierta casi siempre vive
+          acá adentro. Mostrarlo de entrada llenaba la pantalla de decisiones
+          que casi nadie cambia. */}
+      <details className="r-more" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+        <summary>
+          <Sliders className="size-4" />
+          Más detalles
+          <span className="r-more-sum">{summarize(condition, quantity)}</span>
+        </summary>
 
-      <div>
-        <label className="r-field-label" htmlFor="item-quantity">
-          ¿Cuántos?
-        </label>
-        <input
-          id="item-quantity"
-          name="quantity"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={9999}
-          defaultValue={item?.quantity ?? 1}
-          className="r-field tabular-nums"
-        />
-      </div>
+        <div className="flex flex-col gap-5 pt-4">
+          <fieldset>
+            <legend className="r-field-label">Estado</legend>
+            <div className="flex flex-wrap gap-2">
+              {CONDITIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setCondition(option.key)}
+                  className="r-chip"
+                  data-on={condition === option.key}
+                  style={{ "--tone": tone } as React.CSSProperties}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
-      {/* Mover vive acá dentro a propósito: cambiar de cajón es una edición
-          como cualquier otra, no un flujo aparte. */}
-      {item && places.length > 1 ? (
-        <div>
-          <label className="r-field-label" htmlFor="item-move">
-            ¿Dónde está?
-          </label>
-          <select
-            id="item-move"
-            name="move_to"
-            defaultValue={item.node_id}
-            className="r-field"
+          <div>
+            <span className="r-field-label">¿Cuántos?</span>
+            <Stepper value={quantity} onChange={setQuantity} />
+          </div>
+
+          <PhotoField
+            saved={item?.photo ?? item?.thumb ?? null}
+            onDrop={
+              item
+                ? () => {
+                    void removeItemPhoto(item.id, item.node_id);
+                    onSaved();
+                  }
+                : undefined
+            }
           >
-            {places.map((place) => (
-              <option key={place.id} value={place.id}>
-                {place.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
+            {(fresh) =>
+              item && WEARABLE.has(item.category) && !fresh ? <Cutout item={item} /> : null
+            }
+          </PhotoField>
 
-      <div>
-        <label className="r-field-label" htmlFor="item-note">
-          Nota · opcional
-        </label>
-        <textarea
-          id="item-note"
-          name="note"
-          rows={3}
-          maxLength={400}
-          defaultValue={item?.note ?? ""}
-          placeholder="Funciona bien, es de 2 metros…"
-          className="r-field resize-none"
-        />
-      </div>
+          {/* Mover es una corrección, no un paso del alta: solo al editar, y
+              acá abajo, donde no le quita lugar a lo que se usa siempre. */}
+          {item && places.length > 1 ? (
+            <div>
+              <label className="r-field-label" htmlFor="item-move">
+                Mover a otro lugar
+              </label>
+              <select id="item-move" name="move_to" defaultValue={item.node_id} className="r-field">
+                {places.map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div>
+            <label className="r-field-label" htmlFor="item-note">
+              Nota
+            </label>
+            <textarea
+              id="item-note"
+              name="note"
+              rows={3}
+              maxLength={400}
+              defaultValue={item?.note ?? ""}
+              placeholder="Funciona bien, es de 2 metros…"
+              className="r-field resize-none"
+            />
+          </div>
+        </div>
+      </details>
 
       <Error state={state} />
 
-      <button type="submit" disabled={pending} className="r-key r-key-lit w-full">
-        {pending ? "Guardando…" : editing ? "Guardar" : "Agregar"}
+      <button
+        type="submit"
+        disabled={pending || name.trim().length === 0}
+        className="r-key r-key-lit w-full"
+        style={{ "--tone": tone } as React.CSSProperties}
+      >
+        {pending ? "Guardando…" : editing ? "Guardar" : "Agregar y seguir"}
       </button>
+
+      {/* La salida del alta en cadena. Sin esto, la única forma de volver es
+          el botón de atrás, y el pulgar está abajo. */}
+      {!editing && added.length > 0 ? (
+        <button type="button" onClick={onSaved} className="r-key w-full">
+          Listo, volver
+        </button>
+      ) : null}
     </form>
   );
+}
+
+/** Lo que dice el resumen de los detalles sin abrirlos. */
+function summarize(condition: string, quantity: number) {
+  const parts = [conditionOf(condition as Condition).label.toLowerCase()];
+  if (quantity > 1) parts.push(`${quantity} unidades`);
+  return parts.join(" · ");
 }

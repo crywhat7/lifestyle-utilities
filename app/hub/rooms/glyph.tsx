@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { Box, Drawer, Grid, Slate, Tag, Wardrobe } from "@/components/icons";
+import { Box, Drawer, Grid, Slate, Wardrobe } from "@/components/icons";
+import { CategoryGlyph } from "./category-glyph";
 import { categoryOf, type NodeKind } from "@/lib/rooms";
 
 /**
@@ -60,11 +61,18 @@ export function NodeGlyph({ kind, variant }: { kind: NodeKind; variant: string |
   return <Wardrobe className={size} />;
 }
 
-/** El glifo de una cosa: siempre una etiqueta, teñida por su categoría. */
+/**
+ * El glifo de una cosa: el dibujo de su categoría, teñido con su color.
+ *
+ * Antes eran todas la misma etiqueta y el color hacía todo el trabajo. Con
+ * dieciséis categorías el color solo alcanza para agrupar, no para nombrar:
+ * en una lista de cuarenta filas, dos azules parecidos se confunden y el
+ * dibujo no.
+ */
 export function ItemGlyph({ category }: { category: string }) {
   return (
     <Glyph tone={categoryOf(category).hue} size="sm">
-      <Tag className="size-[1.0625rem]" />
+      <CategoryGlyph category={categoryOf(category).key} className="size-[1.0625rem]" />
     </Glyph>
   );
 }

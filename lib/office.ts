@@ -167,6 +167,11 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/[•●▪]/g, "-"],
   [/[→⇒]/g, "->"],
   [/[←⇐]/g, "<-"],
+  /* El separador de la ruta de Rooms. Sin esto, "Cuarto › Armario" sale
+     "Cuarto ? Armario" en cualquier PDF que imprima un camino. */
+  [/[›»]/g, ">"],
+  [/[‹«]/g, "<"],
+  [/[★☆]/g, "*"],
   [/ /g, " "],
   [/\t/g, "    "],
 ];

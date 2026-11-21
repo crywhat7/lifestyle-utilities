@@ -381,6 +381,125 @@ export function categoryOf(key: string): Category {
   return CATEGORY_MAP.get(key) ?? CATEGORIES[CATEGORIES.length - 1];
 }
 
+/**
+ * Qué categoría parece, a partir del nombre.
+ *
+ * Esto existe por una sola razón: un inventario de verdad son cientos de
+ * cosas, y en cientos de cosas la categoría es el campo caro. El nombre se
+ * escribe sin pensar —ya sabés qué tenés en la mano— pero elegir entre
+ * dieciséis fichas es una decisión consciente por objeto, y dieciséis
+ * decisiones conscientes por minuto es lo que hace que alguien abandone a los
+ * veinte objetos.
+ *
+ * Así que la categoría se propone sola mientras se escribe y queda elegida.
+ * Nunca se impone: la ficha propuesta se ve marcada y se cambia con un toque.
+ * Adivinar mal cuesta un toque; no adivinar cuesta uno siempre.
+ *
+ * Las claves son raíces, no palabras: "cable" cubre cables y "cablecito", y
+ * "pantalon" cubre pantalones. Gana la raíz más larga que coincida, que es lo
+ * que hace que "memoria usb" caiga en componentes y no en cables.
+ */
+const HINTS: Record<string, string[]> = {
+  cables: [
+    "cable", "cargador", "usb", "hdmi", "extension", "alargue", "adaptador",
+    "enchufe", "regleta", "auxiliar", "ethernet", "lightning",
+  ],
+  electronics: [
+    "telefono", "celular", "laptop", "computadora", "monitor", "pantalla",
+    "teclado", "mouse", "raton", "bocina", "parlante", "audifono", "auricular",
+    "tablet", "router", "modem", "impresora", "radio", "reproductor",
+  ],
+  parts: [
+    "memoria", "ram", "procesador", "tarjeta", "placa", "ventilador", "fuente",
+    "ssd", "disco", "bateria", "pila", "sensor", "motor", "resistencia",
+  ],
+  tools: [
+    "destornillador", "martillo", "pinza", "llave", "taladro", "alicate",
+    "cinta", "sierra", "lija", "pegamento", "silicon", "nivel", "broca",
+    "soldador", "multimetro",
+  ],
+  stationery: [
+    "lapiz", "lapicero", "boligrafo", "pluma", "cuaderno", "libreta", "hoja",
+    "tijera", "grapadora", "clip", "marcador", "resaltador", "borrador",
+    "regla", "carpeta", "folder", "sobre", "libro", "agenda",
+  ],
+  clothing: [
+    "camisa", "camiseta", "playera", "polo", "hoodie", "sudadera", "sueter",
+    "chaqueta", "abrigo", "chumpa", "pantalon", "jean", "short", "bermuda",
+    "calceta", "calcetin", "media", "ropa", "boxer", "vestido", "falda",
+    "pijama", "traje", "saco", "blusa", "chaleco", "leggings",
+  ],
+  shoes: [
+    "zapato", "tenis", "zapatilla", "bota", "sandalia", "chancla", "pantufla",
+    "crocs", "mocasin", "tacon",
+  ],
+  accessories: [
+    "reloj", "lentes", "gafas", "anillo", "collar", "pulsera", "arete",
+    "cinturon", "faja", "cartera", "billetera", "mochila", "bolso", "llavero",
+    "bufanda", "guante", "gorra", "sombrero",
+  ],
+  hygiene: [
+    "jabon", "shampoo", "champu", "cepillo", "dental", "desodorante", "toalla",
+    "perfume", "crema", "afeitar", "rasuradora", "cortauna", "higienico",
+    "pañal", "algodon",
+  ],
+  health: [
+    "medicina", "medicamento", "pastilla", "vitamina", "termometro", "venda",
+    "curita", "alcohol", "jeringa", "ibuprofeno", "paracetamol",
+    "acetaminofen", "suero", "inhalador",
+  ],
+  documents: [
+    "documento", "pasaporte", "titulo", "diploma", "contrato", "factura",
+    "recibo", "certificado", "identificacion", "cedula", "licencia", "poliza",
+    "acta", "escritura", "garantia",
+  ],
+  games: [
+    "juego", "consola", "control", "mando", "nintendo", "playstation", "xbox",
+    "carta", "naipe", "ficha", "dado", "rompecabeza", "puzzle", "lego",
+    "peluche", "figura",
+  ],
+  sports: [
+    "pelota", "balon", "raqueta", "mancuerna", "pesa", "bicicleta", "casco",
+    "patineta", "yoga", "colchoneta", "guayo", "canillera",
+  ],
+  kitchen: [
+    "olla", "sarten", "plato", "vaso", "taza", "cuchara", "tenedor",
+    "cuchillo", "licuadora", "cafetera", "tupper", "termo", "bandeja",
+    "colador", "abrelata", "molde", "pajilla", "servilleta",
+  ],
+  art: [
+    "pincel", "pintura", "acuarela", "lienzo", "oleo", "crayon", "arcilla",
+    "plastilina", "temperas", "caballete",
+  ],
+};
+
+/** Sin tildes y en minúsculas: nadie escribe "lápiz" con tilde en un apuro. */
+function plain(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function guessCategory(name: string): string | null {
+  const words = plain(name).split(/[^a-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return null;
+
+  let best: { key: string; length: number } | null = null;
+
+  for (const [key, hints] of Object.entries(HINTS)) {
+    for (const hint of hints) {
+      /* La raíz tiene que abrir una palabra, no aparecer en cualquier lado:
+         sin esto, "repuesto" contiene "puesto" y medio diccionario coincide
+         con medio inventario. */
+      if (!words.some((word) => word.startsWith(hint))) continue;
+      if (!best || hint.length > best.length) best = { key, length: hint.length };
+    }
+  }
+
+  return best?.key ?? null;
+}
+
 export function isCategory(value: unknown): value is string {
   return typeof value === "string" && CATEGORY_MAP.has(value);
 }
