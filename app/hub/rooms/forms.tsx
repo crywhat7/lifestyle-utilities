@@ -18,6 +18,7 @@ import {
   categoryOf,
   conditionOf,
   guessCategory,
+  guessVariant,
   nextColor,
   type Condition,
   type ItemWithPhoto,
@@ -38,7 +39,7 @@ import {
 } from "./actions";
 import { CUTOUT_FIRST_RUN, cutOut } from "./cutout";
 import { NavLink } from "@/components/nav-link";
-import { CategoryGlyph } from "./category-glyph";
+import { CategoryGlyph, VariantGlyph } from "./category-glyph";
 import { SquareFramer, type Framed } from "./framer";
 import { trailPath } from "./paths";
 
@@ -61,57 +62,6 @@ const IDLE: FormState = { status: "idle" };
 /* -------------------------------------------------------------------------- */
 /* Piezas compartidas                                                          */
 /* -------------------------------------------------------------------------- */
-
-/**
- * El grupo de chips.
- *
- * Vive acá y no en cada formulario porque resuelve el detalle que el radio
- * nativo no cuenta: cuando uno se prende, los otros se apagan sin disparar
- * `change`. El grupo escucha una vez y reparte el estado.
- */
-function ChipGroup({
-  name,
-  legend,
-  options,
-  value,
-}: {
-  name: string;
-  legend: string;
-  options: { key: string; label: string; tone?: string }[];
-  value: string | null;
-}) {
-  const [picked, setPicked] = useState(value);
-
-  return (
-    <fieldset>
-      <legend className="r-field-label">{legend}</legend>
-      <div
-        className="flex flex-wrap gap-2"
-        onChange={(event) => {
-          const target = event.target as HTMLInputElement;
-          if (target.name === name) setPicked(target.value);
-        }}
-      >
-        {options.map((option) => (
-          <label
-            key={option.key}
-            className="r-chip relative"
-            data-on={picked === option.key}
-            style={option.tone ? ({ "--tone": option.tone } as React.CSSProperties) : undefined}
-          >
-            <input
-              type="radio"
-              name={name}
-              value={option.key}
-              defaultChecked={value === option.key}
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
 
 /**
  * Borrar, en dos toques.
@@ -208,7 +158,23 @@ export function NodeForm({
   const [state, action, pending] = useActionState(editing ? updateNode : createNode, IDLE);
   const [armed, setArmed] = useState(false);
 
+  const [name, setName] = useState(node?.name ?? "");
+  const [variant, setVariant] = useState<string | null>(node?.variant ?? null);
+
+  /* Igual que en las cosas: la corazonada se calla en cuanto alguien elige a
+     mano, para que el campo no se desarme solo mientras se escribe el resto
+     del nombre. */
+  const [chosen, setChosen] = useState(editing);
+
   useCloseOnSaved(state, onSaved);
+
+  function rename(next: string) {
+    setName(next);
+    if (chosen) return;
+
+    const guess = guessVariant(kind, next);
+    if (guess) setVariant(guess);
+  }
 
 
   return (
@@ -247,21 +213,30 @@ export function NodeForm({
           required
           maxLength={60}
           autoComplete="off"
+          value={name}
+          onChange={(event) => rename(event.target.value)}
           /* El autofoco es para quien acaba de tocar "agregar": el teclado
              sube solo y se escribe. Al editar no, porque ahí lo primero
              suele ser mirar, no escribir. */
           autoFocus={!editing}
-          defaultValue={node?.name ?? ""}
           placeholder={PLACEHOLDER[kind]}
-          className="r-field"
+          className="r-field r-field-lg"
         />
       </div>
 
-      <ChipGroup
+      <TilePicker
         name="variant"
         legend="¿Qué es?"
-        options={VARIANTS[kind]}
-        value={node?.variant ?? null}
+        value={variant}
+        options={VARIANTS[kind].map((option) => ({
+          key: option.key,
+          label: option.label,
+          icon: <VariantGlyph variant={option.key} className="size-[1.375rem]" />,
+        }))}
+        onPick={(key) => {
+          setVariant(key);
+          setChosen(true);
+        }}
       />
 
       {/* La foto del contenedor existe para una sola cosa, y conviene
@@ -710,44 +685,53 @@ function Cutout({ item }: { item: ItemWithPhoto }) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Elegir categoría sin leer.
+ * Elegir sin leer.
  *
- * Dieciséis casillas con su dibujo y su color, en una grilla que NO se
- * reordena nunca. La tentación es poner adelante las más usadas; sería más
- * listo y más lento, porque lo que hace rápido al objeto número doscientos es
- * que la mano ya sepa dónde está "cables" sin mirar, y eso se rompe si las
- * casillas se mueven.
+ * Una grilla de casillas con su dibujo: las dieciséis categorías de una cosa,
+ * los diez tipos de mueble, los ocho de caja. Antes todas eran píldoras de
+ * texto envueltas en cuatro renglones, y elegir una era leerlas.
+ *
+ * La tentación es poner adelante las más usadas; sería más listo y más lento,
+ * porque lo que hace rápido al objeto número doscientos es que la mano ya
+ * sepa dónde está "cables" sin mirar, y eso se rompe si las casillas se
+ * mueven. El orden es el del catálogo y no se toca nunca.
  *
  * El radio real vive debajo de cada casilla: la elección llega al `FormData`
  * como cualquier campo y funcionaría sin JavaScript.
  */
-function CategoryPicker({
+function TilePicker({
+  name,
+  legend,
+  options,
   value,
   onPick,
 }: {
-  value: string;
+  name: string;
+  legend: string;
+  options: { key: string; label: string; tone?: string; icon: React.ReactNode }[];
+  value: string | null;
   onPick: (key: string) => void;
 }) {
   return (
     <fieldset>
-      <legend className="sr-only">Categoría</legend>
+      <legend className="sr-only">{legend}</legend>
       <div className="r-cats">
-        {CATEGORIES.map((category) => (
+        {options.map((option) => (
           <label
-            key={category.key}
+            key={option.key}
             className="r-cat"
-            data-on={value === category.key}
-            style={{ "--tone": category.hue } as React.CSSProperties}
+            data-on={value === option.key}
+            style={option.tone ? ({ "--tone": option.tone } as React.CSSProperties) : undefined}
           >
             <input
               type="radio"
-              name="category"
-              value={category.key}
-              checked={value === category.key}
-              onChange={() => onPick(category.key)}
+              name={name}
+              value={option.key}
+              checked={value === option.key}
+              onChange={() => onPick(option.key)}
             />
-            <CategoryGlyph category={category.key} className="size-[1.375rem]" />
-            <span>{category.label}</span>
+            {option.icon}
+            <span>{option.label}</span>
           </label>
         ))}
       </div>
@@ -964,13 +948,41 @@ export function ItemForm({
         />
       </div>
 
-      <CategoryPicker
+      <TilePicker
+        name="category"
+        legend="Categoría"
         value={category}
+        options={CATEGORIES.map((option) => ({
+          key: option.key,
+          label: option.label,
+          tone: option.hue,
+          icon: <CategoryGlyph category={option.key} className="size-[1.375rem]" />,
+        }))}
         onPick={(key) => {
           setCategory(key);
           setChosen(true);
         }}
       />
+
+      {/* La foto NO vive en los detalles, aunque sea opcional como ellos.
+          Opcional no es lo mismo que secundario: para un cable o una prenda
+          la foto ES el dato —"cable negro de 2 metros" describe a cuatro
+          cables distintos y la imagen no— y guardada detrás de un acordeón
+          simplemente no se le pone a nada. Los detalles son para lo que casi
+          nunca se cambia; esto es para lo que casi siempre conviene hacer. */}
+      <PhotoField
+        saved={item?.photo ?? item?.thumb ?? null}
+        onDrop={
+          item
+            ? () => {
+                void removeItemPhoto(item.id, item.node_id);
+                onSaved();
+              }
+            : undefined
+        }
+      >
+        {(fresh) => (item && WEARABLE.has(item.category) && !fresh ? <Cutout item={item} /> : null)}
+      </PhotoField>
 
       {/* Todo lo que tiene un valor por defecto que acierta casi siempre vive
           acá adentro. Mostrarlo de entrada llenaba la pantalla de decisiones
@@ -1005,22 +1017,6 @@ export function ItemForm({
             <span className="r-field-label">¿Cuántos?</span>
             <Stepper value={quantity} onChange={setQuantity} />
           </div>
-
-          <PhotoField
-            saved={item?.photo ?? item?.thumb ?? null}
-            onDrop={
-              item
-                ? () => {
-                    void removeItemPhoto(item.id, item.node_id);
-                    onSaved();
-                  }
-                : undefined
-            }
-          >
-            {(fresh) =>
-              item && WEARABLE.has(item.category) && !fresh ? <Cutout item={item} /> : null
-            }
-          </PhotoField>
 
           {/* Mover es una corrección, no un paso del alta: solo al editar, y
               acá abajo, donde no le quita lugar a lo que se usa siempre. */}

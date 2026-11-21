@@ -621,15 +621,21 @@
     color 0.25s var(--r-ease);
 }
 
+/* El rótulo puede ocupar dos renglones. Con uno solo, "Mesa de noche" salía
+   "Mesa de noc..." — y una casilla que hay que adivinar no es más rápida que
+   una lista. Dos renglones entran sin cambiar el alto porque la casilla ya
+   tiene alto mínimo. */
 .rooms .r-cat span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   max-width: 100%;
   overflow: hidden;
   font-size: 0.625rem;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.15;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .rooms .r-cat input {

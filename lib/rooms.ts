@@ -337,6 +337,71 @@ export function variantLabel(kind: NodeKind, variant: string | null) {
   return VARIANTS[kind].find((item) => item.key === variant)?.label ?? null;
 }
 
+/**
+ * Qué tipo de lugar parece, a partir del nombre.
+ *
+ * El mismo trato que `guessCategory` y por la misma razón: registrar una casa
+ * entera son decenas de muebles y cajas, y "Armario grande" ya dijo que es un
+ * armario — volver a decírselo a la app tocando una ficha es trabajo que la
+ * app podía hacer sola.
+ *
+ * Las raíces se buscan solo entre los tipos que ese `kind` admite, así que
+ * "puerta" propone la puerta de un mueble cuando se está creando una gaveta y
+ * no la propone nunca al crear una habitación.
+ */
+const VARIANT_HINTS: Record<string, string[]> = {
+  bedroom: ["cuarto", "dormitorio", "habitacion", "recamara", "pieza"],
+  living: ["sala", "living", "comedor", "estancia"],
+  kitchen: ["cocina"],
+  bathroom: ["bano", "sanitario", "ducha", "lavabo"],
+  office: ["estudio", "oficina", "escritorio", "taller"],
+  garage: ["garaje", "garage", "cochera"],
+  storage: ["bodega", "deposito", "trastero", "closet"],
+  wardrobe: ["armario", "ropero", "closet", "guardarropa"],
+  dresser: ["comoda", "gavetero", "tocador", "chifonier"],
+  shelf: ["estanteria", "estante", "repisa", "librero", "anaquel"],
+  desk: ["escritorio", "mesa de trabajo"],
+  bed: ["cama", "litera"],
+  nightstand: ["mesa de noche", "mesita", "buro", "nochero"],
+  table: ["mesa", "mesada", "barra"],
+  cabinet: ["gabinete", "alacena", "vitrina", "mueble"],
+  trunk: ["baul", "arcon", "cofre"],
+  drawer: ["gaveta", "cajon"],
+  door: ["puerta"],
+  rail: ["barra", "tubo", "colgador", "perchero"],
+  cubby: ["cubiculo", "casillero", "nicho", "hueco"],
+  box: ["caja", "cajita", "cartón", "carton"],
+  bag: ["bolsa", "bolso", "mochila", "morral"],
+  case: ["estuche", "funda", "maletin", "cartuchera"],
+  basket: ["canasta", "cesta", "canasto"],
+  jar: ["frasco", "bote", "tarro", "pote"],
+  organizer: ["organizador", "separador", "bandeja"],
+  envelope: ["sobre", "folder", "carpeta"],
+};
+
+export function guessVariant(kind: NodeKind, name: string): string | null {
+  const words = plain(name).split(/[^a-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return null;
+
+  let best: { key: string; length: number } | null = null;
+
+  for (const option of VARIANTS[kind]) {
+    for (const hint of VARIANT_HINTS[option.key] ?? []) {
+      /* Las pistas de dos palabras ("mesa de noche") se buscan en el nombre
+         entero; las de una, al inicio de alguna palabra. Sin lo primero,
+         "mesa de noche" gana con "mesa" y propone una mesa. */
+      const hit = hint.includes(" ")
+        ? plain(name).includes(hint)
+        : words.some((word) => word.startsWith(hint));
+
+      if (!hit) continue;
+      if (!best || hint.length > best.length) best = { key: option.key, length: hint.length };
+    }
+  }
+
+  return best?.key ?? null;
+}
+
 export function isVariant(kind: NodeKind, value: unknown): value is string {
   return typeof value === "string" && VARIANTS[kind].some((item) => item.key === value);
 }
