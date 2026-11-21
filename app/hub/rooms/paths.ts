@@ -17,6 +17,9 @@
 export const ROOMS_PATH = "/hub/rooms";
 export const OUTFITS_PATH = `${ROOMS_PATH}/outfits`;
 
+/** Las categorías propias: renombrar, recolorear, borrar. */
+export const CATEGORIES_PATH = `${ROOMS_PATH}/categorias`;
+
 /** La pantalla de un nodo: habitación, mueble, gaveta o caja. */
 export function nodePath(id: string) {
   return `${ROOMS_PATH}/${id}`;

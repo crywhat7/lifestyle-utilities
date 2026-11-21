@@ -6,6 +6,7 @@ import {
   categoryOf,
   variantLabel,
   type IndexEntry,
+  type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
 import { nodePath } from "./paths";
@@ -26,7 +27,15 @@ import { ItemGlyph, Glyph, NodeGlyph } from "./glyph";
  * Cada paso es además un enlace, así que la misma pantalla sirve para
  * mostrarle a alguien el camino y para ir uno mismo hasta la mitad.
  */
-export function Trail({ item, nodes }: { item: IndexEntry; nodes: RoomNode[] }) {
+export function Trail({
+  item,
+  nodes,
+  own,
+}: {
+  item: IndexEntry;
+  nodes: RoomNode[];
+  own?: OwnCategory[];
+}) {
   const node = nodes.find((candidate) => candidate.id === item.node_id);
 
   // Los ancestros en orden, de la habitación hacia adentro. `path_ids` ya
@@ -90,19 +99,19 @@ export function Trail({ item, nodes }: { item: IndexEntry; nodes: RoomNode[] }) 
           className="r-card r-rise flex items-center gap-3 p-3"
           style={
             {
-              "--tone": categoryOf(item.category).hue,
+              "--tone": categoryOf(item.category, own).hue,
               "--d": `${80 + steps.length * 50}ms`,
             } as CSSProperties
           }
         >
           <span className="r-step r-step-end">★</span>
-          <ItemGlyph category={item.category} />
+          <ItemGlyph category={item.category} own={own} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.9375rem] font-semibold">{item.name}</span>
             <span className="mt-0.5 block truncate text-[0.75rem] text-[var(--r-ink-3)]">
               {item.quantity > 1
-                ? `${item.quantity} · ${categoryOf(item.category).label}`
-                : categoryOf(item.category).label}
+                ? `${item.quantity} · ${categoryOf(item.category, own).label}`
+                : categoryOf(item.category, own).label}
             </span>
           </span>
         </li>

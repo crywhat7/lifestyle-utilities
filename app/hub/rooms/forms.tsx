@@ -11,10 +11,10 @@ import {
 import { Camera, Grid, Minus, Pin, PlusSlot, Scan, Sliders, Trash } from "@/components/icons";
 import { CENTERED, cropSquare, openPhoto, type Square } from "@/lib/photo";
 import {
-  CATEGORIES,
   CONDITIONS,
   ROOM_COLORS,
   VARIANTS,
+  catalog,
   categoryOf,
   conditionOf,
   guessCategory,
@@ -23,9 +23,11 @@ import {
   type Condition,
   type ItemWithPhoto,
   type NodeKind,
+  type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
 import {
+  attachItemPhoto,
   createItem,
   createNode,
   deleteItem,
@@ -40,8 +42,9 @@ import {
 import { CUTOUT_FIRST_RUN, cutOut } from "./cutout";
 import { NavLink } from "@/components/nav-link";
 import { CategoryGlyph, VariantGlyph } from "./category-glyph";
+import { CategoryMaker } from "./category-maker";
 import { SquareFramer, type Framed } from "./framer";
-import { trailPath } from "./paths";
+import { CATEGORIES_PATH, trailPath } from "./paths";
 
 /**
  * Qué se puede combinar en un conjunto.
@@ -687,7 +690,7 @@ function Cutout({ item }: { item: ItemWithPhoto }) {
 /**
  * Elegir sin leer.
  *
- * Una grilla de casillas con su dibujo: las dieciséis categorías de una cosa,
+ * Una grilla de casillas con su dibujo: las veintidós categorías de una cosa,
  * los diez tipos de mueble, los ocho de caja. Antes todas eran píldoras de
  * texto envueltas en cuatro renglones, y elegir una era leerlas.
  *
@@ -705,12 +708,15 @@ function TilePicker({
   options,
   value,
   onPick,
+  extra,
 }: {
   name: string;
   legend: string;
   options: { key: string; label: string; tone?: string; icon: React.ReactNode }[];
   value: string | null;
   onPick: (key: string) => void;
+  /** Una casilla más al final de la grilla — hoy, "hacerse una categoría". */
+  extra?: React.ReactNode;
 }) {
   return (
     <fieldset>
@@ -734,6 +740,7 @@ function TilePicker({
             <span>{option.label}</span>
           </label>
         ))}
+        {extra}
       </div>
     </fieldset>
   );
@@ -781,6 +788,12 @@ function Stepper({ value, onChange }: { value: number; onChange: (next: number) 
  * "Más detalles": estado en buen estado, cantidad en uno, sin foto y sin
  * nota.
  *
+ * Y nada de eso sirve si el botón tarda. Por eso la foto no viaja con el
+ * formulario: el alta termina con el INSERT —nombre, categoría, miniatura,
+ * unos KB— y la imagen grande se sube sola por detrás mientras se escribe el
+ * objeto siguiente. La cosa ya se ve completa en la lista, porque la
+ * miniatura la recortó el teléfono y entró con la fila.
+ *
  * Y al agregar, la pantalla NO se cierra. Volver a la lista y tocar otra vez
  * "Agregar cosa" por cada objeto es la mitad del trabajo de llenar un cajón:
  * el formulario se vacía, el cursor vuelve al nombre y arriba queda el conteo
@@ -797,11 +810,14 @@ export function ItemForm({
   nodeId,
   item,
   places,
+  own,
   onSaved,
 }: {
   nodeId: string;
   item?: ItemWithPhoto;
   places: Place[];
+  /** Las categorías que se hizo la persona, además de las de fábrica. */
+  own: OwnCategory[];
   onSaved: () => void;
 }) {
   const editing = Boolean(item);
@@ -813,7 +829,17 @@ export function ItemForm({
   const nameField = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(item?.name ?? "");
-  const [category, setCategory] = useState(item ? categoryOf(item.category).key : "other");
+  const [category, setCategory] = useState(item ? categoryOf(item.category, own).key : "other");
+
+  /* Las categorías que nacieron en ESTA pantalla. El servidor todavía no las
+     mandó —la lista de arriba se renderizó antes de que existieran— y sin
+     esto habría que recargar la pantalla entera en medio de un alta en
+     cadena para poder usar la que se acaba de crear. */
+  const [fresh, setFresh] = useState<OwnCategory[]>([]);
+  const [making, setMaking] = useState(false);
+
+  const mine = [...own, ...fresh.filter((row) => !own.some((saved) => saved.id === row.id))];
+  const options = catalog(mine);
   const [condition, setCondition] = useState<string>(item?.condition ?? "good");
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
   const [open, setOpen] = useState(false);
@@ -826,6 +852,49 @@ export function ItemForm({
   /** Lo agregado en esta tanda, para el conteo y para deshacer el último. */
   const [added, setAdded] = useState<{ id: string; name: string }[]>([]);
 
+  /* Cuántas fotos están viajando ahora mismo y cuántas se cayeron. El campo
+     de foto se desmonta y vuelve con cada objeto —de ahí `round`—, que es la
+     única forma honesta de vaciarlo: su recorte, su previsualización y sus
+     dos inputs son estado suyo, y `form.reset()` no los toca. */
+  const [uploads, setUploads] = useState(0);
+  const [lost, setLost] = useState(0);
+  const [round, setRound] = useState(0);
+
+  /* Avisar antes de cerrar la pestaña con fotos a medio subir. Es la única
+     contra de subir por detrás, y cuesta tres líneas. */
+  useEffect(() => {
+    if (uploads === 0) return;
+
+    const hold = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", hold);
+    return () => window.removeEventListener("beforeunload", hold);
+  }, [uploads]);
+
+  /**
+   * Mandar la foto por detrás, ya con el id de la cosa guardada.
+   *
+   * Sin `await` a propósito: el valor de todo esto es justamente que nadie
+   * espere. La promesa sobrevive al desmontaje del formulario, así que la
+   * subida termina aunque se cierre la hoja; lo único que la mata es cerrar
+   * la pestaña, y para eso está el aviso de arriba.
+   */
+  function sendPhoto(id: string, photo: File, thumb: string) {
+    const body = new FormData();
+    body.set("id", id);
+    body.set("node_id", item?.node_id ?? nodeId);
+    body.set("photo", photo);
+    if (thumb) body.set("thumb", thumb);
+
+    setUploads((count) => count + 1);
+
+    void attachItemPhoto(IDLE, body)
+      .then((result) => {
+        if (result.status === "error") setLost((count) => count + 1);
+      })
+      .catch(() => setLost((count) => count + 1))
+      .finally(() => setUploads((count) => Math.max(0, count - 1)));
+  }
+
   /**
    * Guardar, y seguir.
    *
@@ -837,6 +906,25 @@ export function ItemForm({
    */
   function submit(data: FormData) {
     const sent = String(data.get("name") ?? "").trim();
+
+    /*
+       La foto se saca del envío y viaja aparte.
+
+       El alta en cadena vive o muere por lo que tarda el botón: el INSERT con
+       nombre, categoría y miniatura son unos KB y vuelve al instante, pero el
+       cuadrado de 1080 px son cientos y en datos móviles se sienten. Mandarlo
+       en el mismo FormData hacía esperar la red para poder escribir el objeto
+       siguiente —y, mientras se esperaba, la foto seguía en pantalla y no
+       había forma de saber si la cosa había entrado.
+
+       Al editar no: ahí la hoja se cierra y guardar una sola cosa no es una
+       carrera, así que la foto viaja con el formulario como siempre.
+    */
+    const picked = data.get("photo");
+    const photo = picked instanceof File && picked.size > 0 ? picked : null;
+    const thumb = String(data.get("thumb") ?? "");
+
+    if (photo && !editing) data.delete("photo");
 
     run(async () => {
       const result = await (editing ? updateItem : createItem)(IDLE, data);
@@ -855,6 +943,7 @@ export function ItemForm({
          cables seguidos. */
       if (result.id) {
         setAdded((current) => [{ id: result.id as string, name: sent }, ...current].slice(0, 20));
+        if (photo) sendPhoto(result.id, photo, thumb);
       }
 
       form.current?.reset();
@@ -862,6 +951,7 @@ export function ItemForm({
       setQuantity(1);
       setChosen(false);
       setOpen(false);
+      setRound((current) => current + 1);
       nameField.current?.focus();
     });
   }
@@ -870,11 +960,11 @@ export function ItemForm({
     setName(next);
     if (chosen) return;
 
-    const guess = guessCategory(next);
+    const guess = guessCategory(next, mine);
     if (guess) setCategory(guess);
   }
 
-  const tone = categoryOf(category).hue;
+  const tone = categoryOf(category, mine).hue;
 
   return (
     <form ref={form} action={submit} className="flex flex-col gap-4">
@@ -913,6 +1003,12 @@ export function ItemForm({
           <span className="min-w-0 flex-1 truncate">
             <strong>{added.length}</strong>{" "}
             {added.length === 1 ? "agregada" : "agregadas"} · {added[0].name}
+            {/* Las fotos que todavía viajan se cuentan acá y no en un cartel
+                aparte: es el mismo renglón que se mira entre objeto y objeto,
+                y así nadie tiene que buscar si la suya ya subió. */}
+            {uploads > 0 ? (
+              <span className="r-up"> · {uploads === 1 ? "subiendo 1 foto" : `subiendo ${uploads} fotos`}</span>
+            ) : null}
           </span>
           <button
             type="button"
@@ -952,17 +1048,56 @@ export function ItemForm({
         name="category"
         legend="Categoría"
         value={category}
-        options={CATEGORIES.map((option) => ({
+        options={options.map((option) => ({
           key: option.key,
           label: option.label,
           tone: option.hue,
-          icon: <CategoryGlyph category={option.key} className="size-[1.375rem]" />,
+          icon: <CategoryGlyph category={option.glyph ?? option.key} className="size-[1.375rem]" />,
         }))}
         onPick={(key) => {
           setCategory(key);
           setChosen(true);
         }}
+        /* La casilla de hacerse una categoría va al final de la grilla y no en
+           un enlace a "ajustes": el momento en que alguien descubre que le
+           falta "pesca" es con la caña en la mano, no en una pantalla de
+           configuración a la que va a entrar otro día. */
+        extra={
+          !making ? (
+            <button
+              type="button"
+              onClick={() => setMaking(true)}
+              className="r-cat r-cat-new"
+              aria-label="Hacer una categoría nueva"
+            >
+              <PlusSlot className="size-[1.375rem]" />
+              <span>Nueva</span>
+            </button>
+          ) : null
+        }
       />
+
+      {/* Renombrar, recolorear o borrar NO se hace acá: es otra cosa, se hace
+          una vez cada tanto, y meterla en el alta sería llenar de botones la
+          pantalla que vive o muere por estar vacía. */}
+      {mine.length > 0 && !making ? (
+        <NavLink href={CATEGORIES_PATH} className="r-hint underline underline-offset-4">
+          Mis categorías
+        </NavLink>
+      ) : null}
+
+      {making ? (
+        <CategoryMaker
+          nodeId={item?.node_id ?? nodeId}
+          onCancel={() => setMaking(false)}
+          onDone={(saved) => {
+            setFresh((current) => [...current, saved]);
+            setCategory(saved.id);
+            setChosen(true);
+            setMaking(false);
+          }}
+        />
+      ) : null}
 
       {/* La foto NO vive en los detalles, aunque sea opcional como ellos.
           Opcional no es lo mismo que secundario: para un cable o una prenda
@@ -971,6 +1106,11 @@ export function ItemForm({
           simplemente no se le pone a nada. Los detalles son para lo que casi
           nunca se cambia; esto es para lo que casi siempre conviene hacer. */}
       <PhotoField
+        /* La `key` es lo que vacía el campo al pasar al objeto siguiente: su
+           recorte y su previsualización son estado interno, y sin desmontarlo
+           la foto del cable anterior seguía ahí, dando a entender que no se
+           había guardado nada. */
+        key={round}
         saved={item?.photo ?? item?.thumb ?? null}
         onDrop={
           item
@@ -1053,6 +1193,14 @@ export function ItemForm({
       </details>
 
       <Error state={state} />
+
+      {lost > 0 ? (
+        <p className="r-alert" role="alert">
+          {lost === 1
+            ? "Una foto no se pudo subir. La cosa quedó guardada: podés volver a ponerle la foto editándola."
+            : `${lost} fotos no se pudieron subir. Las cosas quedaron guardadas: podés volver a ponerles la foto editándolas.`}
+        </p>
+      ) : null}
 
       <button
         type="submit"

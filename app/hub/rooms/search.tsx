@@ -8,6 +8,7 @@ import {
   conditionOf,
   search,
   type IndexEntry,
+  type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
 import { nodePath, trailPath } from "./paths";
@@ -26,7 +27,15 @@ import { ItemGlyph } from "./glyph";
  * sirve de nada sin el "Cuarto › Armario › Gaveta 2 › Bolsa negra" debajo.
  * Eso es lo que se va a leer, no el nombre.
  */
-export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[] }) {
+export function Search({
+  index,
+  nodes,
+  own,
+}: {
+  index: IndexEntry[];
+  nodes: RoomNode[];
+  own?: OwnCategory[];
+}) {
   const [query, setQuery] = useState("");
 
   const hits = useMemo(() => search(index, nodes, query), [index, nodes, query]);
@@ -77,7 +86,7 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
           </p>
           <ul className="r-card overflow-hidden">
           {hits.map((hit) => {
-            const category = categoryOf(hit.item.category);
+            const category = categoryOf(hit.item.category, own);
             const state = conditionOf(hit.item.condition);
 
             return (
@@ -86,7 +95,7 @@ export function Search({ index, nodes }: { index: IndexEntry[]; nodes: RoomNode[
                   href={nodePath(hit.nodeId)}
                   className="flex min-w-0 flex-1 items-center gap-3 p-3.5"
                 >
-                  <ItemGlyph category={hit.item.category} />
+                  <ItemGlyph category={hit.item.category} own={own} />
 
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">

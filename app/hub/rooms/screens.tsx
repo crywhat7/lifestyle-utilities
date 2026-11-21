@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ItemWithPhoto, NodeKind, RoomNode } from "@/lib/rooms";
+import type { ItemWithPhoto, NodeKind, OwnCategory, RoomNode } from "@/lib/rooms";
 import { ItemForm, NodeForm, type Place } from "./forms";
 
 /**
@@ -52,12 +52,16 @@ export function ItemScreen({
   nodeId,
   item,
   places,
+  own,
   back,
 }: {
   nodeId: string;
   item?: ItemWithPhoto;
   places: Place[];
+  own: OwnCategory[];
   back: string;
 }) {
-  return <ItemForm nodeId={nodeId} item={item} places={places} onSaved={useReturn(back)} />;
+  return (
+    <ItemForm nodeId={nodeId} item={item} places={places} own={own} onSaved={useReturn(back)} />
+  );
 }

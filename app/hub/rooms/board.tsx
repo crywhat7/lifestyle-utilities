@@ -11,6 +11,7 @@ import {
   variantLabel,
   type ItemWithPhoto,
   type NodeKind,
+  type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
 import { addPath, editPath, itemPath, newItemPath, newRoomPath, nodePath } from "./paths";
@@ -36,6 +37,7 @@ export function Board({
   childNodes,
   items,
   counts,
+  own,
 }: {
   node: RoomNode | null;
   /* El color de la rama, ya resuelto por el servidor: el de la habitación en
@@ -45,6 +47,8 @@ export function Board({
   childNodes: RoomNode[];
   items: ItemWithPhoto[];
   counts: Record<string, number>;
+  /** Las categorías propias, para que una cosa en "Pesca" no se vea "Otro". */
+  own?: OwnCategory[];
 }) {
   /*
     Qué se puede crear acá. En la raíz, habitaciones. Dentro de un nodo, lo
@@ -110,7 +114,7 @@ export function Board({
           <ul className="r-card overflow-hidden">
             {items.map((item) => (
               <li key={item.id} className="r-row">
-                <ItemRow item={item} />
+                <ItemRow item={item} own={own} />
               </li>
             ))}
           </ul>
@@ -218,8 +222,8 @@ function NodeRow({ node, tone, total }: { node: RoomNode; tone: string; total: n
  * Toda la fila abre su pantalla, sin lápiz: un objeto no tiene adentro, así
  * que no hay dos destinos posibles y el toque no es ambiguo.
  */
-function ItemRow({ item }: { item: ItemWithPhoto }) {
-  const category = categoryOf(item.category);
+function ItemRow({ item, own }: { item: ItemWithPhoto; own?: OwnCategory[] }) {
+  const category = categoryOf(item.category, own);
   const state = conditionOf(item.condition);
 
   return (
@@ -233,7 +237,7 @@ function ItemRow({ item }: { item: ItemWithPhoto }) {
           <img src={item.thumb} alt="" />
         </span>
       ) : (
-        <ItemGlyph category={item.category} />
+        <ItemGlyph category={item.category} own={own} />
       )}
 
       <span className="min-w-0 flex-1">

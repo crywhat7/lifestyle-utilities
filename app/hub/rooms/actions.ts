@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  CATEGORY_HUES,
   isCategory,
+  isOwnCategory,
   isColor,
   isCondition,
   isNodeKind,
@@ -12,7 +14,7 @@ import {
   type NodeKind,
 } from "@/lib/rooms";
 import { roomsClient } from "./data";
-import { OUTFITS_PATH, ROOMS_PATH, nodePath } from "./paths";
+import { CATEGORIES_PATH, OUTFITS_PATH, ROOMS_PATH, nodePath } from "./paths";
 import { dropNodePhoto, dropPhoto, putCutout, putNodePhoto, putPhoto } from "./storage";
 
 /*
@@ -30,7 +32,8 @@ export type FormState =
   | { status: "idle" | "saved"; error?: string; id?: string }
   | { status: "error"; error: string };
 
-const MIGRATION_ERROR = "Falta correr la migración 0018 de Rooms en Supabase.";
+const migrationError = (number: string) =>
+  `Falta correr la migración ${number} de Rooms en Supabase.`;
 
 /**
  * Qué pantallas rehacer después de escribir.
@@ -67,10 +70,10 @@ function toQuantity(value: FormDataEntryValue | null, max: number) {
  * trigger. El resto es un fallo nuestro y no tiene traducción útil: decir
  * "algo salió mal" es más honesto que inventar una causa.
  */
-function explain(error: { code?: string; message?: string } | null) {
+function explain(error: { code?: string; message?: string } | null, migration = "0018") {
   if (!error) return null;
   if (error.code === "42P01" || error.code === "PGRST205" || error.code === "PGRST204") {
-    return MIGRATION_ERROR;
+    return migrationError(migration);
   }
   // El trigger `rooms_sync_path` habla en español y dice exactamente qué pasó.
   if (error.code === "P0001" && error.message) return error.message;
@@ -471,6 +474,106 @@ export async function deleteOutfit(id: string) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Las categorías propias                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Lo que llega del formulario de una categoría, ya limpio. */
+function categoryFields(form: FormData) {
+  const label = toText(form.get("label"), 24);
+
+  const hue = toText(form.get("hue"), 7).toLowerCase();
+  const glyph = toText(form.get("glyph"), 24);
+
+  return {
+    label,
+    /* El color se valida contra la paleta y no contra una expresión regular
+       de seis dígitos: lo que importa no es que sea un color válido, es que
+       se lea sobre el fondo en claro y en oscuro. */
+    hue: CATEGORY_HUES.includes(hue) ? hue : CATEGORY_HUES[0],
+    glyph: glyph || "other",
+  };
+}
+
+/* Lo que Postgres contesta cuando ya existe una categoría con ese nombre. El
+   índice único vive en la 0025 y dice exactamente esto. */
+function explainCategory(error: { code?: string; message?: string } | null) {
+  if (error?.code === "23505") return "Ya tenés una categoría con ese nombre.";
+  return explain(error, "0025");
+}
+
+/**
+ * Crear una categoría propia.
+ *
+ * Devuelve el `id`, y no por prolijidad: el formulario de una cosa crea la
+ * categoría sin salir de la pantalla y necesita poder dejarla elegida al
+ * instante. Sin el id de vuelta habría que recargar la pantalla entera en
+ * medio de un alta en cadena, que es exactamente lo que este módulo viene
+ * tratando de no hacer.
+ */
+export async function createOwnCategory(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const { label, hue, glyph } = categoryFields(form);
+  if (!label) return { status: "error", error: "¿Cómo se llama?" };
+
+  const { data, error } = await supabase
+    .from("rooms_categories")
+    .insert({ user_id: user.id, label, hue, glyph })
+    .select("id")
+    .maybeSingle();
+
+  const failure = explainCategory(error);
+  if (failure) return { status: "error", error: failure };
+
+  refresh(toText(form.get("node_id"), 40) || null);
+  revalidatePath(CATEGORIES_PATH);
+
+  return { status: "saved", id: data?.id ? String(data.id) : undefined };
+}
+
+/** Renombrar, recolorear o redibujar una categoría propia. */
+export async function updateOwnCategory(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const id = toText(form.get("id"), 40);
+  if (!id) return { status: "error", error: "No se encontró la categoría." };
+
+  const { label, hue, glyph } = categoryFields(form);
+  if (!label) return { status: "error", error: "¿Cómo se llama?" };
+
+  const { error } = await supabase
+    .from("rooms_categories")
+    .update({ label, hue, glyph })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  const failure = explainCategory(error);
+  if (failure) return { status: "error", error: failure };
+
+  revalidatePath(CATEGORIES_PATH);
+  revalidatePath(ROOMS_PATH);
+
+  return { status: "saved", id };
+}
+
+/**
+ * Borrar una categoría propia.
+ *
+ * No toca las cosas que la usaban: su `category` queda apuntando a una fila
+ * que ya no está y se muestran como "Otro". Borrar una etiqueta no puede
+ * borrar inventario, y reasignar doscientas cosas en silencio sería peor que
+ * dejarlas sin etiqueta.
+ */
+export async function deleteOwnCategory(id: string) {
+  const { supabase, user } = await roomsClient();
+
+  await supabase.from("rooms_categories").delete().eq("id", id).eq("user_id", user.id);
+
+  revalidatePath(CATEGORIES_PATH);
+  revalidatePath(ROOMS_PATH);
+}
+
+/* -------------------------------------------------------------------------- */
 /* Las cosas                                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -494,16 +597,30 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
   const category = form.get("category");
   const condition = form.get("condition");
 
+  /*
+     La miniatura entra con el INSERT, no con la subida.
+
+     Son unos KB de data URL que el navegador ya recortó, y es lo único que
+     pinta las listas. Guardarla acá es lo que permite que la foto grande se
+     suba después, en segundo plano: la cosa aparece completa —con su
+     imagen— desde el primer render, y el objeto del bucket llega cuando
+     llegue. Antes la miniatura viajaba pegada a la subida, así que anotar un
+     cable con foto costaba esperar la red entera antes de poder anotar el
+     siguiente.
+  */
+  const thumb = toText(form.get("thumb"), 60000);
+
   const { data, error } = await supabase
     .from("rooms_items")
     .insert({
       user_id: user.id,
       node_id: nodeId,
       name,
-      category: isCategory(category) ? category : "other",
+      category: isCategory(category) || isOwnCategory(category) ? String(category) : "other",
       condition: isCondition(condition) ? condition : "good",
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),
+      ...(thumb.startsWith("data:image/") ? { thumb } : {}),
     })
     .select("id")
     .maybeSingle();
@@ -530,6 +647,52 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
 
   refresh(nodeId);
   return { status: "saved", id: itemId ?? undefined };
+}
+
+/**
+ * Pegarle la foto a una cosa que ya quedó guardada.
+ *
+ * Existe para que subir no bloquee seguir anotando. Con el teléfono en datos
+ * móviles, un cuadrado de 1080 px tarda segundos; si esos segundos van
+ * adentro del "Agregar y seguir", el formulario se queda trabado con la foto
+ * puesta y nadie sabe si la cosa entró o no. Así el alta termina con el
+ * INSERT —que es instantáneo— y la imagen viaja sola por detrás mientras se
+ * escribe el objeto siguiente.
+ *
+ * Si esto falla, la cosa igual quedó guardada y con su miniatura: lo único
+ * que se pierde es la imagen grande, y se puede volver a poner editando.
+ */
+export async function attachItemPhoto(_state: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await roomsClient();
+
+  const id = toText(form.get("id"), 40);
+  if (!id) return { status: "error", error: "No se encontró la cosa." };
+
+  /* La fila tiene que ser propia antes de escribir un objeto en el bucket:
+     `putPhoto` sube con el cliente admin y se saltea RLS. */
+  const { data } = await supabase
+    .from("rooms_items")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return { status: "error", error: "No se encontró la cosa." };
+
+  const photo = await attachPhoto(user.id, id, form);
+  if (!photo) return { status: "error", error: "No se pudo subir la foto." };
+
+  const { error } = await supabase
+    .from("rooms_items")
+    .update(photo)
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  const failure = explain(error);
+  if (failure) return { status: "error", error: failure };
+
+  refresh(toText(form.get("node_id"), 40) || null);
+  return { status: "saved", id };
 }
 
 /**
@@ -581,7 +744,7 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
       ...(photo ?? {}),
       node_id: nodeId,
       name,
-      category: isCategory(category) ? category : "other",
+      category: isCategory(category) || isOwnCategory(category) ? String(category) : "other",
       condition: isCondition(condition) ? condition : "good",
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),

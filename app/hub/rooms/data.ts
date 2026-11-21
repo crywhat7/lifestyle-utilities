@@ -7,6 +7,7 @@ import {
   type Item,
   type IndexEntry,
   type Outfit,
+  type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
@@ -115,6 +116,33 @@ export async function loadIndex(client: Client, userId: string) {
         quantity: Number(row.quantity),
       }) as IndexEntry
   );
+}
+
+/**
+ * Las categorías que hizo la persona.
+ *
+ * Una consulta más por pantalla, y vale la pena: sin esto una cosa guardada
+ * en "Pesca" se vería como "Otro" en la lista, en el buscador y en la ruta,
+ * que es justo lo que la categoría propia venía a evitar.
+ *
+ * Si la tabla no existe todavía —la migración 0025 sin correr— vuelve vacía y
+ * el módulo sigue andando con el catálogo de fábrica. Es la diferencia entre
+ * una función que falta y una pantalla que no carga.
+ */
+export async function loadOwnCategories(client: Client, userId: string): Promise<OwnCategory[]> {
+  const { data } = await client
+    .from("rooms_categories")
+    .select("id,label,hue,glyph")
+    .eq("user_id", userId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    label: String(row.label),
+    hue: String(row.hue),
+    glyph: String(row.glyph),
+  }));
 }
 
 /**

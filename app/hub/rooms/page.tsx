@@ -4,7 +4,7 @@ import { ArrowBack, Spark } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import { ROOM_COLORS, countsByNode } from "@/lib/rooms";
 import { Board } from "./board";
-import { loadIndex, loadTree, roomsClient } from "./data";
+import { loadIndex, loadOwnCategories, loadTree, roomsClient } from "./data";
 import { MissingMigration } from "./missing";
 import { OUTFITS_PATH } from "./paths";
 import { Search } from "./search";
@@ -23,9 +23,10 @@ export default async function RoomsPage() {
     El árbol da las habitaciones y el índice da el buscador y los conteos, y
     encadenarlas era pagar dos viajes a Supabase para pintar la portada.
   */
-  const [tree, index] = await Promise.all([
+  const [tree, index, own] = await Promise.all([
     loadTree(supabase, user.id),
     loadIndex(supabase, user.id),
+    loadOwnCategories(supabase, user.id),
   ]);
 
   const shell =
@@ -62,7 +63,7 @@ export default async function RoomsPage() {
           vacío es un campo que no puede contestar nada. */}
       {index.length > 0 ? (
         <div className="r-rise" style={{ "--d": "80ms" } as CSSProperties}>
-          <Search index={index} nodes={tree.nodes} />
+          <Search index={index} nodes={tree.nodes} own={own} />
         </div>
       ) : null}
 
@@ -74,6 +75,7 @@ export default async function RoomsPage() {
         childNodes={rooms}
         items={[]}
         counts={Object.fromEntries(counts)}
+        own={own}
       />
     </main>
   );

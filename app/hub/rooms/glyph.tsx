@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Box, Drawer, Grid, Slate, Wardrobe } from "@/components/icons";
 import { CategoryGlyph } from "./category-glyph";
-import { categoryOf, type NodeKind } from "@/lib/rooms";
+import { categoryOf, type NodeKind, type OwnCategory } from "@/lib/rooms";
 
 /**
  * El cuadrado de color con el glifo adentro.
@@ -65,14 +65,16 @@ export function NodeGlyph({ kind, variant }: { kind: NodeKind; variant: string |
  * El glifo de una cosa: el dibujo de su categoría, teñido con su color.
  *
  * Antes eran todas la misma etiqueta y el color hacía todo el trabajo. Con
- * dieciséis categorías el color solo alcanza para agrupar, no para nombrar:
+ * veintidós categorías el color solo alcanza para agrupar, no para nombrar:
  * en una lista de cuarenta filas, dos azules parecidos se confunden y el
  * dibujo no.
  */
-export function ItemGlyph({ category }: { category: string }) {
+export function ItemGlyph({ category, own }: { category: string; own?: OwnCategory[] }) {
+  const found = categoryOf(category, own);
+
   return (
-    <Glyph tone={categoryOf(category).hue} size="sm">
-      <CategoryGlyph category={categoryOf(category).key} className="size-[1.0625rem]" />
+    <Glyph tone={found.hue} size="sm">
+      <CategoryGlyph category={found.glyph ?? found.key} className="size-[1.0625rem]" />
     </Glyph>
   );
 }

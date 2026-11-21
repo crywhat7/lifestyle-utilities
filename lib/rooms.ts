@@ -406,7 +406,46 @@ export function isVariant(kind: NodeKind, value: unknown): value is string {
   return typeof value === "string" && VARIANTS[kind].some((item) => item.key === value);
 }
 
-export type Category = { key: string; label: string; hue: string };
+export type Category = {
+  key: string;
+  label: string;
+  hue: string;
+  /* Cuál de los dibujos le toca, cuando no es el de su propia clave. Solo lo
+     llenan las categorías propias: las de fábrica se dibujan por clave. */
+  glyph?: string;
+  /** Si la hizo la persona. La grilla la marca y la pantalla la deja editar. */
+  own?: boolean;
+};
+
+/**
+ * Una categoría hecha por la persona, tal como sale de `rooms_categories`.
+ *
+ * El `id` ES la clave que se guarda en `rooms_items.category`. Podría haber
+ * sido un slug del nombre, y entonces renombrar "Pesca" a "Pesca y camping"
+ * habría obligado a reescribir cada cosa que la usa. Con el id, el nombre es
+ * solo una etiqueta y se cambia sin tocar el inventario.
+ */
+export type OwnCategory = {
+  id: string;
+  label: string;
+  hue: string;
+  glyph: string;
+};
+
+/**
+ * Los colores que se ofrecen para una categoría propia.
+ *
+ * Doce y no una rueda: el color acá no es decoración, es lo que permite
+ * barrer una lista de cuarenta filas con la vista, y para eso tienen que ser
+ * distinguibles ENTRE SÍ y legibles sobre el fondo en claro y en oscuro. Una
+ * rueda de color deja elegir un gris sobre gris, que es lo mismo que no tener
+ * color.
+ */
+export const CATEGORY_HUES = [
+  "#2f7ef3", "#7a5cf0", "#1d9c8a", "#c2561c",
+  "#d1941b", "#d6456f", "#43a02b", "#2a9fb5",
+  "#8e44ad", "#c0392b", "#5f9e2f", "#5a7184",
+];
 
 /**
  * Las categorías de los ítems.
@@ -434,16 +473,65 @@ export const CATEGORIES: Category[] = [
   { key: "documents", label: "Documentos", hue: "#5a7184" },
   { key: "games", label: "Juegos", hue: "#e0603a" },
   { key: "sports", label: "Deporte", hue: "#2c8f55" },
+  { key: "music", label: "Música", hue: "#4f46a8" },
   { key: "kitchen", label: "Cocina", hue: "#c0392b" },
+  { key: "food", label: "Alacena", hue: "#e08f2b" },
+  { key: "cleaning", label: "Limpieza", hue: "#2b8a9e" },
+  { key: "plants", label: "Plantas", hue: "#5f9e2f" },
+  { key: "pets", label: "Mascotas", hue: "#a9772e" },
   { key: "art", label: "Arte", hue: "#8e44ad" },
+  { key: "decor", label: "Decoración", hue: "#8e6fb5" },
   { key: "other", label: "Otro", hue: "#6b7280" },
 ];
 
 const CATEGORY_MAP = new Map(CATEGORIES.map((item) => [item.key, item]));
 
-/** La categoría, o la de "Otro" si llegó una clave que ya no existe. */
-export function categoryOf(key: string): Category {
-  return CATEGORY_MAP.get(key) ?? CATEGORIES[CATEGORIES.length - 1];
+/** La última de la lista es "Otro", y es a donde cae todo lo que no resuelve. */
+const OTHER = CATEGORIES[CATEGORIES.length - 1];
+
+/**
+ * El catálogo entero: lo de fábrica y lo propio.
+ *
+ * Las propias se intercalan ANTES de "Otro" y después de las de fábrica, y
+ * nunca se reordenan por uso. El orden de la grilla es memoria muscular —lo
+ * que hace rápido al objeto número doscientos es que la mano ya sepa dónde
+ * está "cables" sin mirar—, así que agregar una categoría propia no puede
+ * mover de lugar a las que ya estaban.
+ */
+export function catalog(own: OwnCategory[] = []): Category[] {
+  if (own.length === 0) return CATEGORIES;
+
+  return [
+    ...CATEGORIES.slice(0, -1),
+    ...own.map((row) => ({
+      key: row.id,
+      label: row.label,
+      hue: row.hue,
+      glyph: row.glyph,
+      own: true,
+    })),
+    OTHER,
+  ];
+}
+
+/**
+ * La categoría, sea de fábrica o propia.
+ *
+ * Cae en "Otro" cuando la clave no resuelve, y eso pasa de verdad: borrar una
+ * categoría propia deja huérfanas a las cosas que la usaban. Es el
+ * comportamiento que queremos —borrar una etiqueta no puede borrar el
+ * inventario— y por eso no hay clave foránea en la base.
+ */
+export function categoryOf(key: string, own: OwnCategory[] = []): Category {
+  const stock = CATEGORY_MAP.get(key);
+  if (stock) return stock;
+
+  const mine = own.find((row) => row.id === key);
+  if (mine) {
+    return { key: mine.id, label: mine.label, hue: mine.hue, glyph: mine.glyph, own: true };
+  }
+
+  return OTHER;
 }
 
 /**
@@ -452,7 +540,7 @@ export function categoryOf(key: string): Category {
  * Esto existe por una sola razón: un inventario de verdad son cientos de
  * cosas, y en cientos de cosas la categoría es el campo caro. El nombre se
  * escribe sin pensar —ya sabés qué tenés en la mano— pero elegir entre
- * dieciséis fichas es una decisión consciente por objeto, y dieciséis
+ * veintidós fichas es una decisión consciente por objeto, y veintidós
  * decisiones conscientes por minuto es lo que hace que alguien abandone a los
  * veinte objetos.
  *
@@ -520,7 +608,7 @@ const HINTS: Record<string, string[]> = {
   ],
   games: [
     "juego", "consola", "control", "mando", "nintendo", "playstation", "xbox",
-    "carta", "naipe", "ficha", "dado", "rompecabeza", "puzzle", "lego",
+    "carta", "naipe", "ficha", "dado", "rompecabeza", "puzzle", "lego", "juguete",
     "peluche", "figura",
   ],
   sports: [
@@ -536,6 +624,35 @@ const HINTS: Record<string, string[]> = {
     "pincel", "pintura", "acuarela", "lienzo", "oleo", "crayon", "arcilla",
     "plastilina", "temperas", "caballete",
   ],
+  music: [
+    "guitarra", "ukelele", "violin", "flauta", "piano", "microfono",
+    "amplificador", "partitura", "metronomo", "afinador", "boquilla",
+    "trompeta", "saxofon", "tambor", "pandereta", "vinilo",
+  ],
+  food: [
+    "comida", "arroz", "frijol", "azucar", "harina", "aceite", "pasta",
+    "lata", "enlatado", "conserva", "cereal", "galleta", "snack", "especia",
+    "condimento", "salsa", "atun", "leche", "avena", "miel", "cafe",
+  ],
+  cleaning: [
+    "escoba", "trapeador", "lampazo", "mopa", "detergente", "cloro",
+    "desinfectante", "limpiador", "desengrasante", "esponja", "trapo",
+    "balde", "cubeta", "aspiradora", "suavizante", "limpiavidrio",
+  ],
+  plants: [
+    "planta", "maceta", "matera", "tierra", "abono", "fertilizante",
+    "semilla", "suculenta", "cactus", "regadera", "helecho", "orquidea",
+    "bonsai", "sabila", "lengua", "potho", "poto", "musgo", "esqueje",
+  ],
+  pets: [
+    "mascota", "perro", "gato", "croqueta", "comedero", "bebedero",
+    "pecera", "jaula", "transportadora", "rascador", "arenero",
+  ],
+  decor: [
+    "cuadro", "adorno", "florero", "vela", "portarretrato", "espejo",
+    "cojin", "almohada", "cortina", "alfombra", "tapete", "lampara",
+    "mantel", "guirnalda", "candelabro", "estatuilla",
+  ],
 };
 
 /** Sin tildes y en minúsculas: nadie escribe "lápiz" con tilde en un apuro. */
@@ -546,7 +663,7 @@ function plain(text: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function guessCategory(name: string): string | null {
+export function guessCategory(name: string, own: OwnCategory[] = []): string | null {
   const words = plain(name).split(/[^a-z0-9]+/).filter(Boolean);
   if (words.length === 0) return null;
 
@@ -562,11 +679,45 @@ export function guessCategory(name: string): string | null {
     }
   }
 
+  /* Las propias no tienen diccionario —nadie va a escribir treinta sinónimos
+     de "pesca" al crearlas— así que su propio nombre hace de raíz. Compiten
+     con las de fábrica bajo la misma regla, la raíz más larga gana, y por eso
+     "caña de pescar" cae en "Pesca" aunque "caña" no esté en ninguna lista.
+     Palabras de menos de cuatro letras no entran: "ropa de bebé" no puede
+     quedar secuestrada por una categoría llamada "De". */
+  for (const row of own) {
+    for (const piece of plain(row.label).split(/[^a-z0-9]+/).filter((word) => word.length >= 4)) {
+      /* La segunda dirección —que el nombre escrito sea el comienzo de la
+         categoría— es para "cañas" contra "cañas de pescar", y pide cuatro
+         letras igual que la otra: sin eso, una categoría llamada "Decoración
+         de pared" se quedaría con todo lo que lleve "de" en el nombre. */
+      if (!words.some((word) => word.startsWith(piece) || (word.length >= 4 && piece.startsWith(word)))) {
+        continue;
+      }
+      if (!best || piece.length > best.length) best = { key: row.id, length: piece.length };
+    }
+  }
+
   return best?.key ?? null;
 }
 
 export function isCategory(value: unknown): value is string {
   return typeof value === "string" && CATEGORY_MAP.has(value);
+}
+
+/**
+ * Una clave que PODRÍA ser una categoría propia: la forma de un uuid.
+ *
+ * Deliberadamente no comprueba que la fila exista. Hacerlo costaría una
+ * consulta más en el camino de guardar un objeto, que es el único camino de
+ * este módulo donde los milisegundos se pagan cientos de veces, y a cambio no
+ * protegería nada: `category` es un puntero a texto que siempre se resuelve
+ * contra el catálogo de la propia persona. Un id inventado no muestra la
+ * categoría de nadie más —no hay nada que mostrar— y la cosa se ve como
+ * "Otro", que es lo mismo que pasa al borrar una categoría de verdad.
+ */
+export function isOwnCategory(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 }
 
 /**

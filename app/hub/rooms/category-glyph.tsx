@@ -3,8 +3,8 @@ import { Pencil, Phone, Plate, Pulse, Tag } from "@/components/icons";
 /**
  * Un dibujo por categoría.
  *
- * Las dieciséis categorías eran dieciséis píldoras de texto envueltas en
- * cuatro renglones, y elegir una era leerlas. Leer dieciséis palabras por
+ * Las categorías eran píldoras de texto envueltas en cuatro renglones, y
+ * elegir una era leerlas. Leer veintidós palabras por
  * objeto, cuando los objetos son cientos, es la diferencia entre un
  * inventario que se llena y uno que se abandona a los veinte.
  *
@@ -140,6 +140,72 @@ function Soap({ className }: IconProps) {
   );
 }
 
+/* Las seis que llegaron después, cuando quedó claro que un inventario de casa
+   sin "plantas" obliga a guardar una lengua de suegra en "Otro" — y lo que
+   cae en "Otro" es exactamente lo que después no se encuentra. */
+
+function Leaf({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M12 21v-7" />
+      <path d="M12 14c0-5 3-9 8-10 .5 5-2 10-8 10z" />
+      <path d="M12 14C12 9.5 9.5 6 5 5c-.4 4.5 1.8 9 7 9z" />
+    </Frame>
+  );
+}
+
+function Broom({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M12 2.5v7" />
+      <path d="M7 9.5h10l1.5 11h-13z" />
+      <path d="M10.5 9.5v11M14 9.5v11" />
+    </Frame>
+  );
+}
+
+function Paw({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <circle cx="6.5" cy="9.5" r="2" />
+      <circle cx="10.5" cy="5.5" r="2" />
+      <circle cx="15.5" cy="5.5" r="2" />
+      <circle cx="19" cy="9.5" r="2" />
+      <path d="M8.5 15.5c0-2.5 2-4 4.3-4s4.2 1.5 4.2 4c0 2.3-1.6 4.5-4.2 4.5s-4.3-2.2-4.3-4.5z" />
+    </Frame>
+  );
+}
+
+function Can({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M6 6.5v12c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-12" />
+      <ellipse cx="12" cy="5.5" rx="6" ry="2.5" />
+      <path d="M6 10.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5" />
+    </Frame>
+  );
+}
+
+function Note({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <circle cx="7" cy="18" r="3" />
+      <path d="M10 18V6l10-3v11" />
+      <circle cx="17" cy="14" r="3" />
+    </Frame>
+  );
+}
+
+function Picture({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="m3 16 5-5 4 4 3-3 6 6" />
+      <circle cx="9" cy="8" r="1.4" />
+    </Frame>
+  );
+}
+
 const BY_CATEGORY: Record<string, (props: IconProps) => React.ReactElement> = {
   cables: Cable,
   electronics: Phone,
@@ -154,10 +220,27 @@ const BY_CATEGORY: Record<string, (props: IconProps) => React.ReactElement> = {
   documents: Doc,
   games: Pad,
   sports: Ball,
+  music: Note,
   kitchen: Plate,
+  food: Can,
+  cleaning: Broom,
+  plants: Leaf,
+  pets: Paw,
   art: Brush,
+  decor: Picture,
   other: Tag,
 };
+
+/**
+ * Los dibujos que se pueden elegir para una categoría propia.
+ *
+ * Son los mismos veintidós de las categorías de fábrica, y a propósito: el
+ * valor de un dibujo acá no es que ilustre bien "pesca", es que se distinga
+ * de los otros veintiuno en una grilla de cuatro columnas. Un set abierto de
+ * cientos de iconos daría categorías propias que se confunden entre sí, que
+ * es justo lo que la categoría propia venía a arreglar.
+ */
+export const OWN_GLYPHS = Object.keys(BY_CATEGORY);
 
 export function CategoryGlyph({ category, className }: { category: string; className?: string }) {
   const Icon = BY_CATEGORY[category] ?? Tag;

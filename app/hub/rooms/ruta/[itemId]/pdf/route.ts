@@ -1,6 +1,6 @@
 import { KIND_LABEL, categoryOf, conditionOf, pathLabel, variantLabel } from "@/lib/rooms";
 import { trailPdf, type TrailStep } from "@/lib/rooms-pdf";
-import { loadIndex, loadTree, roomsClient } from "../../../data";
+import { loadIndex, loadOwnCategories, loadTree, roomsClient } from "../../../data";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,9 +22,10 @@ export async function GET(_request: Request, { params }: RouteContext<"/hub/room
   const { itemId } = await params;
   const { supabase, user } = await roomsClient();
 
-  const [tree, index] = await Promise.all([
+  const [tree, index, own] = await Promise.all([
     loadTree(supabase, user.id),
     loadIndex(supabase, user.id),
+    loadOwnCategories(supabase, user.id),
   ]);
 
   const item = index.find((candidate) => candidate.id === itemId);
@@ -46,7 +47,7 @@ export async function GET(_request: Request, { params }: RouteContext<"/hub/room
   );
 
   const detail = [
-    categoryOf(item.category).label,
+    categoryOf(item.category, own).label,
     conditionOf(item.condition).label,
     item.quantity > 1 ? `${item.quantity} unidades` : null,
   ]

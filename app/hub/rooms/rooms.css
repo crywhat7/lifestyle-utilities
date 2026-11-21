@@ -113,6 +113,28 @@
 }
 
 /*
+   Los colores derivados del dato se vuelven a calcular en CADA elemento, y
+   esto no es una optimización al revés: es la única forma de que funcionen.
+
+   Una propiedad personalizada se sustituye donde se DECLARA, no donde se usa.
+   Declaradas una sola vez arriba, `--r-wash` y `--r-tone-ink` quedaban
+   congeladas con el gris por defecto, y el `--tone` que cada tarjeta inyecta
+   por `style` no las movía: el cuadrito de la categoría, el recibo y el
+   relleno de la casilla elegida salían grises en todas las pantallas aunque
+   el color estuviera puesto. Declararlas también para los descendientes hace
+   que cada elemento las derive del `--tone` que heredó, que es lo que todo
+   este módulo da por hecho desde el primer día.
+*/
+.rooms * {
+  --r-wash: color-mix(in srgb, var(--tone) light-dark(10%, 20%), var(--r-panel));
+  --r-tone-ink: light-dark(
+    color-mix(in srgb, var(--tone) 78%, #000000),
+    color-mix(in srgb, var(--tone) 72%, #ffffff)
+  );
+  --r-gold: var(--r-tone-ink);
+}
+
+/*
    El aire del módulo: un halo del color de lo que se está mirando, arriba y
    muy tenue. Es lo único que queda del fondo de antes, y es suficiente —el
    color entra por `--tone`, así que la portada respira el color del cuarto y
@@ -593,11 +615,16 @@
   letter-spacing: -0.015em;
 }
 
-/* La grilla de categorías: cuatro columnas fijas, dieciséis casillas, nunca
-   reordenadas. Ver `CategoryPicker` para por qué el orden no se toca. */
+/* La grilla de categorías: casillas de ancho fijo que nunca se reordenan.
+   Ver `TilePicker` para por qué el orden no se toca.
+
+   `auto-fit` y no cuatro columnas fijas: en un teléfono angosto entran
+   cuatro, en uno grande cinco, y el tamaño de la casilla —no el número de
+   columnas— es lo que se mantiene. Con veintidós categorías, una columna más
+   es una fila menos de pantalla. */
 .rooms .r-cats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
   gap: 0.375rem;
 }
 
@@ -607,8 +634,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  min-height: 4.25rem;
-  padding: 0.5rem 0.25rem;
+  min-height: 3.95rem;
+  padding: 0.4375rem 0.25rem;
   border-radius: 14px;
   background: var(--r-sunk);
   border: 1px solid transparent;
@@ -668,6 +695,50 @@
   outline-offset: 2px;
 }
 
+/* La casilla de hacerse una categoría. Punteada y sin color: es la única de
+   la grilla que no es una categoría, y tiene que verse como lo que es —un
+   hueco por llenar— y no como una más entre veintidós. */
+.rooms .r-cat-new {
+  border-style: dashed;
+  border-color: var(--r-edge);
+  background: transparent;
+}
+
+/* El panel de hacerse una categoría. Va teñido con el color elegido en vivo:
+   antes de guardar nada ya se ve cómo va a quedar la casilla en la grilla y
+   el punto en la lista, que es lo único que importa de elegir un color. */
+.rooms .r-maker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0.875rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--r-edge));
+  background: var(--r-panel);
+  animation: r-rise 0.45s var(--r-ease) both;
+}
+
+.rooms .r-maker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+/* Los dibujos a elegir: más chicos que las casillas de categoría porque no
+   llevan palabra debajo, y así los veintidós entran sin empujar el botón de
+   guardar fuera de la pantalla. */
+.rooms .r-glyphs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(2.5rem, 1fr));
+  gap: 0.375rem;
+}
+
+.rooms .r-glyphs .r-cat {
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border-radius: 12px;
+}
+
 /* El recibo de la tanda: cuántas van y cuál fue la última. Teñido con el
    color del dato, para que se note que algo pasó sin robarse la pantalla. */
 .rooms .r-receipt {
@@ -692,6 +763,30 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+/* Las fotos que todavía están viajando. Late despacio porque es lo único de
+   la pantalla que sigue pasando sin que nadie lo haya pedido ahora mismo, y
+   un número quieto no se distingue del resto del renglón. */
+.rooms .r-up {
+  opacity: 0.72;
+  animation: r-breathe 1.8s var(--r-ease) infinite;
+}
+
+@keyframes r-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooms .r-up {
+    animation: none;
+  }
 }
 
 /* El cajón de los detalles. Cerrado por defecto porque todo lo que hay

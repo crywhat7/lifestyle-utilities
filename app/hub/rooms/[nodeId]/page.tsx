@@ -12,7 +12,15 @@ import {
   variantLabel,
 } from "@/lib/rooms";
 import { Board } from "../board";
-import { ROOMS_PATH, loadIndex, loadItems, loadTree, nodePath, roomsClient } from "../data";
+import {
+  ROOMS_PATH,
+  loadIndex,
+  loadItems,
+  loadOwnCategories,
+  loadTree,
+  nodePath,
+  roomsClient,
+} from "../data";
 import { Glyph, NodeGlyph } from "../glyph";
 import { MissingMigration } from "../missing";
 
@@ -29,10 +37,11 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
     que no tiene que esperar al árbol: encadenarlas sería pedirle a la
     pantalla de una gaveta tres viajes en fila para dibujar una lista.
   */
-  const [tree, index, items] = await Promise.all([
+  const [tree, index, items, own] = await Promise.all([
     loadTree(supabase, user.id),
     loadIndex(supabase, user.id),
     loadItems(supabase, user.id, nodeId),
+    loadOwnCategories(supabase, user.id),
   ]);
 
   const shell =
@@ -115,6 +124,7 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
         childNodes={children}
         items={items}
         counts={Object.fromEntries(counts)}
+        own={own}
       />
     </main>
   );
