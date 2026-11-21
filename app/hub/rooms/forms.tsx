@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { Camera, Grid, Scan, Trash } from "@/components/icons";
-import { preparePhoto } from "@/lib/photo";
+import { CENTERED, cropSquare, openPhoto, type Square } from "@/lib/photo";
 import {
   CATEGORIES,
   CONDITIONS,
@@ -28,6 +28,7 @@ import {
   type FormState,
 } from "./actions";
 import { CUTOUT_FIRST_RUN, cutOut } from "./cutout";
+import { SquareFramer, type Framed } from "./framer";
 
 /**
  * Qué se puede combinar en un conjunto.
@@ -376,9 +377,13 @@ function ColorPicker({ value, used }: { value: string | null; used: string[] }) 
  * porque obligar a fotografiar un clip es la forma más rápida de que el
  * inventario deje de llenarse.
  *
- * Lo que sube NO es lo que salió de la cámara. `preparePhoto` la achica a
- * 1280 px en el teléfono y de la misma pasada saca la miniatura: 8 MB por un
- * clip con datos móviles es la diferencia entre guardar y abandonar.
+ * Lo que sube NO es lo que salió de la cámara: es un cuadrado de 1080 px que
+ * sale del encuadre que eligió la persona. Dos razones, y ninguna es el peso.
+ * Una, 8 MB por un clip con datos móviles es la diferencia entre guardar y
+ * abandonar. Dos, y la que importa acá: la cosa fotografiada no está en el
+ * centro de la foto —se la tiene en la mano, apoyada, de costado— y un
+ * cuadrado recortado por el código le come justo la parte que la identifica.
+ * Encuadrar es un paso más, y es el paso que hace que la lista se entienda.
  */
 function PhotoField({
   saved,
@@ -405,6 +410,11 @@ function PhotoField({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* La foto abierta y esperando encuadre. Mientras esto exista, la pantalla
+     es el encuadrador: no hay nada que confirmar todavía. */
+  const [open, setOpen] = useState<(Framed & { source: Blob }) | null>(null);
+  const [square, setSquare] = useState<Square>(CENTERED);
+
   // Lo guardado y lo recién elegido se distinguen: borrar lo primero toca la
   // base, descartar lo segundo es solo vaciar el input.
   const [fresh, setFresh] = useState(false);
@@ -416,26 +426,49 @@ function PhotoField({
     setError(null);
 
     try {
-      const ready = await preparePhoto(file, thumbEdge);
-
-      /*
-         El archivo que se manda es el achicado, no el que eligió la persona.
-         `DataTransfer` es la única forma de poner un File distinto dentro de
-         un input de archivo, y hace falta para que viaje en el FormData del
-         propio formulario en vez de en una petición aparte.
-      */
-      const box = new DataTransfer();
-      box.items.add(ready.image);
-      if (field.current) field.current.files = box.files;
-
-      setPreview(ready.preview);
-      setThumb(ready.thumb);
-      setFresh(true);
+      const photo = await openPhoto(file);
+      setOpen(photo);
+      setSquare(CENTERED);
     } catch {
       setError("No se pudo leer esa imagen.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirm() {
+    if (!open) return;
+
+    setBusy(true);
+
+    try {
+      const ready = await cropSquare(open.source, square, thumbEdge);
+
+      /*
+         El archivo que se manda es el cuadrado recortado, no el que eligió la
+         persona. `DataTransfer` es la única forma de poner un File distinto
+         dentro de un input de archivo, y hace falta para que viaje en el
+         FormData del propio formulario en vez de en una petición aparte.
+      */
+      const box = new DataTransfer();
+      box.items.add(ready.image);
+      if (field.current) field.current.files = box.files;
+
+      URL.revokeObjectURL(open.url);
+      setOpen(null);
+      setPreview(ready.preview);
+      setThumb(ready.thumb);
+      setFresh(true);
+    } catch {
+      setError("No se pudo recortar esa imagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancel() {
+    if (open) URL.revokeObjectURL(open.url);
+    setOpen(null);
   }
 
   function discard() {
@@ -481,11 +514,27 @@ function PhotoField({
         }}
       />
 
-      {note ? (
-        <p className="mb-2 px-1 text-[0.75rem] leading-relaxed text-[var(--r-ink-3)]">{note}</p>
-      ) : null}
+      {note && !open ? <p className="r-hint mb-2">{note}</p> : null}
 
-      {preview ? (
+      {open ? (
+        <div className="flex flex-col gap-3">
+          <SquareFramer photo={open} square={square} onChange={setSquare} />
+
+          <div className="flex gap-2">
+            <button type="button" onClick={cancel} className="r-key flex-1">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void confirm()}
+              className="r-key r-key-lit flex-1"
+            >
+              {busy ? "Recortando…" : "Usar este encuadre"}
+            </button>
+          </div>
+        </div>
+      ) : preview ? (
         <div className="flex flex-col gap-2">
           <div className="r-shot">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -497,7 +546,7 @@ function PhotoField({
             <button
               type="button"
               onClick={() => gallery.current?.click()}
-              className="r-key min-h-12 flex-1 text-[0.875rem]"
+              className="r-key flex-1"
             >
               Cambiar
             </button>
@@ -513,7 +562,7 @@ function PhotoField({
                   discard();
                 });
               }}
-              className="r-key min-h-12 flex-1 text-[0.875rem]"
+              className="r-key flex-1"
             >
               Quitar
             </button>
@@ -525,7 +574,7 @@ function PhotoField({
             type="button"
             disabled={busy}
             onClick={() => camera.current?.click()}
-            className="r-key min-h-12 flex-1 gap-2 text-[0.875rem]"
+            className="r-key flex-1 gap-2"
           >
             <Camera className="size-[1.125rem]" />
             {busy ? "Leyendo…" : "Tomar"}
@@ -534,7 +583,7 @@ function PhotoField({
             type="button"
             disabled={busy}
             onClick={() => gallery.current?.click()}
-            className="r-key min-h-12 flex-1 gap-2 text-[0.875rem]"
+            className="r-key flex-1 gap-2"
           >
             <Grid className="size-[1.125rem]" />
             Elegir

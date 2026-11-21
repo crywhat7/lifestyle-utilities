@@ -6,6 +6,7 @@ import {
   isColor,
   isCondition,
   isNodeKind,
+  isSlot,
   isVariant,
   nextColor,
   type NodeKind,
@@ -409,6 +410,10 @@ export async function saveOutfit(_state: FormState, form: FormData): Promise<For
     const row = piece as Record<string, unknown>;
     return {
       item_id: String(row.item_id ?? ""),
+      /* La ranura es lo que dibuja el maniquí. Si llega una que no existe se
+         cae a coordenadas, que es como se guardaban los conjuntos antes y
+         sigue siendo un dibujo válido. */
+      ...(isSlot(row.slot) ? { slot: row.slot } : {}),
       x: clamp(Number(row.x), 0, 100),
       y: clamp(Number(row.y), 0, 100),
       scale: clamp(Number(row.scale), 0.2, 3),

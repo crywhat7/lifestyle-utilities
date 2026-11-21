@@ -3,6 +3,7 @@ import { PlusSlot } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import type { Garment, Outfit } from "@/lib/rooms";
 import { OUTFITS_PATH } from "../paths";
+import { OutfitFigure } from "./figure";
 
 /**
  * Los conjuntos guardados, y la puerta para armar otro.
@@ -19,8 +20,6 @@ export function OutfitBoard({
   outfits: Outfit[];
   wardrobe: Garment[];
 }) {
-  const byId = new Map(wardrobe.map((garment) => [garment.id, garment]));
-
   return (
     <>
       {wardrobe.length === 0 ? (
@@ -39,24 +38,7 @@ export function OutfitBoard({
                 className="r-card r-tap block w-full overflow-hidden text-left"
               >
                 <span className="r-thumbnail">
-                  {outfit.pieces.map((piece, spot) => {
-                    const garment = byId.get(piece.item_id);
-                    if (!garment?.cutout) return null;
-
-                    return (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={`${piece.item_id}-${spot}`}
-                        src={garment.cutout}
-                        alt=""
-                        style={{
-                          left: `${piece.x}%`,
-                          top: `${piece.y}%`,
-                          transform: `translate(-50%, -50%) scale(${piece.scale}) rotate(${piece.rot}deg)`,
-                        }}
-                      />
-                    );
-                  })}
+                  <OutfitFigure pieces={outfit.pieces} wardrobe={wardrobe} />
                 </span>
                 <span className="block p-3">
                   <span className="block truncate text-[0.9375rem] font-semibold">

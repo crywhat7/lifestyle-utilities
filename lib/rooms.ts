@@ -108,9 +108,78 @@ export type Garment = {
   cutout: string | null;
 };
 
-/** Dónde quedó puesta una prenda sobre el lienzo. */
+/**
+ * Las ranuras del maniquí.
+ *
+ * Un conjunto no es un collage: es un cuerpo con capas, y las capas tienen un
+ * orden que no se negocia —la camisa va debajo del abrigo, las calcetas
+ * debajo de los zapatos—. Nombrar la ranura en vez de guardar coordenadas es
+ * lo que deja elegir ropa con un selector en vez de arrastrar recortes hasta
+ * que queden derechos.
+ *
+ * Seis y no más: cada ranura agrega una fila de selector a la pantalla, y una
+ * pantalla con doce filas ya no se recorre de un pulgar.
+ */
+export type Slot = "accessory" | "outer" | "top" | "bottom" | "socks" | "shoes";
+
+/**
+ * Cada ranura, con su lugar en el cuerpo.
+ *
+ * `top`/`height` son porcentajes del maniquí y `z` el orden de las capas. Las
+ * zonas se superponen a propósito —el abrigo pisa la camisa, el zapato pisa
+ * la calceta— porque así se superpone la ropa de verdad.
+ *
+ * El orden de la lista es el orden de arriba hacia abajo en pantalla, que es
+ * también el orden en que uno se viste de la cabeza a los pies.
+ */
+export const SLOTS: {
+  key: Slot;
+  label: string;
+  /** Lo que se le pide al selector cuando está vacío. */
+  empty: string;
+  top: number;
+  height: number;
+  width: number;
+  z: number;
+}[] = [
+  { key: "accessory", label: "Accesorio", empty: "Sin accesorio", top: 1, height: 15, width: 44, z: 5 },
+  { key: "top", label: "Arriba", empty: "Sin camisa", top: 17, height: 32, width: 78, z: 2 },
+  { key: "outer", label: "Abrigo", empty: "Sin abrigo", top: 15, height: 38, width: 92, z: 3 },
+  { key: "bottom", label: "Abajo", empty: "Sin pantalón", top: 46, height: 36, width: 66, z: 1 },
+  { key: "socks", label: "Calcetas", empty: "Sin calcetas", top: 78, height: 12, width: 46, z: 1 },
+  { key: "shoes", label: "Zapatos", empty: "Sin zapatos", top: 85, height: 14, width: 60, z: 4 },
+];
+
+const SLOT_MAP = new Map(SLOTS.map((slot) => [slot.key, slot]));
+
+export function slotOf(key: unknown) {
+  return typeof key === "string" ? SLOT_MAP.get(key as Slot) ?? null : null;
+}
+
+export function isSlot(value: unknown): value is Slot {
+  return typeof value === "string" && SLOT_MAP.has(value as Slot);
+}
+
+/**
+ * Qué ranura le toca a una prenda cuando entra al maniquí.
+ *
+ * Es una propuesta, no una regla: la categoría del inventario sabe si algo es
+ * calzado pero no sabe si una prenda de "ropa" es una camisa o un pantalón.
+ * Acierta en zapatos y accesorios —que son categoría propia— y en el resto
+ * deja la decisión en el selector, que es donde se ve el resultado.
+ */
+export function suggestedSlot(category: string): Slot {
+  if (category === "shoes") return "shoes";
+  if (category === "accessories") return "accessory";
+  return "top";
+}
+
+/** Dónde quedó puesta una prenda del conjunto. */
 export type Piece = {
   item_id: string;
+  /* La ranura del cuerpo. Falta en los conjuntos armados antes del maniquí,
+     que se siguen dibujando por coordenadas: ver `OutfitFigure`. */
+  slot?: Slot;
   /* Porcentajes del lienzo, no píxeles: el conjunto se ve igual en un
      teléfono angosto que en una pantalla ancha. */
   x: number;

@@ -10,7 +10,7 @@ detrás de un login con Google:
 | **Should I Buy It** | Traduce el precio de una compra a las horas de tu vida que cuesta ganarlo. La IA normaliza el producto, lo clasifica y arma pros y contras; los números se recalculan en el servidor. |
 | **My Pocket** | Ingresos, egresos, categorías, gastos fijos y fechas de pago. El balance real del mes en un solo número. |
 | **Clean Daily** | Hábitos —buenos y malos— en una pizarra que se borra a las 00:00, y tareas que no mueren hasta que las marcás. Mide consistencia mensual, no rachas. |
-| **Rooms Planning** | Tu cuarto, dibujado y navegable. El plano isométrico es la vista principal: paredes que siguen la forma (cuartos en L), pisos, muebles que giran, cosas apoyadas sobre el escritorio y colgadas de la pared. Debajo, el inventario jerárquico de profundidad libre, y un buscador que arma **la ruta en fotos** hasta cualquier cosa. Más el armador de conjuntos con las prendas recortadas. |
+| **Rooms Planning** | Tu cuarto, dibujado y navegable. El plano isométrico es la vista principal: paredes que siguen la forma (cuartos en L), pisos, muebles que giran, cosas apoyadas sobre el escritorio y colgadas de la pared. Debajo, el inventario jerárquico de profundidad libre, y un buscador que arma **la ruta en fotos** hasta cualquier cosa. Más el vestidor: un maniquí con seis ranuras —accesorio, arriba, abrigo, abajo, calcetas, zapatos— y un selector por ranura para pasar las prendas recortadas. |
 | **Fuel** | Contador de calorías. La IA arma tu meta diaria con peso, altura, sexo, edad y objetivo; arma un menú (5 desayunos, 5 almuerzos, 5 cenas, 10 aperitivos) con los ingredientes que elegís; y un botón grande registra cada comida con una foto y/o una descripción. |
 
 ---
@@ -33,14 +33,18 @@ la clase `.glass`, así que nada de ese vocabulario se filtra a las otras dos
 herramientas.
 
 Rooms Planning es la segunda excepción, por el mismo motivo y con la misma
-disciplina: madera y latón, teclas gruesas con zócalo que se hunden al
-tocarlas, titulares de píxeles y un aire de anochecer con luciérnagas —el
-vocabulario de un juego pequeño— aislado bajo la clase `.rooms` en
-[`app/hub/rooms/rooms.css`](app/hub/rooms/rooms.css). Es la única herramienta
-que se parece a jugar, y eso no es un capricho: una herramienta que da gusto
-abrir se mantiene, y un inventario solo sirve si se mantiene. El color lo
-aporta el dato (cada habitación y cada categoría tienen el suyo, inyectado
-como `--tone`), no el tema, así que el acento lima de la marca sigue intacto.
+disciplina: el vocabulario de un índice bien impreso —una sola tipografía
+(Instrument Sans) con una escala de catorce a uno entre el titular y el
+rótulo, líneas de pelo en vez de biseles, y aire en vez de marcos— aislado
+bajo la clase `.rooms` en
+[`app/hub/rooms/rooms.css`](app/hub/rooms/rooms.css). Hasta noviembre de 2026
+este módulo era un juego de madera y latón con titulares de píxeles; se
+cambió porque un inventario se abre todos los días y casi siempre con apuro,
+y el disfraz se cobraba en cada una de esas veces. El color lo aporta el dato
+(cada habitación y cada categoría tienen el suyo, inyectado como `--tone`) y
+es el único color saturado de la pantalla: la acción principal se pinta con el
+color de lo que se está mirando, así que el acento lima de la marca sigue
+intacto.
 
 El cuarto isométrico se dibuja entero con polígonos en
 [`lib/iso.ts`](lib/iso.ts) y [`app/hub/rooms/room-svg.tsx`](app/hub/rooms/room-svg.tsx).
