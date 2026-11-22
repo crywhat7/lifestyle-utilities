@@ -11,13 +11,23 @@ import {
   isCondition,
   isNodeKind,
   isSlot,
+  isSwatch,
   isVariant,
   nextColor,
   type NodeKind,
 } from "@/lib/rooms";
 import { roomsClient } from "./data";
 import { CATEGORIES_PATH, OUTFITS_PATH, ROOMS_PATH, nodePath } from "./paths";
-import { dropNodePhoto, dropPhoto, putCutout, putNodePhoto, putPhoto } from "./storage";
+import {
+  dropAllPhotos,
+  dropNodePhoto,
+  dropPhoto,
+  dropSecond,
+  putCutout,
+  putNodePhoto,
+  putPhoto,
+  putSecond,
+} from "./storage";
 
 /*
    El estado de un formulario. Solo el TIPO sale de este archivo: un módulo
@@ -54,7 +64,7 @@ const THUMB_BATCH = 48;
  * instante después, que es exactamente el orden en que importan: primero
  * saber que está, después reconocerla.
  */
-export async function thumbsFor(ids: string[]): Promise<Record<string, string>> {
+export async function thumbsFor(ids: string[]): Promise<Record<string, string[]>> {
   const wanted = (Array.isArray(ids) ? ids : [])
     .filter((id) => isId(id))
     .slice(0, THUMB_BATCH);
@@ -65,15 +75,20 @@ export async function thumbsFor(ids: string[]): Promise<Record<string, string>> 
 
   const { data } = await supabase
     .from("rooms_items")
-    .select("id,thumb")
+    .select("id,thumb,second_thumb")
     .eq("user_id", user.id)
-    .in("id", wanted)
-    .not("thumb", "is", null);
+    .in("id", wanted);
 
-  const found: Record<string, string> = {};
-  for (const row of (data ?? []) as { id: unknown; thumb: unknown }[]) {
-    const thumb = String(row.thumb ?? "");
-    if (thumb.startsWith("data:image/")) found[String(row.id)] = thumb;
+  const found: Record<string, string[]> = {};
+
+  for (const row of (data ?? []) as Record<string, unknown>[]) {
+    /* Las dos puntas del cable viajan juntas: en la ficha se dibujan una al
+       lado de la otra, que es como se reconoce un cable. */
+    const pair = [row.thumb, row.second_thumb]
+      .map((value) => String(value ?? ""))
+      .filter((thumb) => thumb.startsWith("data:image/"));
+
+    if (pair.length > 0) found[String(row.id)] = pair;
   }
 
   return found;
@@ -290,18 +305,28 @@ const MAX_PHOTO = 6 * 1024 * 1024;
 async function attachPhoto(
   userId: string,
   itemId: string,
-  form: FormData
-): Promise<{ storage_path?: string; thumb?: string } | null> {
-  const file = form.get("photo");
+  form: FormData,
+  /* Cuál de las dos. "second" es la otra punta del cable: mismo trato, otro
+     objeto en el bucket y otras dos columnas. */
+  slot: "main" | "second" = "main"
+): Promise<Record<string, string> | null> {
+  const second = slot === "second";
+
+  const file = form.get(second ? "photo2" : "photo");
   if (!(file instanceof File) || file.size === 0) return null;
   if (file.size > MAX_PHOTO || !file.type.startsWith("image/")) return null;
 
-  const path = await putPhoto(userId, itemId, file);
+  const path = second
+    ? await putSecond(userId, itemId, file)
+    : await putPhoto(userId, itemId, file);
   if (!path) return null;
 
-  const thumb = toText(form.get("thumb"), 60000);
+  const thumb = toText(form.get(second ? "thumb2" : "thumb"), 60000);
+  const good = thumb.startsWith("data:image/");
 
-  return { storage_path: path, ...(thumb.startsWith("data:image/") ? { thumb } : {}) };
+  return second
+    ? { second_path: path, ...(good ? { second_thumb: thumb } : {}) }
+    : { storage_path: path, ...(good ? { thumb } : {}) };
 }
 
 /**
@@ -353,8 +378,12 @@ export async function removeNodePhoto(nodeId: string, parentId: string | null) {
   refresh(parentId);
 }
 
-/** Sacarle la foto a una cosa: el objeto del bucket y las dos columnas. */
-export async function removeItemPhoto(itemId: string, nodeId: string) {
+/** Sacarle una foto a una cosa: el objeto del bucket y sus columnas. */
+export async function removeItemPhoto(
+  itemId: string,
+  nodeId: string,
+  slot: "main" | "second" = "main"
+) {
   const { supabase, user } = await roomsClient();
 
   const { data } = await supabase
@@ -366,10 +395,18 @@ export async function removeItemPhoto(itemId: string, nodeId: string) {
 
   if (!data) return;
 
-  await dropPhoto(user.id, itemId);
+  /* El recorte se va con la foto principal y solo con ella: sin original no
+     hay recorte, pero la otra punta no tiene nada que ver con el maniquí. */
+  if (slot === "second") await dropSecond(user.id, itemId);
+  else await dropPhoto(user.id, itemId);
+
   await supabase
     .from("rooms_items")
-    .update({ storage_path: null, thumb: null, cutout_path: null })
+    .update(
+      slot === "second"
+        ? { second_path: null, second_thumb: null }
+        : { storage_path: null, thumb: null, cutout_path: null }
+    )
     .eq("id", itemId)
     .eq("user_id", user.id);
 
@@ -653,6 +690,8 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
      siguiente.
   */
   const thumb = toText(form.get("thumb"), 60000);
+  const thumb2 = toText(form.get("thumb2"), 60000);
+  const color = form.get("color");
 
   const { data, error } = await supabase
     .from("rooms_items")
@@ -665,9 +704,11 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
           ? String(category)
           : "other",
       condition: isCondition(condition) ? condition : "good",
+      color: isSwatch(color) ? String(color) : null,
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),
       ...(thumb.startsWith("data:image/") ? { thumb } : {}),
+      ...(thumb2.startsWith("data:image/") ? { second_thumb: thumb2 } : {}),
     })
     .select("id")
     .maybeSingle();
@@ -686,9 +727,17 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
   */
   const itemId = data?.id ? String(data.id) : null;
   if (itemId) {
-    const photo = await attachPhoto(user.id, itemId, form);
-    if (photo) {
-      await supabase.from("rooms_items").update(photo).eq("id", itemId).eq("user_id", user.id);
+    const [photo, other] = await Promise.all([
+      attachPhoto(user.id, itemId, form),
+      attachPhoto(user.id, itemId, form, "second"),
+    ]);
+
+    if (photo || other) {
+      await supabase
+        .from("rooms_items")
+        .update({ ...(photo ?? {}), ...(other ?? {}) })
+        .eq("id", itemId)
+        .eq("user_id", user.id);
     }
   }
 
@@ -726,7 +775,8 @@ export async function attachItemPhoto(_state: FormState, form: FormData): Promis
 
   if (!data) return { status: "error", error: "No se encontró la cosa." };
 
-  const photo = await attachPhoto(user.id, id, form);
+  const slot = form.get("slot") === "second" ? "second" : "main";
+  const photo = await attachPhoto(user.id, id, form, slot);
   if (!photo) return { status: "error", error: "No se pudo subir la foto." };
 
   const { error } = await supabase
@@ -783,12 +833,17 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
     if (owned) nodeId = target;
   }
 
-  const photo = await attachPhoto(user.id, id, form);
+  const [photo, other] = await Promise.all([
+    attachPhoto(user.id, id, form),
+    attachPhoto(user.id, id, form, "second"),
+  ]);
+  const color = form.get("color");
 
   const { error } = await supabase
     .from("rooms_items")
     .update({
       ...(photo ?? {}),
+      ...(other ?? {}),
       node_id: nodeId,
       name,
       category:
@@ -796,6 +851,7 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
           ? String(category)
           : "other",
       condition: isCondition(condition) ? condition : "good",
+      color: isSwatch(color) ? String(color) : null,
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),
     })
@@ -814,7 +870,18 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
 export async function deleteItem(id: string, nodeId: string) {
   const { supabase, user } = await roomsClient();
 
-  await supabase.from("rooms_items").delete().eq("id", id).eq("user_id", user.id);
+  const { data } = await supabase
+    .from("rooms_items")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  /* Las fotos se van con la fila. Solo si la fila existía y era suya: el
+     `delete` con `select` lo dice, y así "borrar" un id inventado no barre
+     objetos del bucket de nadie. */
+  if (data) await dropAllPhotos(user.id, id);
 
   refresh(nodeId);
 }

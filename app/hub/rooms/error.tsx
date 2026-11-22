@@ -21,7 +21,7 @@ export default function RoomsError({
   }, [error]);
 
   return (
-    <main className="relative flex flex-1 flex-col justify-center gap-6 px-5 py-10">
+    <main className="relative flex flex-1 flex-col justify-center gap-6 px-4 py-10">
       <section className="r-card flex flex-col gap-3 p-6">
         <p className="r-eyebrow">No se pudo abrir</p>
         <h1 className="r-title">El cajón no se abrió.</h1>

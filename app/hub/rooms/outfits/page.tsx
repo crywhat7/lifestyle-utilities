@@ -20,7 +20,7 @@ export default async function OutfitsPage() {
   ]);
 
   const shell =
-    "relative flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
+    "relative flex flex-1 flex-col gap-4 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
 
   return (
     /* El rosa es el color de la ropa en todo el módulo: el mismo de la

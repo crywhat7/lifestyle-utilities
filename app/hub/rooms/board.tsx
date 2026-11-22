@@ -5,6 +5,7 @@ import {
   KIND_LABEL,
   allowedChildren,
   categoryOf,
+  colorOf,
   conditionOf,
   countLabel,
   sortNodes,
@@ -198,7 +199,7 @@ function NodeRow({ node, tone, total }: { node: RoomNode; tone: string; total: n
     >
       <NavLink
         href={nodePath(node.id)}
-        className="flex min-w-0 flex-1 items-center gap-3.5 rounded-[14px] p-3.5"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-[13px] p-3"
       >
         {/* La foto manda cuando existe: reconocer el mueble de un vistazo es
             más rápido que leer su nombre. */}
@@ -214,7 +215,7 @@ function NodeRow({ node, tone, total }: { node: RoomNode; tone: string; total: n
         )}
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[1.0625rem] font-semibold">{node.name}</span>
+          <span className="block truncate text-[1rem] font-semibold">{node.name}</span>
           <span className="mt-0.5 block truncate text-[0.8125rem] text-[var(--r-ink-3)]">
             {meta}
           </span>
@@ -243,11 +244,12 @@ function NodeRow({ node, tone, total }: { node: RoomNode; tone: string; total: n
 function ItemRow({ item, own }: { item: ItemWithPhoto; own?: OwnCategory[] }) {
   const category = categoryOf(item.category, own);
   const state = conditionOf(item.condition);
+  const tint = colorOf(item.color);
 
   return (
     <NavLink
       href={itemPath(item.node_id, item.id)}
-      className="flex w-full items-center gap-3 p-3.5 text-left"
+      className="flex w-full items-center gap-3 p-3 text-left"
     >
       {item.thumb ? (
         <span className="r-thumb" aria-hidden="true">
@@ -260,7 +262,7 @@ function ItemRow({ item, own }: { item: ItemWithPhoto; own?: OwnCategory[] }) {
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="truncate text-[1rem] font-medium">{item.name}</span>
+          <span className="truncate text-[0.9375rem] font-medium">{item.name}</span>
           {item.quantity > 1 ? (
             <span className="shrink-0 text-[0.8125rem] tabular-nums text-[var(--r-ink-3)]">
               ×{item.quantity}
@@ -275,6 +277,21 @@ function ItemRow({ item, own }: { item: ItemWithPhoto; own?: OwnCategory[] }) {
             style={{ "--tone": category.hue } as CSSProperties}
           />
           <span className="text-[var(--r-ink-3)]">{category.label}</span>
+
+          {/* El color, entre la categoría y el estado: es lo que distingue
+              esta camiseta de las otras tres que se llaman igual. */}
+          {tint ? (
+            <>
+              <span className="text-[var(--r-ink-3)]">·</span>
+              <span
+                aria-hidden="true"
+                className="r-tint"
+                style={{ background: tint.hex }}
+              />
+              <span className="text-[var(--r-ink-3)]">{tint.label}</span>
+            </>
+          ) : null}
+
           <span className="text-[var(--r-ink-3)]">·</span>
           <span className="r-state truncate" data-tone={state.tone}>
             {state.label}

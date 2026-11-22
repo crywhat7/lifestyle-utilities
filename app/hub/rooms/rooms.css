@@ -172,8 +172,13 @@
      pantalla todavía se entiende, que es la única prueba que importa.
      ------------------------------------------------------------------------ */
 
+  /* Bajó un escalón entero —de 38/56 px a 32/48— y no por gusto: el titular
+     es lo que más alto se come y, en un inventario, lo que uno vino a ver
+     está DEBAJO de él. Sigue siendo el salto de escala que hace legible la
+     pantalla con los ojos entrecerrados; simplemente deja ver dos filas más
+     de lo que importa. */
   .r-title {
-    font-size: clamp(2.375rem, 12vw, 3.5rem);
+    font-size: clamp(2rem, 10vw, 3rem);
     font-weight: 600;
     /* El tracking negativo en tamaño grande no es un gusto: a 56 px el
        espaciado normal abre huecos entre letras y el titular se desarma en
@@ -233,7 +238,7 @@
      de verdad hace el trabajo. */
   .r-card {
     position: relative;
-    border-radius: 18px;
+    border-radius: 16px;
     background: var(--r-panel);
     border: 1px solid var(--r-edge);
     box-shadow: var(--r-lift);
@@ -283,15 +288,15 @@
     display: grid;
     place-items: center;
     flex-shrink: 0;
-    width: 2.875rem;
-    height: 2.875rem;
-    border-radius: 14px;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 13px;
     background: var(--r-wash);
     color: var(--r-tone-ink);
   }
 
   .r-glyph[data-size="sm"] {
-    width: 2.25rem;
+    width: 2rem;
     height: 2.25rem;
     border-radius: 11px;
   }
@@ -565,8 +570,8 @@
     display: grid;
     gap: 0.5rem;
     place-items: center;
-    padding: 2.75rem 1.5rem;
-    border-radius: 18px;
+    padding: 2rem 1.25rem;
+    border-radius: 16px;
     border: 1px dashed var(--r-edge);
     text-align: center;
     font-size: 0.9375rem;
@@ -622,10 +627,10 @@
   position: sticky;
   top: 0;
   z-index: 12;
-  margin-inline: -1.25rem;
+  margin-inline: -1rem;
   margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + 0.5rem));
   margin-bottom: -0.625rem;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) 1.25rem 0.625rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) 1rem 0.625rem;
   transition:
     background-color 0.25s var(--r-ease),
     box-shadow 0.25s var(--r-ease);
@@ -651,8 +656,8 @@
    cuadrada más chica que esto deja de servir para reconocer una prenda. */
 .rooms .r-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
-  gap: 0.625rem;
+  grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+  gap: 0.5rem;
 }
 
 .rooms .r-hit {
@@ -663,8 +668,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.1875rem;
-  padding: 0.5rem;
-  border-radius: 18px;
+  padding: 0.4375rem;
+  border-radius: 16px;
   background: var(--r-panel);
   border: 1px solid var(--r-edge);
   box-shadow: var(--r-lift);
@@ -698,6 +703,33 @@
   object-fit: cover;
 }
 
+/* Las dos puntas de un cable, una al lado de la otra. Es la ficha entera del
+   cable: "USB-C a Lightning" no se lee, se reconoce. La línea de dos píxeles
+   entre las dos es lo que impide que se lean como una sola foto rara. */
+.rooms .r-hit-shot[data-pair="true"] {
+  grid-template-columns: 1fr 1fr;
+  place-items: stretch;
+  gap: 2px;
+}
+
+/* El punto de color, del tamaño de un dato. Lleva anillo por dentro porque
+   el blanco sobre papel claro —y el negro sobre papel oscuro— serían un
+   punto invisible, que es el único color que no puede tener. */
+.rooms .r-tint {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px light-dark(#16161a2e, #ffffff38);
+}
+
+.rooms .r-hit-where {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
 .rooms .r-hit-many {
   position: absolute;
   right: 0.3125rem;
@@ -717,15 +749,15 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
+  margin-top: 0.1875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
 .rooms .r-hit .r-crumb {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
 }
 
 /* El alfiler, encima de la foto. Es la acción que justifica el módulo —no ir
@@ -733,12 +765,12 @@
    donde ponerlo sin robarle lugar al nombre. */
 .rooms .r-hit-pin {
   position: absolute;
-  top: 0.8125rem;
-  right: 0.8125rem;
+  top: 0.75rem;
+  right: 0.75rem;
   display: grid;
   place-items: center;
-  width: 1.875rem;
-  height: 1.875rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--r-panel) 86%, transparent);
   backdrop-filter: blur(8px);
@@ -789,8 +821,8 @@
   gap: 0.375rem;
   overflow-x: auto;
   scrollbar-width: none;
-  margin-inline: -1.25rem;
-  padding-inline: 1.25rem;
+  margin-inline: -1rem;
+  padding-inline: 1rem;
   padding-block: 2px;
 }
 
@@ -827,6 +859,60 @@
   font-size: 1.125rem;
   font-weight: 500;
   letter-spacing: -0.015em;
+}
+
+/* La paleta. Ocho por fila en un teléfono y dos filas: los dieciséis entran
+   sin rodar, que es lo que permite elegir sin leer ningún nombre.
+
+   El rótulo de cada color vive en el `aria-label` y en el `title`, no debajo:
+   dieciséis palabras abajo de dieciséis puntos serían tres filas de texto
+   para decir lo que el punto ya dice. */
+.rooms .r-tints {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(2.125rem, 1fr));
+  gap: 0.375rem;
+  justify-items: center;
+}
+
+.rooms .r-tint-key {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 999px;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px light-dark(#16161a26, #ffffff2e);
+  cursor: pointer;
+  transition:
+    transform 0.3s var(--r-ease),
+    outline-color 0.2s var(--r-ease);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.rooms .r-tint-key:active {
+  transform: scale(0.88);
+  transition-duration: 0.1s;
+}
+
+/* El elegido se marca con un anillo y no con un check adentro: un check
+   blanco sobre blanco no se ve, y uno que cambia de color según el fondo es
+   un caso especial por cada color de la paleta. */
+.rooms .r-tint-key[data-on="true"] {
+  outline-color: var(--r-ink);
+  transform: scale(1.06);
+}
+
+/* "Varios" no es un color: es el comodín de lo estampado y lo de cuadros, y
+   tiene que verse como lo que es —ninguno de los otros quince—. */
+.rooms .r-tint-key[data-multi="true"] {
+  background: conic-gradient(
+    #d23b30,
+    #e0b320,
+    #3f9e4d,
+    #2f6fe0,
+    #8352c4,
+    #e06aa0,
+    #d23b30
+  );
 }
 
 /* La pregunta del paso. Es la única frase de la pantalla y el pulgar no tiene
@@ -988,8 +1074,8 @@
 }
 
 .rooms .r-cats[data-big="true"] .r-cat {
-  min-height: 4.75rem;
-  border-radius: 16px;
+  min-height: 4.25rem;
+  border-radius: 15px;
 }
 
 .rooms .r-cats[data-big="true"] .r-cat svg {
@@ -1007,9 +1093,9 @@
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  min-height: 3.95rem;
-  padding: 0.4375rem 0.25rem;
-  border-radius: 14px;
+  min-height: 3.6rem;
+  padding: 0.375rem 0.25rem;
+  border-radius: 13px;
   background: var(--r-sunk);
   border: 1px solid transparent;
   color: var(--r-ink-3);

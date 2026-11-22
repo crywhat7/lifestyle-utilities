@@ -46,7 +46,7 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
   ]);
 
   const shell =
-    "relative flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
+    "relative flex flex-1 flex-col gap-4 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
 
   if (tree.missing) {
     return (
@@ -94,7 +94,7 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
 
       </header>
 
-      <section className="r-rise flex items-start gap-3.5" style={{ "--d": "40ms" } as CSSProperties}>
+      <section className="r-rise flex items-start gap-3" style={{ "--d": "40ms" } as CSSProperties}>
         <Glyph tone={tone}>
           <NodeGlyph kind={node.kind} variant={node.variant} />
         </Glyph>
@@ -106,9 +106,9 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
             <p className="r-crumb">{pathLabel(node.path, { skipLast: true })}</p>
           ) : null}
 
-          <h1 className="r-title mt-0.5 text-[1.75rem]">{node.name}</h1>
+          <h1 className="r-title mt-0.5 text-[1.5rem]">{node.name}</h1>
 
-          <p className="mt-1 text-[0.9375rem] text-[var(--r-ink-2)]">
+          <p className="mt-1 text-[0.875rem] text-[var(--r-ink-2)]">
             {[kind, copies, countLabel(counts.get(node.id) ?? 0)].filter(Boolean).join(" · ")}
           </p>
 

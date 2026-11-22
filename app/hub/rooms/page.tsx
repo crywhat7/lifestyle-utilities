@@ -30,7 +30,7 @@ export default async function RoomsPage() {
   ]);
 
   const shell =
-    "relative flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
+    "relative flex flex-1 flex-col gap-4 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]";
 
   if (tree.missing) {
     return (
@@ -66,7 +66,7 @@ export default async function RoomsPage() {
 
       <section className="r-rise" style={{ "--d": "40ms" } as CSSProperties}>
         <h1 className="r-title">Tus cuartos</h1>
-        <p className="mt-1.5 text-[0.9375rem] text-[var(--r-ink-2)]">
+        <p className="mt-1.5 text-[0.875rem] text-[var(--r-ink-2)]">
           {rooms.length === 0
             ? "Creá el primero y empezá a llenarlo."
             : summary(things, worn, rooms.length)}

@@ -69,7 +69,7 @@ export function Catalog({ own, counts }: { own: OwnCategory[]; counts: Record<st
                 <button
                   type="button"
                   onClick={() => setEditing(row.id)}
-                  className="flex w-full items-center gap-3 p-3.5 text-left"
+                  className="flex w-full items-center gap-3 p-3 text-left"
                 >
                   <span
                     aria-hidden="true"
@@ -81,7 +81,7 @@ export function Catalog({ own, counts }: { own: OwnCategory[]; counts: Record<st
                   </span>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[1rem] font-medium">{row.label}</span>
+                    <span className="block truncate text-[0.9375rem] font-medium">{row.label}</span>
                     <span className="mt-0.5 block text-[0.8125rem] text-[var(--r-ink-3)]">
                       {label(counts[row.id] ?? 0)}
                     </span>

@@ -26,7 +26,7 @@ export function FormShell({
 }) {
   return (
     <main
-      className="relative flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]"
+      className="relative flex flex-1 flex-col gap-4 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]"
       style={{ "--tone": tone ?? "#b58338" } as CSSProperties}
     >
       <header className="r-rise flex items-center" style={{ "--d": "0ms" } as CSSProperties}>

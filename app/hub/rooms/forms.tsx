@@ -21,6 +21,7 @@ import {
 } from "@/components/icons";
 import { CENTERED, cropSquare, openPhoto, type Square } from "@/lib/photo";
 import {
+  COLORS,
   CONDITIONS,
   ROOM_COLORS,
   VARIANTS,
@@ -29,8 +30,10 @@ import {
   conditionOf,
   guessCategory,
   guessVariant,
+  hasTwoEnds,
   isWearable,
   nextColor,
+  wantsColor,
   wearCatalog,
   type Condition,
   type ItemWithPhoto,
@@ -386,6 +389,9 @@ function PhotoField({
   saved,
   thumbEdge,
   note,
+  label,
+  field: fieldName = "photo",
+  thumbField = "thumb",
   onDrop,
   doorsRef,
   children,
@@ -394,6 +400,12 @@ function PhotoField({
   saved?: string | null;
   thumbEdge?: number;
   note?: string;
+  /** Qué dice arriba. Con dos fotos, cuál de las dos es. */
+  label?: string;
+  /* Cómo se llaman los campos en el formulario. La segunda foto de un cable
+     usa otros dos y por eso no están fijos. */
+  field?: string;
+  thumbField?: string;
   /** Qué hacer cuando se quita una foto que YA estaba guardada. */
   onDrop?: () => void;
   /**
@@ -501,10 +513,18 @@ function PhotoField({
 
   return (
     <div>
-      <span className="r-field-label">Foto · opcional</span>
+      <span className="r-field-label">{label ?? "Foto · opcional"}</span>
 
-      <input ref={field} type="file" name="photo" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" />
-      <input type="hidden" name="thumb" value={thumb} />
+      <input
+        ref={field}
+        type="file"
+        name={fieldName}
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+      <input type="hidden" name={thumbField} value={thumb} />
 
       {/* Dos puertas: la cámara para lo que está en la mano y la galería para
           lo que ya se fotografió. `capture` es lo que abre la cámara directo
@@ -782,6 +802,46 @@ function TilePicker({
 }
 
 /**
+ * De qué color es.
+ *
+ * Una paleta cerrada de dieciséis y no una rueda: el color acá no sirve para
+ * parecerse al objeto, sirve para AGRUPAR. Con una rueda, tres camisetas
+ * negras entran como tres negros distintos y "mostrame lo negro" deja de
+ * existir. Ver `COLORS` en `lib/rooms.ts`.
+ *
+ * Los neutros van primero —un armario de verdad es sobre todo negro, blanco
+ * y gris— así que lo que se toca ochenta veces cae donde el pulgar llega sin
+ * buscar.
+ *
+ * Volver a tocar el que ya está puesto lo quita: el color es opcional y
+ * equivocarse no puede ser una puerta de una sola dirección.
+ */
+function Swatches({ value, onPick }: { value: string | null; onPick: (key: string | null) => void }) {
+  return (
+    <fieldset>
+      <legend className="r-field-label">Color · opcional</legend>
+
+      <div className="r-tints">
+        {COLORS.map((swatch) => (
+          <button
+            key={swatch.key}
+            type="button"
+            onClick={() => onPick(value === swatch.key ? null : swatch.key)}
+            className="r-tint-key"
+            data-on={value === swatch.key}
+            data-multi={swatch.key === "multi" ? "true" : undefined}
+            style={{ "--swatch": swatch.hex } as React.CSSProperties}
+            aria-label={swatch.label}
+            aria-pressed={value === swatch.key}
+            title={swatch.label}
+          />
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
  * Cuántos hay, sin abrir el teclado numérico.
  *
  * Casi todo en un inventario es uno, y lo que no lo es suele ser dos o tres.
@@ -947,6 +1007,7 @@ export function ItemForm({
   const options = wear ? wearCatalog(item?.category ?? null) : catalog(mine);
   const hot = hottest(options, use ?? {});
 
+  const [color, setColor] = useState<string | null>(item?.color ?? null);
   const [condition, setCondition] = useState<string>(item?.condition ?? "good");
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
   const [open, setOpen] = useState(false);
@@ -980,12 +1041,15 @@ export function ItemForm({
    * subida termina aunque se cierre la hoja; lo único que la mata es cerrar
    * la pestaña, y para eso está el aviso de arriba.
    */
-  function sendPhoto(id: string, photo: File, thumb: string) {
+  function sendPhoto(id: string, photo: File, thumb: string, slot: "main" | "second" = "main") {
+    const second = slot === "second";
+
     const body = new FormData();
     body.set("id", id);
     body.set("node_id", item?.node_id ?? nodeId);
-    body.set("photo", photo);
-    if (thumb) body.set("thumb", thumb);
+    body.set("slot", slot);
+    body.set(second ? "photo2" : "photo", photo);
+    if (thumb) body.set(second ? "thumb2" : "thumb", thumb);
 
     setUploads((count) => count + 1);
 
@@ -1026,7 +1090,14 @@ export function ItemForm({
     const photo = picked instanceof File && picked.size > 0 ? picked : null;
     const thumb = String(data.get("thumb") ?? "");
 
-    if (photo && !editing) data.delete("photo");
+    const picked2 = data.get("photo2");
+    const other = picked2 instanceof File && picked2.size > 0 ? picked2 : null;
+    const thumb2 = String(data.get("thumb2") ?? "");
+
+    if (!editing) {
+      if (photo) data.delete("photo");
+      if (other) data.delete("photo2");
+    }
 
     run(async () => {
       const result = await (editing ? updateItem : createItem)(IDLE, data);
@@ -1045,6 +1116,7 @@ export function ItemForm({
       if (result.id) {
         setAdded((current) => [{ id: result.id as string, name: sent }, ...current].slice(0, 20));
         if (photo) sendPhoto(result.id, photo, thumb);
+        if (other) sendPhoto(result.id, other, thumb2, "second");
       }
 
       form.current?.reset();
@@ -1083,13 +1155,23 @@ export function ItemForm({
   const hunch = !wear && !editing && name.trim().length >= 3 ? guessCategory(name, mine) : null;
   const offer = hunch && hunch !== category ? categoryOf(hunch, mine) : null;
 
-  const titles = ["", wear ? "La prenda" : "La categoría", "El nombre", "La foto"];
+  const twoEnds = hasTwoEnds(category);
+  const titles = [
+    "",
+    wear ? "La prenda" : "La categoría",
+    "El nombre",
+    twoEnds ? "Las puntas" : "La foto",
+  ];
 
   return (
     <form ref={form} action={submit} className="flex flex-col gap-4">
       <input type="hidden" name="node_id" value={item?.node_id ?? nodeId} />
       {item ? <input type="hidden" name="id" value={item.id} /> : null}
       <input type="hidden" name="condition" value={condition} />
+      {/* El color viaja acá y no dentro de su selector: el selector vive en
+          el paso del nombre y el envío ocurre en el de la foto, así que un
+          campo que se desmonta con su pantalla llegaría vacío. */}
+      <input type="hidden" name="color" value={wantsColor(category) ? (color ?? "") : ""} />
 
       {/* Al editar, lo primero no es un campo: es la salida a "cómo llegar",
           que es lo que uno quiere de una cosa ya guardada —mandarle a alguien
@@ -1319,6 +1401,17 @@ export function ItemForm({
             {!editing ? <DictateKey onHeard={setName} /> : null}
           </div>
 
+          {/* El color va con el nombre y no en los detalles: en un armario de
+              ochenta prendas, "Camiseta" sin color no distingue cuatro
+              camisetas, y lo que no distingue no se busca. Solo donde
+              significa algo —ropa y cables—: una fila de dieciséis puntos en
+              el alta de un pasaporte es ruido que hay que saltar. */}
+          {wantsColor(category) ? (
+            <div className="mt-3.5">
+              <Swatches value={color} onPick={setColor} />
+            </div>
+          ) : null}
+
           {/* La oferta de la corazonada: una píldora, nunca un cambio solo. */}
           {offer ? (
             <button
@@ -1387,6 +1480,7 @@ export function ItemForm({
              había guardado nada. */
           key={round}
           doorsRef={doorsRef}
+          label={twoEnds ? "Una punta" : undefined}
           saved={item?.photo ?? item?.thumb ?? null}
           onDrop={
             item
@@ -1399,6 +1493,30 @@ export function ItemForm({
         >
           {(shot) => (item && isWearable(item.category) && !shot ? <Cutout item={item} /> : null)}
         </PhotoField>
+
+        {/* Un cable se identifica por sus DOS puntas: "cable USB" describe a
+            seis cables distintos y "USB-C a Lightning" no se escribe, se
+            fotografía. La segunda no es una foto más —es la mitad que falta
+            del dato— y por eso está acá y no detrás de "más detalles". */}
+        {twoEnds ? (
+          <div className="mt-4">
+            <PhotoField
+              key={`b${round}`}
+              field="photo2"
+              thumbField="thumb2"
+              label="La otra punta"
+              saved={item?.second ?? item?.second_thumb ?? null}
+              onDrop={
+                item
+                  ? () => {
+                      void removeItemPhoto(item.id, item.node_id, "second");
+                      onSaved();
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* Todo lo que tiene un valor por defecto que acierta casi siempre vive

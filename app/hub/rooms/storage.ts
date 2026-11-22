@@ -25,6 +25,17 @@ export function photoPath(userId: string, itemId: string) {
 }
 
 /**
+ * La otra punta del cable, al lado de la primera.
+ *
+ * Un sufijo y no una carpeta: son dos fotos de la misma cosa, se borran
+ * juntas y se firman juntas. Una carpeta por ítem sería estructura para
+ * albergar un máximo de dos.
+ */
+export function secondPath(userId: string, itemId: string) {
+  return `${userId}/${itemId}-b.jpg`;
+}
+
+/**
  * El recorte vive al lado del original, no en su lugar.
  *
  * Quitar el fondo se puede reintentar, y un recorte que salió mal —media
@@ -102,6 +113,26 @@ export async function putPhoto(userId: string, itemId: string, file: File) {
   return path;
 }
 
+/** Sube —o reemplaza— la foto de la otra punta. Devuelve la ruta guardada. */
+export async function putSecond(userId: string, itemId: string, file: File) {
+  const admin = createAdminClient();
+  const path = secondPath(userId, itemId);
+
+  const { error } = await admin.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: true,
+  });
+
+  if (error) return null;
+  return path;
+}
+
+/** Saca la foto de la otra punta y deja la primera donde estaba. */
+export async function dropSecond(userId: string, itemId: string) {
+  const admin = createAdminClient();
+  await admin.storage.from(BUCKET).remove([secondPath(userId, itemId)]);
+}
+
 /** Sube el recorte sin fondo. Devuelve la ruta guardada. */
 export async function putCutout(userId: string, itemId: string, file: File) {
   const admin = createAdminClient();
@@ -122,6 +153,18 @@ export async function dropPhoto(userId: string, itemId: string) {
   await admin.storage
     .from(BUCKET)
     .remove([photoPath(userId, itemId), cutoutPath(userId, itemId)]);
+}
+
+/** Todo lo de un ítem, para cuando el ítem se va entero. */
+export async function dropAllPhotos(userId: string, itemId: string) {
+  const admin = createAdminClient();
+  await admin.storage
+    .from(BUCKET)
+    .remove([
+      photoPath(userId, itemId),
+      cutoutPath(userId, itemId),
+      secondPath(userId, itemId),
+    ]);
 }
 
 /**

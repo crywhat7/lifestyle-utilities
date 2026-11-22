@@ -7,7 +7,7 @@
  */
 export default function Loading() {
   return (
-    <main className="relative flex flex-1 flex-col gap-5 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <main className="relative flex flex-1 flex-col gap-4 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <header className="flex items-center">
         <span className="r-ghost h-11 w-24 rounded-full" />
       </header>

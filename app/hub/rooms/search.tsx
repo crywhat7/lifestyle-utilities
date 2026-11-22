@@ -5,6 +5,7 @@ import { Cross, Pin, Search as SearchIcon } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import {
   categoryOf,
+  colorOf,
   conditionOf,
   search,
   type IndexEntry,
@@ -121,7 +122,7 @@ export function Search({
   /* Las miniaturas no vienen en el índice —ver `thumbsFor`— así que se piden
      para lo que se está mostrando y se guardan. Lo ya pedido no se vuelve a
      pedir aunque la búsqueda lo traiga de nuevo. */
-  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [thumbs, setThumbs] = useState<Record<string, string[]>>({});
   const askedRef = useRef(new Set<string>());
 
   const wanted = shown.map((hit) => hit.item.id).join(",");
@@ -331,7 +332,8 @@ export function Search({
               {shown.map((hit) => {
                 const tag = categoryOf(hit.item.category, own);
                 const state = conditionOf(hit.item.condition);
-                const thumb = thumbs[hit.item.id];
+                const tint = colorOf(hit.item.color);
+                const shots = thumbs[hit.item.id] ?? [];
 
                 return (
                   <li
@@ -340,10 +342,17 @@ export function Search({
                     style={{ "--tone": tag.hue } as CSSProperties}
                   >
                     <NavLink href={nodePath(hit.nodeId)} className="r-hit-link">
-                      <span className="r-hit-shot">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt="" />
+                      {/* Las dos puntas del cable se dibujan juntas: un cable
+                          se reconoce por el par, no por un extremo. */}
+                      <span
+                        className="r-hit-shot"
+                        data-pair={shots.length > 1 ? "true" : undefined}
+                      >
+                        {shots.length > 0 ? (
+                          shots.map((shot, index) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={index} src={shot} alt="" />
+                          ))
                         ) : (
                           <CategoryGlyph
                             category={tag.glyph ?? tag.key}
@@ -360,8 +369,20 @@ export function Search({
 
                       {/* La ruta es el resultado. El nombre de la cosa no
                           sirve de nada sin el "Cómoda › Gaveta 2" debajo:
-                          eso es lo que se va a leer. */}
-                      <span className="r-crumb">{whereById.get(hit.nodeId) ?? hit.where}</span>
+                          eso es lo que se va a leer. El punto de color va en
+                          el mismo renglón porque es del mismo tamaño que un
+                          dato: distingue dos camisetas, no las nombra. */}
+                      <span className="r-hit-where">
+                        {tint ? (
+                          <span
+                            className="r-tint"
+                            style={{ background: tint.hex }}
+                            title={tint.label}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <span className="r-crumb">{whereById.get(hit.nodeId) ?? hit.where}</span>
+                      </span>
 
                       {/* El estado solo cuando NO es el de siempre. Repetido
                           en cada ficha, "Buen estado" es una palabra que

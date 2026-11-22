@@ -74,6 +74,12 @@ export type Item = {
   thumb: string | null;
   storage_path: string | null;
   cutout_path: string | null;
+  /* La clave de la paleta —"black"—, no el hexadecimal: ver `COLORS`. */
+  color: string | null;
+  /* La otra punta. Un cable se identifica por sus dos extremos y una sola
+     foto siempre deja uno afuera. */
+  second_path: string | null;
+  second_thumb: string | null;
   created_at: string;
 };
 
@@ -81,6 +87,7 @@ export type Item = {
 export type ItemWithPhoto = Item & {
   photo: string | null;
   cutout: string | null;
+  second: string | null;
 };
 
 /**
@@ -97,6 +104,9 @@ export type IndexEntry = {
   category: string;
   condition: Condition;
   quantity: number;
+  /* Una palabra corta por fila, y paga: es el punto de la ficha y es lo que
+     hace que "negro" encuentre las cuatro camisetas negras. */
+  color: string | null;
 };
 
 /** Una prenda recortada, lista para combinar. */
@@ -207,7 +217,7 @@ export const NODE_COLUMNS =
   "id,parent_id,kind,name,variant,note,quantity,color,wall_color,floor_color,grid_x,grid_y,grid_w,grid_h,rotation,terrain,storage_path,thumb,sort_order,path,path_ids,depth,created_at";
 
 export const ITEM_COLUMNS =
-  "id,node_id,name,category,condition,note,quantity,thumb,storage_path,cutout_path,created_at";
+  "id,node_id,name,category,condition,note,quantity,thumb,storage_path,cutout_path,color,second_path,second_thumb,created_at";
 
 /* -------------------------------------------------------------------------- */
 /* Qué es cada cosa                                                            */
@@ -494,6 +504,87 @@ const CATEGORY_MAP = new Map(CATEGORIES.map((item) => [item.key, item]));
 
 /** La última de la lista es "Otro", y es a donde cae todo lo que no resuelve. */
 const OTHER = CATEGORIES[CATEGORIES.length - 1];
+
+/* -------------------------------------------------------------------------- */
+/* El color                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export type Swatch = { key: string; label: string; hex: string };
+
+/**
+ * Los dieciséis colores.
+ *
+ * Una paleta cerrada y no un selector de color, por la misma razón por la que
+ * las categorías son una grilla y no un campo de texto: el valor del color
+ * acá no es parecerse al objeto, es AGRUPAR. Con una rueda, la misma camiseta
+ * negra entra tres veces como tres negros distintos y "mostrame lo negro"
+ * deja de existir. Con dieciséis, "negro" es negro.
+ *
+ * El orden no es el del arcoíris: primero los cinco neutros, porque un
+ * armario de verdad es sobre todo negro, blanco y gris, y lo que se toca
+ * ochenta veces tiene que estar donde el pulgar llega sin buscar. Después sí,
+ * el espectro en su orden, que es el único orden que la vista ya conoce.
+ *
+ * Los tonos están elegidos para distinguirse ENTRE SÍ como puntos de 10 px,
+ * no para ser el color exacto de una prenda. El blanco no es #fff —sobre
+ * papel claro sería un punto invisible— y el negro no es #000, por lo mismo
+ * del otro lado.
+ */
+export const COLORS: Swatch[] = [
+  { key: "black", label: "Negro", hex: "#1f2024" },
+  { key: "white", label: "Blanco", hex: "#f3f2ef" },
+  { key: "gray", label: "Gris", hex: "#9aa0a6" },
+  { key: "beige", label: "Beige", hex: "#d8c6a6" },
+  { key: "brown", label: "Café", hex: "#8a5a35" },
+  { key: "red", label: "Rojo", hex: "#d23b30" },
+  { key: "orange", label: "Naranja", hex: "#e07a26" },
+  { key: "yellow", label: "Amarillo", hex: "#e0b320" },
+  { key: "green", label: "Verde", hex: "#3f9e4d" },
+  { key: "teal", label: "Verde agua", hex: "#27a79b" },
+  { key: "lightblue", label: "Celeste", hex: "#63b6ea" },
+  { key: "blue", label: "Azul", hex: "#2f6fe0" },
+  { key: "navy", label: "Azul marino", hex: "#26386b" },
+  { key: "purple", label: "Morado", hex: "#8352c4" },
+  { key: "pink", label: "Rosado", hex: "#e06aa0" },
+  /* El comodín, y hace falta: una camisa de cuadros no es ningún color de la
+     lista y obligarla a elegir uno es ensuciar el dato de las demás. */
+  { key: "multi", label: "Varios", hex: "#9aa0a6" },
+];
+
+const COLOR_MAP = new Map(COLORS.map((item) => [item.key, item]));
+
+export function colorOf(key: string | null | undefined): Swatch | null {
+  return key ? (COLOR_MAP.get(key) ?? null) : null;
+}
+
+export function isSwatch(value: unknown): value is string {
+  return typeof value === "string" && COLOR_MAP.has(value);
+}
+
+/**
+ * Si vale la pena preguntarle el color a esta categoría.
+ *
+ * No a todo: un documento no tiene color y un medicamento tampoco, y una fila
+ * de dieciséis puntos en el alta de un pasaporte es ruido que hay que saltar
+ * cada vez. Donde sí, el color ES parte de la identidad de la cosa —la
+ * camiseta negra contra la blanca, el cable blanco contra el negro— y sin él
+ * el nombre no alcanza para distinguir dos cosas iguales.
+ */
+export function wantsColor(category: string) {
+  return isWearable(category) || category === "cables";
+}
+
+/**
+ * Si esta categoría se fotografía por sus dos extremos.
+ *
+ * Solo los cables, y no es un capricho de una sola categoría: un cable es el
+ * único objeto del inventario cuya identidad son sus DOS puntas. "Cable USB"
+ * describe a seis cables distintos; "USB-C a Lightning" no describe a
+ * ninguno, pero tampoco se escribe —se fotografía—.
+ */
+export function hasTwoEnds(category: string) {
+  return category === "cables";
+}
 
 /* -------------------------------------------------------------------------- */
 /* La ropa                                                                     */
@@ -1098,9 +1189,14 @@ export function search(
        rótulo. */
     const category = fold(categoryOf(item.category, own).label);
     const also = WEAR_HAY.get(item.category) ?? "";
+    /* El color también busca: "negro" tiene que traer las cuatro camisetas
+       negras aunque ninguna lo lleve en el nombre, que es justamente para lo
+       que se guarda aparte. */
+    const tint = fold(colorOf(item.color)?.label ?? "");
 
     const at = name.indexOf(needle);
-    const byCategory = at < 0 && (category.includes(needle) || also.includes(needle));
+    const byCategory =
+      at < 0 && (category.includes(needle) || also.includes(needle) || tint.includes(needle));
     if (at < 0 && !byCategory) return [];
 
     const node = nodeById.get(item.node_id);

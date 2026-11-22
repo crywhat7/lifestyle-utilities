@@ -106,7 +106,7 @@ export async function loadTree(client: Client, userId: string) {
 export async function loadIndex(client: Client, userId: string) {
   const { data } = await client
     .from("rooms_items")
-    .select("id,node_id,name,category,condition,quantity")
+    .select("id,node_id,name,category,condition,quantity,color")
     .eq("user_id", userId);
 
   return ((data ?? []) as Record<string, unknown>[]).map(
@@ -191,7 +191,9 @@ export async function loadItems(client: Client, userId: string, nodeId: string) 
   );
 
   const paths = rows.flatMap((row) =>
-    [row.storage_path, row.cutout_path].filter((path): path is string => Boolean(path))
+    [row.storage_path, row.cutout_path, row.second_path].filter(
+      (path): path is string => Boolean(path)
+    )
   );
 
   const signed = await signPhotos(paths);
@@ -200,6 +202,7 @@ export async function loadItems(client: Client, userId: string, nodeId: string) 
     ...row,
     photo: row.storage_path ? (signed.get(row.storage_path) ?? null) : null,
     cutout: row.cutout_path ? (signed.get(row.cutout_path) ?? null) : null,
+    second: row.second_path ? (signed.get(row.second_path) ?? null) : null,
   }));
 }
 
