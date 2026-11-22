@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { ArrowBack, Spark } from "@/components/icons";
+import { ArrowBack, Sliders, Spark } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
 import { ROOM_COLORS, countsByNode, isWearable } from "@/lib/rooms";
 import { Board } from "./board";
 import { loadIndex, loadOwnCategories, loadTree, roomsClient } from "./data";
 import { MissingMigration } from "./missing";
-import { OUTFITS_PATH } from "./paths";
+import { OUTFITS_PATH, PANEL_PATH } from "./paths";
 import { Search } from "./search";
 
 export const metadata: Metadata = {
@@ -131,14 +131,23 @@ function Header() {
         Hub
       </NavLink>
 
-      <NavLink
-        href={OUTFITS_PATH}
-        className="r-key h-11 min-h-11 gap-2 pr-5 pl-4 text-[0.875rem]"
-        style={{ "--tone": "#d6456f" } as CSSProperties}
-      >
-        <Spark className="size-4" />
-        Outfits
-      </NavLink>
+      <div className="flex items-center gap-2">
+        {/* El panel es trabajo de escritorio —auditar lo guardado— así que
+            acá es un icono y no una palabra: en el teléfono nadie lo va a
+            tocar, pero tiene que poder encontrarse. */}
+        <NavLink href={PANEL_PATH} className="r-ico" aria-label="Panel de escritorio">
+          <Sliders className="size-[1.125rem]" />
+        </NavLink>
+
+        <NavLink
+          href={OUTFITS_PATH}
+          className="r-key h-11 min-h-11 gap-2 pr-5 pl-4 text-[0.875rem]"
+          style={{ "--tone": "#d6456f" } as CSSProperties}
+        >
+          <Spark className="size-4" />
+          Outfits
+        </NavLink>
+      </div>
     </header>
   );
 }

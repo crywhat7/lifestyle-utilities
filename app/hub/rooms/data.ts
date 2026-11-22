@@ -207,6 +207,47 @@ export async function loadItems(client: Client, userId: string, nodeId: string) 
 }
 
 /**
+ * Todo el inventario, con sus fotos firmadas, para el panel de escritorio.
+ *
+ * Sí, todo: es la única pantalla del módulo que pide el inventario entero de
+ * una, y es a propósito. El panel existe para auditar ciento veinte prendas
+ * seguidas —abrir una, corregirle el nombre, pasar a la siguiente— y pedirle
+ * al servidor cada prenda al seleccionarla convertiría esa tarea en ciento
+ * veinte esperas. Cargado de golpe, moverse por la lista es instantáneo.
+ *
+ * El precio es una carga inicial pesada —las miniaturas viajan en las filas—
+ * y se paga una sola vez, en una pantalla de escritorio, por alguien que vino
+ * justamente a quedarse un rato. En el teléfono esto sería inaceptable; por
+ * eso el teléfono sigue pidiendo las miniaturas de a tandas (ver `thumbsFor`).
+ */
+export async function loadAllItems(client: Client, userId: string) {
+  const { data } = await client
+    .from("rooms_items")
+    .select(ITEM_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  const rows = ((data ?? []) as Record<string, unknown>[]).map(
+    (row) => ({ ...row, quantity: Number(row.quantity) }) as Item
+  );
+
+  const paths = rows.flatMap((row) =>
+    [row.storage_path, row.cutout_path, row.second_path].filter(
+      (path): path is string => Boolean(path)
+    )
+  );
+
+  const signed = await signPhotos(paths);
+
+  return rows.map((row) => ({
+    ...row,
+    photo: row.storage_path ? (signed.get(row.storage_path) ?? null) : null,
+    cutout: row.cutout_path ? (signed.get(row.cutout_path) ?? null) : null,
+    second: row.second_path ? (signed.get(row.second_path) ?? null) : null,
+  }));
+}
+
+/**
  * Las prendas con el fondo ya quitado, para el armador de conjuntos.
  *
  * Solo las que tienen recorte: una prenda con foto pero sin recortar no se

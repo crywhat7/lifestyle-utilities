@@ -17,6 +17,14 @@
 export const ROOMS_PATH = "/hub/rooms";
 export const OUTFITS_PATH = `${ROOMS_PATH}/outfits`;
 
+/**
+ * El panel: todo el inventario de un lado, la ficha del otro.
+ *
+ * Es la pantalla de escritorio del módulo y la única que no está pensada
+ * para el pulgar. Auditar ciento veinte prendas no se hace en un teléfono.
+ */
+export const PANEL_PATH = `${ROOMS_PATH}/panel`;
+
 /** Las categorías propias: renombrar, recolorear, borrar. */
 export const CATEGORIES_PATH = `${ROOMS_PATH}/categorias`;
 

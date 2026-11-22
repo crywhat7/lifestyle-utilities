@@ -254,7 +254,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CATCHER }}
         />
-        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col">
+        {/* La columna de teléfono en la que vive toda la app. `app-shell` existe
+            para que una pantalla de escritorio pueda salirse de ella sin tocar
+            este archivo: ver `.app-shell:has(.r-panel)` en rooms.css. */}
+        <div className="app-shell relative z-10 mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col">
           {children}
         </div>
         {/* Todo error del navegador que nadie atrape va al registro. */}

@@ -14,7 +14,7 @@ import {
 } from "@/lib/rooms";
 import { thumbsFor } from "./actions";
 import { CategoryGlyph } from "./category-glyph";
-import { nodePath, trailPath } from "./paths";
+import { itemPath, trailPath } from "./paths";
 
 /** Cuántos resultados se dibujan. El mismo techo que trae `search`. */
 const SHOWN = 48;
@@ -341,7 +341,15 @@ export function Search({
                     className="r-hit"
                     style={{ "--tone": tag.hue } as CSSProperties}
                   >
-                    <NavLink href={nodePath(hit.nodeId)} className="r-hit-link">
+                    {/* La ficha abre LA COSA, no el cajón donde está. Abrir
+                        el cajón era la respuesta a "¿dónde está?", pero quien
+                        buscó "pantalón" y ve el pantalón en pantalla lo que
+                        quiere es tocarlo: el camino hasta él ya está en el
+                        alfiler de al lado. */}
+                    <NavLink
+                      href={itemPath(hit.nodeId, hit.item.id)}
+                      className="r-hit-link"
+                    >
                       {/* Las dos puntas del cable se dibujan juntas: un cable
                           se reconoce por el par, no por un extremo. */}
                       <span

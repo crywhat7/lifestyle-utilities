@@ -168,6 +168,24 @@ export async function dropAllPhotos(userId: string, itemId: string) {
 }
 
 /**
+ * Bajar una foto del bucket, para mirarla desde el servidor.
+ *
+ * Hace falta para el reconocimiento: el modelo necesita los bytes, y la
+ * miniatura de 176 px que viaja en la fila alcanza para decir "camiseta
+ * blanca" pero no siempre para leer la etiqueta de un cable. Firmar un
+ * enlace y que el modelo lo descargue sería darle a un tercero una URL del
+ * bucket privado; bajarla acá y mandar los bytes no.
+ */
+export async function readPhoto(path: string) {
+  const admin = createAdminClient();
+  const { data } = await admin.storage.from(BUCKET).download(path);
+  if (!data) return null;
+
+  const bytes = Buffer.from(await data.arrayBuffer());
+  return { base64: bytes.toString("base64"), mimeType: data.type || "image/jpeg" };
+}
+
+/**
  * Enlaces firmados para un puñado de rutas, en una sola llamada.
  *
  * Una hora de vigencia: lo que dura mirar un cajón, no lo que dura un enlace
