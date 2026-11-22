@@ -93,6 +93,19 @@ async function transcribe(audio: File): Promise<string | null> {
   }
 }
 
+/**
+ * Solo oír, sin interpretar nada.
+ *
+ * Es el paso uno a secas, para quien no necesita el dos. El inventario dicta
+ * el nombre de una cosa —"sudadera gris con capucha"— y ahí no hay monto, ni
+ * fecha, ni categoría que deducir: lo que se dijo ES el dato. Pasarlo por el
+ * modelo que interpreta egresos solo agregaría un viaje de red y la
+ * posibilidad de que invente algo.
+ */
+export async function transcribeSpeech(audio: File) {
+  return transcribe(audio);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Paso 2 — entender                                                           */
 /* -------------------------------------------------------------------------- */

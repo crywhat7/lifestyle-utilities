@@ -615,6 +615,140 @@
   letter-spacing: -0.015em;
 }
 
+/* La pregunta del paso. Es la única frase de la pantalla y el pulgar no tiene
+   que buscarla: va arriba de la grilla, en cuerpo de pregunta y no de rótulo,
+   porque es literalmente lo que hay que contestar. */
+.rooms .r-ask {
+  padding-inline: 0.125rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--r-ink);
+}
+
+/* Dónde va el alta. Tres pantallas que se parecen necesitan decir en cuál
+   estás y cómo se vuelve: sin esto, el botón de atrás del teléfono es la
+   única salida y sale del formulario entero. */
+.rooms .r-steps {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.75rem;
+  color: var(--r-ink-3);
+}
+
+.rooms .r-steps strong {
+  color: var(--r-ink-2);
+  font-weight: 600;
+}
+
+.rooms .r-steps-back {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 12px;
+  background: var(--r-sunk);
+  color: var(--r-ink-2);
+  cursor: pointer;
+  transition: transform 0.3s var(--r-ease), background-color 0.25s var(--r-ease);
+}
+
+.rooms .r-steps-back:active {
+  transform: scale(0.92);
+  transition-duration: 0.1s;
+}
+
+/* La categoría elegida, puesta a la vista en los pasos siguientes. Es la única
+   respuesta ya dada que no se ve en ningún otro lado del paso dos, y sin ella
+   uno escribe el nombre sin saber si le puso "Cables" o "Cocina". */
+.rooms .r-steps-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  background: var(--r-wash);
+  color: var(--r-tone-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* El campo del nombre con el micrófono adentro. Adentro y no debajo: dictar no
+   es otra función de la pantalla, es otra forma de llenar ESTE campo, y un
+   botón aparte se lee como una pantalla de voz distinta. */
+.rooms .r-named {
+  position: relative;
+}
+
+.rooms .r-named .r-field {
+  padding-right: 3.75rem;
+}
+
+.rooms .r-mic {
+  position: absolute;
+  top: 0.4375rem;
+  right: 0.4375rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2.625rem;
+  height: 2.625rem;
+  border-radius: 12px;
+  background: var(--r-panel);
+  border: 1px solid var(--r-edge);
+  color: var(--r-ink-2);
+  cursor: pointer;
+  transition:
+    transform 0.3s var(--r-ease),
+    background-color 0.25s var(--r-ease),
+    color 0.25s var(--r-ease);
+}
+
+.rooms .r-mic:active {
+  transform: scale(0.92);
+  transition-duration: 0.1s;
+}
+
+.rooms .r-mic:disabled {
+  opacity: 0.5;
+}
+
+/* Grabando. El rojo es fijo y no el color de la categoría: lo que tiene que
+   decir es "el micrófono está abierto", y eso no cambia de color según si lo
+   que estás guardando son cables o plantas. Late, porque un botón quieto no
+   se distingue de uno que no hizo nada. */
+/* El botón no crece al grabar y la cuenta regresiva va en el renglón de
+   abajo: creciendo, se le montaba encima al texto del campo, que es lo único
+   que no puede taparse justo mientras se dicta. */
+.rooms .r-mic[data-on="true"] {
+  background: color-mix(in srgb, #c0392b light-dark(12%, 26%), var(--r-panel));
+  border-color: color-mix(in srgb, #c0392b 45%, transparent);
+  color: light-dark(#a3301f, #f0a79b);
+  animation: r-live 1.6s var(--r-ease) infinite;
+}
+
+/* El anillo que sale del botón, y no una opacidad que late: bajarle la
+   opacidad a un botón con un número adentro lo hace ver apagado, que es lo
+   contrario de lo que está pasando. */
+@keyframes r-live {
+  0% {
+    box-shadow: 0 0 0 0 rgb(192 57 43 / 0.38);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px rgb(192 57 43 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooms .r-mic[data-on="true"] {
+    animation: none;
+  }
+}
+
 /* La grilla de categorías: casillas de ancho fijo que nunca se reordenan.
    Ver `TilePicker` para por qué el orden no se toca.
 
@@ -626,6 +760,31 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
   gap: 0.375rem;
+}
+
+/* La misma grilla cuando es TODO lo que hay en la pantalla: el primer paso del
+   alta no tiene campo de texto ni botón de cámara compitiendo, así que la
+   casilla puede crecer hacia donde importa —el alto del blanco al que le
+   apunta el pulgar y el tamaño del dibujo— sin perder la cuarta columna. Más
+   ancha sería tener tres: veintidós categorías en tres columnas son ocho
+   filas, y ocho filas no se ven de un vistazo, que es justo lo que este paso
+   vino a arreglar. */
+.rooms .r-cats[data-big="true"] {
+  gap: 0.4375rem;
+}
+
+.rooms .r-cats[data-big="true"] .r-cat {
+  min-height: 4.75rem;
+  border-radius: 16px;
+}
+
+.rooms .r-cats[data-big="true"] .r-cat svg {
+  width: 1.625rem;
+  height: 1.625rem;
+}
+
+.rooms .r-cats[data-big="true"] .r-cat span {
+  font-size: 0.6875rem;
 }
 
 .rooms .r-cat {

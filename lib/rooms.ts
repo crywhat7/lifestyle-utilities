@@ -169,6 +169,12 @@ export function isSlot(value: unknown): value is Slot {
  * deja la decisión en el selector, que es donde se ve el resultado.
  */
 export function suggestedSlot(category: string): Slot {
+  /* Desde que la ropa se guarda por clase de prenda, esto ya no es una
+     corazonada: un pantalón dice que va abajo. Lo de abajo es para la ropa
+     registrada antes, cuando "ropa" era una categoría sola. */
+  const worn = GARMENT_MAP.get(category);
+  if (worn) return worn.slot;
+
   if (category === "shoes") return "shoes";
   if (category === "accessories") return "accessory";
   return "top";
@@ -489,6 +495,103 @@ const CATEGORY_MAP = new Map(CATEGORIES.map((item) => [item.key, item]));
 /** La última de la lista es "Otro", y es a donde cae todo lo que no resuelve. */
 const OTHER = CATEGORIES[CATEGORIES.length - 1];
 
+/* -------------------------------------------------------------------------- */
+/* La ropa                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Una prenda, que es una categoría con dos datos más.
+ *
+ * La ropa se registraba como cualquier otra cosa: una categoría "Ropa" para
+ * todo lo que se pone y listo. Y no es lo mismo. Un cable es un cable, pero
+ * "ropa" son una sudadera, una camisa, un pantalón y un par de zapatos, y
+ * quien abre un armario no está guardando tres cosas de la misma clase: está
+ * guardando tres clases distintas que se buscan distinto. Con una sola
+ * categoría, un armario entero se veía como treinta filas del mismo color
+ * rosa y encontrar "el pantalón negro" era leerlas todas.
+ *
+ * El `slot` es la otra razón, y la que no se ve: el maniquí de los conjuntos
+ * tenía que adivinar si una prenda iba arriba o abajo, y adivinaba "arriba"
+ * siempre. Diciendo la clase de prenda al guardarla, el conjunto se arma solo
+ * en la capa correcta.
+ *
+ * Las claves llevan prefijo y van a la MISMA columna `category` que el resto.
+ * Podría haber sido una columna nueva —"tipo de prenda"— y habría costado una
+ * migración, una consulta más y un campo que solo significa algo en una de
+ * cada veinte cosas. La columna es un puntero a texto que se resuelve contra
+ * el catálogo; agregarle una familia de claves no le cuesta nada.
+ */
+export type GarmentKind = Category & { slot: Slot };
+
+/**
+ * Las trece prendas.
+ *
+ * Trece y no treinta: cada una es una casilla en la primera pantalla del
+ * alta, y la primera pantalla tiene que entrar entera sin rodar. "Camisa"
+ * cubre la camisa de vestir y la de cuadros; lo que las distingue es el
+ * nombre y la foto, no una casilla propia.
+ *
+ * Los colores son una familia, no doce acentos sueltos: un rosa que va
+ * virando a violeta. Dentro del armario la prenda se reconoce por el dibujo
+ * y el rótulo; en el resto de la app lo que tiene que decir el color es
+ * "esto es ropa", y para eso la familia dice más que trece colores que
+ * compiten con los de los cables y las herramientas.
+ *
+ * El calzado conserva su marrón de siempre: nunca fue "ropa" ni en el
+ * catálogo ni en la cabeza de nadie, y lo que ya estaba guardado así se
+ * sigue viendo igual.
+ */
+export const GARMENTS: GarmentKind[] = [
+  { key: "wear.tshirt", label: "Camiseta", hue: "#e05c7e", slot: "top", glyph: "tee" },
+  { key: "wear.shirt", label: "Camisa", hue: "#d6456f", slot: "top", glyph: "shirt" },
+  { key: "wear.hoodie", label: "Sudadera", hue: "#c03a74", slot: "outer", glyph: "hoodie" },
+  { key: "wear.sweater", label: "Suéter", hue: "#a8367f", slot: "outer", glyph: "sweater" },
+  { key: "wear.jacket", label: "Chaqueta", hue: "#8e3a86", slot: "outer", glyph: "jacket" },
+  { key: "wear.dress", label: "Vestido", hue: "#c2449c", slot: "top", glyph: "dress" },
+  { key: "wear.pants", label: "Pantalón", hue: "#6f4a9e", slot: "bottom", glyph: "pants" },
+  { key: "wear.shorts", label: "Short", hue: "#7d5ab0", slot: "bottom", glyph: "shorts" },
+  { key: "wear.underwear", label: "Ropa interior", hue: "#9c5a8c", slot: "bottom", glyph: "underwear" },
+  { key: "wear.socks", label: "Calcetas", hue: "#8a6a9e", slot: "socks", glyph: "socks" },
+  { key: "wear.shoes", label: "Zapatos", hue: "#9c5a2b", slot: "shoes", glyph: "shoes" },
+  { key: "wear.hat", label: "Gorra", hue: "#b5614f", slot: "accessory", glyph: "cap" },
+  { key: "wear.accessory", label: "Accesorio", hue: "#b5479e", slot: "accessory", glyph: "accessories" },
+];
+
+const GARMENT_MAP = new Map(GARMENTS.map((item) => [item.key, item]));
+
+/**
+ * Las tres categorías con las que se registraba la ropa antes de las prendas.
+ *
+ * Siguen siendo válidas y se siguen viendo bien: lo que ya está guardado no
+ * se toca. Lo único que hacen acá es que el formulario de una prenda vieja
+ * muestre su casilla marcada en vez de aparecer en blanco.
+ */
+const LEGACY_WEAR = ["clothing", "shoes", "accessories"];
+
+export function isGarment(value: unknown): value is string {
+  return typeof value === "string" && GARMENT_MAP.has(value);
+}
+
+/** Si se pone en el cuerpo — y entonces vale recortarle el fondo. */
+export function isWearable(category: string) {
+  return GARMENT_MAP.has(category) || LEGACY_WEAR.includes(category);
+}
+
+/**
+ * El catálogo del armario.
+ *
+ * `include` es para editar: una prenda guardada como "Ropa" —de antes de las
+ * trece clases— tiene que ver su casilla marcada, y para eso la casilla
+ * tiene que existir en la grilla. Se agrega solo esa, al final, y solo
+ * mientras se la está editando.
+ */
+export function wearCatalog(include?: string | null): Category[] {
+  if (!include || !LEGACY_WEAR.includes(include)) return GARMENTS;
+
+  const old = CATEGORY_MAP.get(include);
+  return old ? [...GARMENTS, old] : GARMENTS;
+}
+
 /**
  * El catálogo entero: lo de fábrica y lo propio.
  *
@@ -525,6 +628,9 @@ export function catalog(own: OwnCategory[] = []): Category[] {
 export function categoryOf(key: string, own: OwnCategory[] = []): Category {
   const stock = CATEGORY_MAP.get(key);
   if (stock) return stock;
+
+  const worn = GARMENT_MAP.get(key);
+  if (worn) return worn;
 
   const mine = own.find((row) => row.id === key);
   if (mine) {

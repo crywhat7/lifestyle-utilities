@@ -206,6 +206,144 @@ function Picture({ className }: IconProps) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Las prendas                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un dibujo por clase de prenda.
+ *
+ * Son los más difíciles del módulo: cinco de los trece son un torso con
+ * mangas, y a 22 px un torso con mangas es un torso con mangas. Lo que los
+ * separa es un rasgo y uno solo —la camiseta por la manga corta, la camisa
+ * por el cuello y la botonadura, la sudadera por la capucha y el bolsillo, el
+ * suéter por el cuello alto y el puño, la chaqueta por el frente abierto—, y
+ * ninguno lleva un detalle más del que aguanta ese tamaño.
+ *
+ * Van en su propio mapa y no con las veintidós categorías porque los dibujos
+ * que se ofrecen para una categoría propia salen de ese mapa: sumarle once
+ * camisetas parecidas convertiría esa grilla en lo que no tiene que ser, un
+ * set abierto donde todo se confunde con todo.
+ */
+
+function Tee({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M9 3.5 3.5 6l-1 4.5 3 1V21h13v-9.5l3-1-1-4.5L15 3.5" />
+      <path d="M9 3.5c0 1.8 1.3 3 3 3s3-1.2 3-3" />
+    </Frame>
+  );
+}
+
+function Blouse({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M9 3 4 5.5l-1.2 4.7 3.2 1.1V21h12v-9.7l3.2-1.1L20 5.5 15 3" />
+      <path d="M9 3l3 2.8L15 3" />
+      <path d="M12 9.5v.01M12 13.5v.01M12 17.5v.01" />
+    </Frame>
+  );
+}
+
+function Hoodie({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M8.6 5.4 3.4 7.8l-1 4.4 3 1V21h13v-7.8l3-1-1-4.4-5.2-2.4" />
+      <path d="M8.7 5.4C9 2.3 15 2.3 15.3 5.4" />
+      <path d="M10.6 6.2v2.6M13.4 6.2v2.6" />
+      <path d="M9 16.8h6" />
+    </Frame>
+  );
+}
+
+function Sweater({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M9 4.8 3.2 7.4l-1 6.4 3.2.8V21h13v-6.4l3.2-.8-1-6.4L15 4.8" />
+      <path d="M9.4 2.4h5.2v2.4H9.4z" />
+      <path d="M5.4 18h13.2" />
+    </Frame>
+  );
+}
+
+function Jacket({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M9.4 3.4 3.4 6.2l-1 5 3 1V21h12v-7.8l3-1-1-5-6-2.8" />
+      <path d="M9.4 3.4 10.9 21" />
+      <path d="M14.6 3.4 13.1 21" />
+    </Frame>
+  );
+}
+
+function Dress({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M9.4 3.2 7 5.6 3 20.8h18L17 5.6l-2.4-2.4" />
+      <path d="M9.4 3.2a2.7 2.7 0 0 0 5.2 0" />
+    </Frame>
+  );
+}
+
+function Pants({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M7.2 3.5h9.6l1 17.5h-4.6L12 11.5l-1.2 9.5H6.2z" />
+      <path d="M7.3 6.8h9.4" />
+    </Frame>
+  );
+}
+
+function Shorts({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M5.5 5.5h13l.9 10h-5.4L12 10.5l-1 5H4.6z" />
+      <path d="M5.6 8.6h12.8" />
+    </Frame>
+  );
+}
+
+function Briefs({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M4.5 6.5h15l-1 4.6c-2 .5-3.3 1.9-3.9 4.2-.2.8-1.1 1.2-2.6 1.2s-2.4-.4-2.6-1.2c-.6-2.3-1.9-3.7-3.9-4.2z" />
+      <path d="M4.8 9h14.4" />
+    </Frame>
+  );
+}
+
+function Sock({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M8.5 3.5h6v9.4c2.9.6 4.6 2.1 5 4.5.2 1.3-.7 2.4-2 2.4h-5c-2.2 0-4-1.8-4-4z" />
+      <path d="M8.5 6.3h6" />
+    </Frame>
+  );
+}
+
+function Cap({ className }: IconProps) {
+  return (
+    <Frame className={className}>
+      <path d="M5 14.4a7 7 0 0 1 14 0z" />
+      <path d="M19 14.4h2.2a1.7 1.7 0 0 1 0 3.3h-6" />
+    </Frame>
+  );
+}
+
+const BY_GARMENT: Record<string, (props: IconProps) => React.ReactElement> = {
+  tee: Tee,
+  shirt: Blouse,
+  hoodie: Hoodie,
+  sweater: Sweater,
+  jacket: Jacket,
+  dress: Dress,
+  pants: Pants,
+  shorts: Shorts,
+  underwear: Briefs,
+  socks: Sock,
+  cap: Cap,
+};
+
 const BY_CATEGORY: Record<string, (props: IconProps) => React.ReactElement> = {
   cables: Cable,
   electronics: Phone,
@@ -243,7 +381,7 @@ const BY_CATEGORY: Record<string, (props: IconProps) => React.ReactElement> = {
 export const OWN_GLYPHS = Object.keys(BY_CATEGORY);
 
 export function CategoryGlyph({ category, className }: { category: string; className?: string }) {
-  const Icon = BY_CATEGORY[category] ?? Tag;
+  const Icon = BY_CATEGORY[category] ?? BY_GARMENT[category] ?? Tag;
   return <Icon className={className} />;
 }
 

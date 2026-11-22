@@ -14,7 +14,15 @@ import {
   type OwnCategory,
   type RoomNode,
 } from "@/lib/rooms";
-import { addPath, editPath, itemPath, newItemPath, newRoomPath, nodePath } from "./paths";
+import {
+  addPath,
+  editPath,
+  itemPath,
+  newItemPath,
+  newRoomPath,
+  newWearPath,
+  nodePath,
+} from "./paths";
 import { ItemGlyph, Glyph, NodeGlyph } from "./glyph";
 
 /**
@@ -123,15 +131,25 @@ export function Board({
 
       {/* El pie: la acción que más se repite, donde ya está el pulgar. */}
       <div className="r-bar flex flex-col gap-2">
+        {/* Dos botones y no uno con un selector adentro: la ropa no es una
+            categoría más. Un cable es un cable, pero "ropa" son una sudadera,
+            una camisa, un pantalón y unos zapatos, y eso se pregunta en la
+            primera pantalla del alta o no se pregunta nunca. */}
         {node ? (
-          <NavLink
-            href={newItemPath(node.id)}
-            className="r-key r-key-lit w-full"
-            style={{ "--tone": tone } as CSSProperties}
-          >
-            <PlusSlot className="size-[1.125rem]" />
-            Agregar cosa
-          </NavLink>
+          <div className="flex gap-2">
+            <NavLink
+              href={newItemPath(node.id)}
+              className="r-key r-key-lit min-w-0 flex-1"
+              style={{ "--tone": tone } as CSSProperties}
+            >
+              <PlusSlot className="size-[1.125rem] shrink-0" />
+              <span className="truncate">Agregar cosa</span>
+            </NavLink>
+            <NavLink href={newWearPath(node.id)} className="r-key min-w-0 flex-1">
+              <PlusSlot className="size-[1.125rem] shrink-0" />
+              <span className="truncate">Agregar ropa</span>
+            </NavLink>
+          </div>
         ) : null}
 
         {childKinds.length > 0 ? (

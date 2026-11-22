@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { branchTone, placesOf } from "@/lib/rooms";
+import { branchTone, isWearable, placesOf } from "@/lib/rooms";
 import { loadItems, loadOwnCategories, loadTree, nodePath, roomsClient } from "../../../data";
 import { FormShell } from "../../../form-shell";
 import { ItemScreen } from "../../../screens";
@@ -36,6 +36,10 @@ export default async function EditItemPage({
         item={item}
         places={placesOf(tree.nodes)}
         own={own}
+        /* Una prenda se edita con la grilla del armario y no con las
+           veintidós categorías de la casa: es la grilla en la que está su
+           casilla. */
+        mode={isWearable(item.category) ? "wear" : "thing"}
         back={nodePath(node.id)}
       />
     </FormShell>

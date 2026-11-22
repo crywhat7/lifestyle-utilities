@@ -53,15 +53,29 @@ export function ItemScreen({
   item,
   places,
   own,
+  use,
+  mode,
   back,
 }: {
   nodeId: string;
   item?: ItemWithPhoto;
   places: Place[];
   own: OwnCategory[];
+  /** Cuántas cosas hay en cada categoría, para adelantar las más usadas. */
+  use?: Record<string, number>;
+  /** "wear" abre el alta con las clases de prenda en vez de las categorías. */
+  mode?: "thing" | "wear";
   back: string;
 }) {
   return (
-    <ItemForm nodeId={nodeId} item={item} places={places} own={own} onSaved={useReturn(back)} />
+    <ItemForm
+      nodeId={nodeId}
+      item={item}
+      places={places}
+      own={own}
+      use={use}
+      mode={mode}
+      onSaved={useReturn(back)}
+    />
   );
 }

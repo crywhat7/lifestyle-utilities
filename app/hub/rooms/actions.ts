@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   CATEGORY_HUES,
   isCategory,
+  isGarment,
   isOwnCategory,
   isColor,
   isCondition,
@@ -616,7 +617,10 @@ export async function createItem(_state: FormState, form: FormData): Promise<For
       user_id: user.id,
       node_id: nodeId,
       name,
-      category: isCategory(category) || isOwnCategory(category) ? String(category) : "other",
+      category:
+        isCategory(category) || isGarment(category) || isOwnCategory(category)
+          ? String(category)
+          : "other",
       condition: isCondition(condition) ? condition : "good",
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),
@@ -744,7 +748,10 @@ export async function updateItem(_state: FormState, form: FormData): Promise<For
       ...(photo ?? {}),
       node_id: nodeId,
       name,
-      category: isCategory(category) || isOwnCategory(category) ? String(category) : "other",
+      category:
+        isCategory(category) || isGarment(category) || isOwnCategory(category)
+          ? String(category)
+          : "other",
       condition: isCondition(condition) ? condition : "good",
       note: toText(form.get("note"), 400) || null,
       quantity: toQuantity(form.get("quantity"), 9999),

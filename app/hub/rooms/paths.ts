@@ -45,6 +45,17 @@ export function newItemPath(id: string) {
   return `${ROOMS_PATH}/${id}/cosa`;
 }
 
+/**
+ * Guardar una prenda acá dentro.
+ *
+ * Dirección propia y no un parámetro de la de arriba: es otra pantalla desde
+ * el primer toque —otra grilla, otras trece casillas— y la lista la ofrece
+ * como otro botón.
+ */
+export function newWearPath(id: string) {
+  return `${ROOMS_PATH}/${id}/ropa`;
+}
+
 /** Abrir una cosa ya guardada. */
 export function itemPath(nodeId: string, itemId: string) {
   return `${ROOMS_PATH}/${nodeId}/cosa/${itemId}`;

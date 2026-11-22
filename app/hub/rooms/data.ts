@@ -119,6 +119,27 @@ export async function loadIndex(client: Client, userId: string) {
 }
 
 /**
+ * Cuántas cosas hay en cada categoría.
+ *
+ * Una columna y nada más: la primera pantalla del alta adelanta arriba las
+ * categorías que esta persona usa de verdad, y para saber cuáles son alcanza
+ * con contar. Sin `group by` a propósito —PostgREST lo pide por otra vía y
+ * esto son unos kilobytes incluso con dos mil cosas— y sin reusar
+ * `loadIndex`, que trae cinco columnas para llenar el buscador.
+ */
+export async function loadCategoryUse(client: Client, userId: string) {
+  const { data } = await client.from("rooms_items").select("category").eq("user_id", userId);
+
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as { category: unknown }[]) {
+    const key = String(row.category);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  return counts;
+}
+
+/**
  * Las categorías que hizo la persona.
  *
  * Una consulta más por pantalla, y vale la pena: sin esto una cosa guardada
