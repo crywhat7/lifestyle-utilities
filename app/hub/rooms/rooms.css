@@ -607,6 +607,45 @@
    sin leer, que es la razón por la que uno la tomó.
    -------------------------------------------------------------------------- */
 
+/* El campo, pegado arriba mientras se rueda.
+
+   Los rellenos y los márgenes negativos se anulan entre sí: la huella que
+   deja en el flujo es exactamente la del campo, así que en reposo nada se
+   mueve de lugar. Lo que crecen es la banda PINTADA, que pegada arriba tiene
+   que tapar también la franja de la muesca —si no, el contenido se vería
+   correr debajo de la hora y la batería.
+
+   El fondo solo aparece pegado, y por eso hay un testigo en JavaScript: en
+   reposo una banda difuminada sobre el papel es una mancha donde no pasa
+   nada. */
+.rooms .r-stick {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  margin-inline: -1.25rem;
+  margin-top: calc(-1 * (env(safe-area-inset-top, 0px) + 0.5rem));
+  margin-bottom: -0.625rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) 1.25rem 0.625rem;
+  transition:
+    background-color 0.25s var(--r-ease),
+    box-shadow 0.25s var(--r-ease);
+}
+
+.rooms .r-stick[data-stuck="true"] {
+  background: color-mix(in srgb, var(--r-ground) 84%, transparent);
+  backdrop-filter: blur(14px) saturate(130%);
+  box-shadow: 0 1px 0 0 var(--r-hair);
+}
+
+/* El testigo: un píxel justo encima de la banda. Cuando sale de la pantalla,
+   la banda está pegada. No se ve ni se lee. */
+.rooms .r-stick-mark {
+  display: block;
+  height: 1px;
+  margin-bottom: -1px;
+  pointer-events: none;
+}
+
 /* Dos columnas en un teléfono, tres o cuatro en una pantalla ancha. El ancho
    de la ficha es lo que se mantiene, no el número de columnas: una foto
    cuadrada más chica que esto deja de servir para reconocer una prenda. */

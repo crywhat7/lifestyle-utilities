@@ -154,6 +154,24 @@ export function Search({
     };
   }, [wanted]);
 
+  /* Si el campo está pegado arriba.
+     No hay forma de saberlo en CSS, así que se mira con un testigo de un
+     píxel puesto justo encima: cuando ese píxel sale de la pantalla, el
+     campo está pegado. Importa para una sola cosa —el fondo— y por eso no
+     se pinta siempre: en reposo, una banda difuminada sobre el papel es una
+     banda sobre el papel, una mancha donde no pasa nada. */
+  const [stuck, setStuck] = useState(false);
+  const markRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const mark = markRef.current;
+    if (!mark || typeof IntersectionObserver === "undefined") return;
+
+    const eye = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting));
+    eye.observe(mark);
+    return () => eye.disconnect();
+  }, []);
+
   const typing = query.trim().length > 0;
   const short = typing && query.trim().length < 2;
 
@@ -163,36 +181,46 @@ export function Search({
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-[var(--r-ink-3)]" />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            /* La ficha elegida no sobrevive a otra búsqueda: filtrar por
-               "Calzado" lo que ya no tiene calzado deja la pantalla vacía sin
-               decir por qué. */
-            setPick(null);
-          }}
-          placeholder={scope ? `Buscar en ${scope.label}…` : "Buscar un cable, una sudadera, un clip…"}
-          aria-label={scope ? `Buscar en ${scope.label}` : "Buscar en todo el inventario"}
-          autoComplete="off"
-          className="r-field pr-12 pl-11"
-        />
-        {typing ? (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
+      <span ref={markRef} aria-hidden="true" className="r-stick-mark" />
+
+      {/* El campo se queda arriba mientras se rueda. Con una rejilla de
+          cuarenta fichas, buscar otra cosa era subir hasta el principio —y
+          el buscador es justamente lo que se usa dos veces seguidas: se
+          escribe, se mira, se corrige. */}
+      <div className="r-stick" data-stuck={stuck}>
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-[var(--r-ink-3)]" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              /* La ficha elegida no sobrevive a otra búsqueda: filtrar por
+                 "Calzado" lo que ya no tiene calzado deja la pantalla vacía
+                 sin decir por qué. */
               setPick(null);
             }}
-            aria-label="Borrar la búsqueda"
-            className="absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full text-[var(--r-ink-3)] active:scale-90"
-          >
-            <Cross className="size-4" />
-          </button>
-        ) : null}
+            placeholder={
+              scope ? `Buscar en ${scope.label}…` : "Buscar un cable, una sudadera, un clip…"
+            }
+            aria-label={scope ? `Buscar en ${scope.label}` : "Buscar en todo el inventario"}
+            autoComplete="off"
+            className="r-field pr-12 pl-11"
+          />
+          {typing ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setPick(null);
+              }}
+              aria-label="Borrar la búsqueda"
+              className="absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full text-[var(--r-ink-3)] active:scale-90"
+            >
+              <Cross className="size-4" />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Mientras no se escriba nada, acá no hay nada: la pantalla sigue
