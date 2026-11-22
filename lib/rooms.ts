@@ -560,6 +560,52 @@ export const GARMENTS: GarmentKind[] = [
 const GARMENT_MAP = new Map(GARMENTS.map((item) => [item.key, item]));
 
 /**
+ * Por qué palabras se busca cada prenda.
+ *
+ * El buscador encuentra por nombre y por el rótulo de la categoría, y con la
+ * ropa partida en trece clases eso dejó dos huecos.
+ *
+ * El primero: "ropa". Antes todo lo que se ponía estaba rotulado "Ropa" y esa
+ * palabra lo traía todo; ahora una sudadera se rotula "Sudadera" y buscar
+ * "ropa" no la encuentra. Por eso TODAS las clases responden a "ropa", que es
+ * la palabra con la que uno busca cuando no se acuerda de la prenda.
+ *
+ * El segundo: una prenda se llama de tres maneras según quién hable. Lo que
+ * acá es una chumpa en otro lado es una campera, y el jean y el pantalón son
+ * lo mismo salvo cuando no. La lista es corta a propósito —no es un
+ * diccionario, son los sinónimos que de verdad se escriben en un buscador— y
+ * convive con el nombre de la cosa, que sigue mandando en el orden.
+ */
+const WEAR_WORDS: Record<string, string[]> = {
+  "wear.tshirt": ["camiseta", "playera", "remera", "polo"],
+  "wear.shirt": ["camisa", "blusa"],
+  "wear.hoodie": ["sudadera", "hoodie", "capucha", "buzo"],
+  "wear.sweater": ["sueter", "sweater", "jersey", "chompa"],
+  "wear.jacket": ["chaqueta", "chumpa", "campera", "abrigo", "saco", "chaleco"],
+  "wear.dress": ["vestido", "falda"],
+  "wear.pants": ["pantalon", "jean", "vaquero", "jogger", "leggings"],
+  "wear.shorts": ["short", "bermuda"],
+  "wear.underwear": ["ropa interior", "interior", "boxer", "calzon", "panty"],
+  "wear.socks": ["calceta", "calcetin", "media"],
+  "wear.shoes": ["zapato", "tenis", "zapatilla", "bota", "sandalia", "chancla", "calzado"],
+  "wear.hat": ["gorra", "gorro", "sombrero"],
+  "wear.accessory": ["accesorio", "reloj", "lentes", "cinturon", "collar"],
+  /* Lo guardado antes de las trece clases responde igual: quien buscaba
+     "zapato" y lo encontraba tiene que seguir encontrándolo. */
+  clothing: ["ropa", "prenda"],
+  shoes: ["zapato", "tenis", "zapatilla", "bota", "calzado"],
+  accessories: ["accesorio", "reloj", "lentes", "cinturon"],
+};
+
+/** El pajar de cada prenda, armado una vez y no por tecla. */
+const WEAR_HAY = new Map(
+  Object.entries(WEAR_WORDS).map(([key, words]) => [
+    key,
+    fold([...words, key.startsWith("wear.") ? "ropa prenda" : ""].join(" ")),
+  ])
+);
+
+/**
  * Las tres categorías con las que se registraba la ropa antes de las prendas.
  *
  * Siguen siendo válidas y se siguen viendo bien: lo que ya está guardado no
@@ -1028,7 +1074,13 @@ export type Hit = {
  * más que la "Caja de cables viejos". Dentro de cada grupo, el nombre más
  * corto arriba — es el que más se parece a lo que se buscó.
  */
-export function search(index: IndexEntry[], nodes: RoomNode[], query: string, limit = 40) {
+export function search(
+  index: IndexEntry[],
+  nodes: RoomNode[],
+  query: string,
+  own: OwnCategory[] = [],
+  limit = 40
+) {
   const needle = fold(query);
   if (needle.length < 2) return [] as Hit[];
 
@@ -1036,10 +1088,14 @@ export function search(index: IndexEntry[], nodes: RoomNode[], query: string, li
 
   const hits = index.flatMap((item) => {
     const name = fold(item.name);
-    const category = fold(categoryOf(item.category).label);
+    /* Las propias entran acá: sin `own`, una cosa guardada en "Pesca" no
+       aparecía al buscar "pesca" aunque la lista la mostrara con ese
+       rótulo. */
+    const category = fold(categoryOf(item.category, own).label);
+    const also = WEAR_HAY.get(item.category) ?? "";
 
     const at = name.indexOf(needle);
-    const byCategory = at < 0 && category.includes(needle);
+    const byCategory = at < 0 && (category.includes(needle) || also.includes(needle));
     if (at < 0 && !byCategory) return [];
 
     const node = nodeById.get(item.node_id);

@@ -38,7 +38,7 @@ export function Search({
 }) {
   const [query, setQuery] = useState("");
 
-  const hits = useMemo(() => search(index, nodes, query), [index, nodes, query]);
+  const hits = useMemo(() => search(index, nodes, query, own), [index, nodes, query, own]);
 
   const typing = query.trim().length > 0;
   const short = typing && query.trim().length < 2;
@@ -51,7 +51,7 @@ export function Search({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar un cable, una camisa, un clip…"
+          placeholder="Buscar un cable, una sudadera, un clip…"
           aria-label="Buscar en todo el inventario"
           autoComplete="off"
           className="r-field pr-12 pl-11"

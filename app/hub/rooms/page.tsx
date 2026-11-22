@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { ArrowBack, Spark } from "@/components/icons";
 import { NavLink } from "@/components/nav-link";
-import { ROOM_COLORS, countsByNode } from "@/lib/rooms";
+import { ROOM_COLORS, countsByNode, isWearable } from "@/lib/rooms";
 import { Board } from "./board";
 import { loadIndex, loadOwnCategories, loadTree, roomsClient } from "./data";
 import { MissingMigration } from "./missing";
@@ -44,9 +44,21 @@ export default async function RoomsPage() {
   const rooms = tree.nodes.filter((node) => node.parent_id === null);
   const counts = countsByNode(tree.nodes, index);
 
-  // Lo que hay en toda la casa. Es la única cifra de la portada porque es la
-  // única que contesta algo: cuánto de lo que tengo está realmente anotado.
-  const total = index.reduce((sum, row) => sum + row.quantity, 0);
+  /*
+    Lo que hay en toda la casa, contado aparte lo que se pone en el cuerpo.
+
+    Es la única cifra de la portada porque es la única que contesta algo
+    —cuánto de lo que tengo está realmente anotado— y va partida en dos
+    porque son dos inventarios: el armario crece distinto que la casa, se
+    llena de una sentada y es el que alimenta los conjuntos. Sumados en un
+    solo número, cuarenta prendas tapaban que de la casa no había nada.
+  */
+  let things = 0;
+  let worn = 0;
+  for (const row of index) {
+    if (isWearable(row.category)) worn += row.quantity;
+    else things += row.quantity;
+  }
 
   return (
     <main className={shell}>
@@ -55,7 +67,9 @@ export default async function RoomsPage() {
       <section className="r-rise" style={{ "--d": "40ms" } as CSSProperties}>
         <h1 className="r-title">Tus cuartos</h1>
         <p className="mt-1.5 text-[0.9375rem] text-[var(--r-ink-2)]">
-          {rooms.length === 0 ? "Creá el primero y empezá a llenarlo." : summary(total, rooms.length)}
+          {rooms.length === 0
+            ? "Creá el primero y empezá a llenarlo."
+            : summary(things, worn, rooms.length)}
         </p>
       </section>
 
@@ -88,14 +102,22 @@ export default async function RoomsPage() {
  * concuerda: "1 cosa guardada", "3 cosas guardadas" y, con el inventario
  * vacío, ni siquiera es la misma frase. Interpolar un número adentro de una
  * plantilla fija es lo que produce "Nada guardadas en 1 habitación".
+ *
+ * Las prendas se nombran aparte solo cuando hay: quien no guardó ropa no
+ * tiene por qué leer "y 0 prendas", y quien guardó solo ropa lee una frase
+ * de prendas y nada más.
  */
-function summary(total: number, rooms: number) {
+function summary(things: number, worn: number, rooms: number) {
   const where = rooms === 1 ? "1 habitación" : `${rooms} habitaciones`;
 
-  if (total === 0) return `Nada guardado todavía en ${where}.`;
-  if (total === 1) return `1 cosa guardada en ${where}.`;
+  if (things + worn === 0) return `Nada guardado todavía en ${where}.`;
 
-  return `${total} cosas guardadas en ${where}.`;
+  const parts: string[] = [];
+  if (things > 0) parts.push(things === 1 ? "1 cosa" : `${things} cosas`);
+  if (worn > 0) parts.push(worn === 1 ? "1 prenda" : `${worn} prendas`);
+
+  const one = things + worn === 1;
+  return `${parts.join(" y ")} ${one ? "guardada" : "guardadas"} en ${where}.`;
 }
 
 function Header() {
