@@ -599,6 +599,181 @@
 }
 
 /* --------------------------------------------------------------------------
+   El buscador
+
+   Los resultados son una rejilla de fichas con foto y no una lista de
+   renglones. Con dieciséis calzonetas guardadas, dieciséis renglones que
+   dicen lo mismo hay que leerlos uno por uno; la foto cuadrada se reconoce
+   sin leer, que es la razón por la que uno la tomó.
+   -------------------------------------------------------------------------- */
+
+/* Dos columnas en un teléfono, tres o cuatro en una pantalla ancha. El ancho
+   de la ficha es lo que se mantiene, no el número de columnas: una foto
+   cuadrada más chica que esto deja de servir para reconocer una prenda. */
+.rooms .r-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
+  gap: 0.625rem;
+}
+
+.rooms .r-hit {
+  position: relative;
+}
+
+.rooms .r-hit-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding: 0.5rem;
+  border-radius: 18px;
+  background: var(--r-panel);
+  border: 1px solid var(--r-edge);
+  box-shadow: var(--r-lift);
+  transition: transform 0.4s var(--r-ease);
+}
+
+.rooms .r-hit-link:active {
+  transform: scale(0.97);
+  transition-duration: 0.1s;
+}
+
+/* El cuadrado. Sin foto queda el dibujo de la categoría sobre su propio
+   color, que es lo mismo que se ve en la grilla del alta: la ficha nunca
+   queda hueca y el color sigue agrupando aunque nadie haya fotografiado
+   nada. */
+.rooms .r-hit-shot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--r-wash);
+  color: var(--r-tone-ink);
+}
+
+.rooms .r-hit-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rooms .r-hit-many {
+  position: absolute;
+  right: 0.3125rem;
+  bottom: 0.3125rem;
+  padding: 0.0625rem 0.4375rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--r-panel) 85%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--r-ink-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rooms .r-hit-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.rooms .r-hit .r-crumb {
+  font-size: 0.75rem;
+}
+
+/* El alfiler, encima de la foto. Es la acción que justifica el módulo —no ir
+   hasta la cosa, sino poder mostrar el camino— y en una ficha no hay renglón
+   donde ponerlo sin robarle lugar al nombre. */
+.rooms .r-hit-pin {
+  position: absolute;
+  top: 0.8125rem;
+  right: 0.8125rem;
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--r-panel) 86%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--r-tone-ink);
+  transition: transform 0.3s var(--r-ease);
+}
+
+.rooms .r-hit-pin:active {
+  transform: scale(0.9);
+  transition-duration: 0.1s;
+}
+
+/* Dónde se busca: acá adentro o en toda la casa. Dos botones pegados y no un
+   desplegable, porque son dos, se alternan todo el tiempo y cuál está puesto
+   tiene que verse sin abrir nada. */
+.rooms .r-where {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--r-sunk);
+}
+
+.rooms .r-where button {
+  padding: 0.3125rem 0.6875rem;
+  border-radius: 999px;
+  color: var(--r-ink-3);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.25s var(--r-ease),
+    color 0.25s var(--r-ease);
+}
+
+.rooms .r-where button[data-on="true"] {
+  background: var(--r-panel);
+  color: var(--r-ink);
+  box-shadow: var(--r-lift);
+}
+
+/* Las fichas de categoría, en un riel que se arrastra. Sangran hasta el borde
+   de la pantalla a propósito: una fila cortada en seco se lee como el final
+   de la lista, y media ficha asomando dice que hay más. */
+.rooms .r-facets {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-inline: -1.25rem;
+  padding-inline: 1.25rem;
+  padding-block: 2px;
+}
+
+.rooms .r-facets::-webkit-scrollbar {
+  display: none;
+}
+
+.rooms .r-facets .r-chip {
+  flex-shrink: 0;
+  gap: 0.375rem;
+  min-height: 2.125rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.rooms .r-facet-n {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+/* --------------------------------------------------------------------------
    El alta de cosas
 
    Fuera de `@layer` como el resto de lo específico, para que una utilidad de

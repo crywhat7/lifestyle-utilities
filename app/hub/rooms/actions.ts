@@ -5,6 +5,7 @@ import {
   CATEGORY_HUES,
   isCategory,
   isGarment,
+  isId,
   isOwnCategory,
   isColor,
   isCondition,
@@ -35,6 +36,48 @@ export type FormState =
 
 const migrationError = (number: string) =>
   `Falta correr la migración ${number} de Rooms en Supabase.`;
+
+/** Cuántas miniaturas se piden de una vez. Es una pantalla de resultados. */
+const THUMB_BATCH = 48;
+
+/**
+ * Las miniaturas de un puñado de cosas.
+ *
+ * El buscador vive del índice, que trae cinco columnas por fila para que el
+ * inventario entero quepa en una consulta y "cable" se resuelva en la misma
+ * tecla. La miniatura no puede ir ahí: son unos kilobytes por cosa y con
+ * trescientas cosas serían dos megas en cada carga de la portada, pagados
+ * por todo el mundo para que algunos vean una foto.
+ *
+ * Así que la rejilla las pide aparte y solo para lo que está mostrando. La
+ * búsqueda sigue contestando en la misma tecla y las fotos entran un
+ * instante después, que es exactamente el orden en que importan: primero
+ * saber que está, después reconocerla.
+ */
+export async function thumbsFor(ids: string[]): Promise<Record<string, string>> {
+  const wanted = (Array.isArray(ids) ? ids : [])
+    .filter((id) => isId(id))
+    .slice(0, THUMB_BATCH);
+
+  if (wanted.length === 0) return {};
+
+  const { supabase, user } = await roomsClient();
+
+  const { data } = await supabase
+    .from("rooms_items")
+    .select("id,thumb")
+    .eq("user_id", user.id)
+    .in("id", wanted)
+    .not("thumb", "is", null);
+
+  const found: Record<string, string> = {};
+  for (const row of (data ?? []) as { id: unknown; thumb: unknown }[]) {
+    const thumb = String(row.thumb ?? "");
+    if (thumb.startsWith("data:image/")) found[String(row.id)] = thumb;
+  }
+
+  return found;
+}
 
 /**
  * Qué pantallas rehacer después de escribir.

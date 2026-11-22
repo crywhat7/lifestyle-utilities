@@ -23,6 +23,7 @@ import {
 } from "../data";
 import { Glyph, NodeGlyph } from "../glyph";
 import { MissingMigration } from "../missing";
+import { Search } from "../search";
 
 export const metadata: Metadata = {
   title: "Rooms Planning",
@@ -117,6 +118,20 @@ export default async function NodePage({ params }: PageProps<"/hub/rooms/[nodeId
         </div>
       </section>
 
+      {/* El buscador también acá, y no solo en la portada: quien está parado
+          en la cómoda y escribe "calzoneta" está preguntando por las de la
+          cómoda. Salir hasta la portada para escribir una palabra es el
+          camino largo a lo que uno tiene en la mano. */}
+      {index.length > 0 ? (
+        <div className="r-rise" style={{ "--d": "80ms" } as CSSProperties}>
+          <Search
+            index={index}
+            nodes={tree.nodes}
+            own={own}
+            scope={{ id: node.id, label: node.name }}
+          />
+        </div>
+      ) : null}
 
       <Board
         node={node}

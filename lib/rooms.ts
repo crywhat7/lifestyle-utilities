@@ -869,6 +869,11 @@ export function isCategory(value: unknown): value is string {
  * "Otro", que es lo mismo que pasa al borrar una categoría de verdad.
  */
 export function isOwnCategory(value: unknown): value is string {
+  return isId(value);
+}
+
+/** La forma de un uuid, para no mandarle cualquier cosa a la base. */
+export function isId(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 }
 
