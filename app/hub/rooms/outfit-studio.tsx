@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
-import { Chevron, Cross, Trash } from "@/components/icons";
+import { Cross, Trash } from "@/components/icons";
 import {
   SLOTS,
   slotOf,
@@ -16,28 +16,46 @@ import { OutfitFigure } from "./outfits/figure";
 
 const IDLE: FormState = { status: "idle" };
 
+/**
+ * En qué orden se ofrecen los rieles.
+ *
+ * De la cabeza a los pies no: de lo que más se elige a lo que menos. Un
+ * conjunto empieza por la camisa y el pantalón —eso es el conjunto— y
+ * termina en los accesorios, que son los que a veces ni se ponen. El orden
+ * de `SLOTS` es el de las capas sobre el cuerpo, que es otra cosa y sigue
+ * mandando donde importa: el dibujo.
+ */
+const RAILS = [...SLOTS].sort(
+  (a, b) =>
+    ["top", "bottom", "shoes", "outer", "socks", "accessory"].indexOf(a.key) -
+    ["top", "bottom", "shoes", "outer", "socks", "accessory"].indexOf(b.key)
+);
+
 /** Qué prenda está puesta en cada ranura. */
 type Worn = Partial<Record<Slot, string>>;
 
 /**
- * Vestir el maniquí.
+ * Armar un conjunto.
  *
- * Antes esto era un lienzo: las prendas se arrastraban, se escalaban y se
- * giraban hasta que el conjunto se veía derecho. Funcionaba y no servía —
- * armar un conjunto terminaba siendo un trabajo de recortes, y nadie abre un
- * armario para hacer collage. Peor: cada vez que querías cambiar la camisa
- * había que sacar la vieja, meter la nueva y volver a acomodarla.
+ * Arriba, el conjunto tendido —ver `OutfitFigure`—; abajo, un riel de fotos
+ * por cada parte del cuerpo. Se toca una prenda y aparece arriba. Se toca
+ * otra y la reemplaza. Se toca la que está puesta y se la quita.
  *
- * Ahora es un selector de personaje: un cuerpo, seis ranuras y una fila por
- * ranura para pasar ropa. Cambiar de camisa es una flecha, y el pantalón
- * nunca más se va a quedar donde va la cabeza. El orden de las capas lo sabe
- * el maniquí —ver `OutfitFigure`—, así que la parte aburrida ya no es de
- * quien se viste.
+ * Eso es todo, y llegar ahí costó dos intentos fallidos que conviene dejar
+ * escritos. El primero fue un lienzo libre: arrastrar, escalar y girar
+ * recortes hasta que el conjunto se veía derecho. Armar un conjunto no puede
+ * ser un trabajo de recortes. El segundo fue un maniquí con seis filas de
+ * flechitas: "Arriba — Sin camisa ‹ ›". Ordenado, legible y horrible — para
+ * ver una camisa había que pasarlas de a una, a ciegas, leyendo nombres.
  *
- * Toda ranura ofrece toda la ropa recortada, con la que probablemente
- * corresponde primero. El inventario sabe que algo es calzado, pero no sabe
- * si una prenda de "ropa" es una camisa o un pantalón: esconder opciones por
- * una categoría que no distingue eso dejaría pantalones imposibles de poner.
+ * La ropa se elige MIRÁNDOLA. Es lo único que hacen igual todas las apps que
+ * resuelven esto bien, y es obvio en cuanto se ve: un riel de fotos contesta
+ * "¿cuál me pongo?" de un vistazo, y ninguna lista de nombres con flechas lo
+ * va a hacer nunca.
+ *
+ * Cada riel ofrece toda la ropa recortada, con la que probablemente
+ * corresponde primero. Esconder opciones por categoría dejaría prendas
+ * imposibles de poner, y el costo de ofrecer de más es rodar un poco.
  */
 export function OutfitStudio({
   wardrobe,
@@ -83,26 +101,6 @@ export function OutfitStudio({
     });
   }
 
-  /**
-   * Pasar a la prenda siguiente o anterior de una ranura.
-   *
-   * El vacío es una posición más —antes de la primera prenda— y no un botón
-   * aparte: sacarse el abrigo es ir una para atrás, igual que ponerse otro es
-   * ir una para adelante. Y la vuelta es circular porque una lista que se
-   * termina obliga a adivinar en qué punta estás.
-   */
-  function step(slot: Slot, direction: 1 | -1) {
-    const rack = racks[slot];
-    if (rack.length === 0) return;
-
-    const worn_id = worn[slot];
-    const at = worn_id ? rack.findIndex((garment) => garment.id === worn_id) + 1 : 0;
-    const next = (at + direction + rack.length + 1) % (rack.length + 1);
-
-    wear(slot, next === 0 ? null : rack[next - 1].id);
-    setActive(slot);
-  }
-
   const dressed = pieces.length;
 
   return (
@@ -117,7 +115,7 @@ export function OutfitStudio({
         onPick={(slot) => setActive((current) => (current === slot ? null : (slot as Slot)))}
       />
 
-      <section className="flex flex-col gap-1.5">
+      <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="r-eyebrow">Vestidor</h2>
           <span className="r-meta">
@@ -125,81 +123,55 @@ export function OutfitStudio({
           </span>
         </div>
 
-        <ul className="r-slots">
-          {SLOTS.map((slot) => {
-            const rack = racks[slot.key];
-            const worn_id = worn[slot.key];
-            const garment = worn_id ? rack.find((item) => item.id === worn_id) : null;
-            const open = active === slot.key;
+        {RAILS.map((slot) => {
+          const rack = racks[slot.key];
+          if (rack.length === 0) return null;
 
-            return (
-              <li key={slot.key} className="r-slot" data-on={open} data-filled={Boolean(garment)}>
-                <div className="r-slot-row">
+          const wornId = worn[slot.key];
+
+          return (
+            <div key={slot.key} className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <span className="r-eyebrow">{slot.label}</span>
+
+                {/* Quitar es un enlace y no una ficha más del riel: sacarse el
+                    abrigo pasa una vez por conjunto, y una casilla "Nada"
+                    delante de toda la ropa se toca sin querer. */}
+                {wornId ? (
                   <button
                     type="button"
-                    onClick={() => step(slot.key, -1)}
-                    className="r-step-key"
-                    aria-label={`${slot.label}: anterior`}
+                    onClick={() => wear(slot.key, null)}
+                    className="r-hint underline underline-offset-4"
                   >
-                    <Chevron className="size-4 rotate-90" />
+                    quitar
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActive(open ? null : slot.key)}
-                    className="r-slot-face"
-                    aria-expanded={open}
-                  >
-                    <span className="r-slot-name">{slot.label}</span>
-                    <span className="r-slot-worn">{garment?.name ?? slot.empty}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => step(slot.key, 1)}
-                    className="r-step-key"
-                    aria-label={`${slot.label}: siguiente`}
-                  >
-                    <Chevron className="size-4 -rotate-90" />
-                  </button>
-                </div>
-
-                {/* El cajón de la ranura: la ropa a la vista, para elegir de un
-                    toque cuando pasar de a una es más largo que mirar. */}
-                {open ? (
-                  <ul className="r-rack">
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => wear(slot.key, null)}
-                        className="r-hanger"
-                        data-on={!garment}
-                        aria-label={slot.empty}
-                      >
-                        <Cross className="size-5 opacity-40" />
-                        <span className="truncate">Nada</span>
-                      </button>
-                    </li>
-                    {rack.map((option) => (
-                      <li key={option.id}>
-                        <button
-                          type="button"
-                          onClick={() => wear(slot.key, option.id)}
-                          className="r-hanger"
-                          data-on={option.id === worn_id}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          {option.cutout ? <img src={option.cutout} alt="" /> : null}
-                          <span className="truncate">{option.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
                 ) : null}
-              </li>
-            );
-          })}
-        </ul>
+              </div>
+
+              <ul className="r-rail">
+                {rack.map((option) => (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        wear(slot.key, option.id === wornId ? null : option.id);
+                        setActive(slot.key);
+                      }}
+                      className="r-pick"
+                      data-on={option.id === wornId}
+                      aria-pressed={option.id === wornId}
+                      aria-label={option.name}
+                      title={option.name}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {option.cutout ? <img src={option.cutout} alt="" /> : <Cross className="size-5 opacity-30" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </section>
 
       <div>

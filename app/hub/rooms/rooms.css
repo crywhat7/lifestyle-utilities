@@ -1770,274 +1770,166 @@
 }
 
 /* --------------------------------------------------------------------------
-   El maniquí
+   El conjunto tendido
 
-   La pantalla firma del módulo. Un cuerpo, seis zonas y la ropa puesta en su
-   lugar: lo que antes era un collage de recortes arrastrados a mano.
+   La pantalla firma del módulo. Las prendas sobre una superficie, como
+   cuando uno las pone sobre la cama antes de vestirse: la grande a la
+   izquierda, el pantalón debajo, y lo chico en una columna al costado.
+
+   Una rejilla y no coordenadas: lo que no está puesto no deja hueco, y un
+   conjunto de dos prendas se ve tan terminado como uno de cinco.
    -------------------------------------------------------------------------- */
 
-.rooms .r-figure {
-  position: relative;
-  width: 100%;
+.rooms .r-lay {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
   aspect-ratio: 3 / 4;
+  padding: 0.875rem;
   border-radius: 20px;
-  overflow: hidden;
-  /* Un degradado muy corto: el piso del maniquí. Da el suelo sin dibujarlo,
-     que es lo que hace que la ropa se vea puesta y no pegada. */
-  background:
-    radial-gradient(70% 28% at 50% 92%, color-mix(in srgb, var(--tone) 16%, transparent), transparent 70%),
-    var(--r-panel);
-  border: 1px solid var(--r-edge);
+  /* Claro SIEMPRE, también de noche, y es la única pieza del módulo que no
+     sigue el tema. La ropa se fotografía contra una pared blanca, así que un
+     recorte de una chaqueta negra sobre fondo oscuro es un agujero: no se ve
+     la prenda, se ve que falta algo. La superficie del conjunto es una mesa
+     donde se tiende ropa, no una pantalla. */
+  background: light-dark(#f4f2ee, #e9e7e1);
+  border: 1px solid light-dark(#16161a14, #00000026);
 }
 
-/* El cuerpo de referencia: una línea y nada más. */
-.rooms .r-mannequin {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  height: 92%;
-  transform: translateX(-50%);
-  color: var(--r-ink);
-  opacity: 0.14;
-  pointer-events: none;
+/* La columna angosta solo existe si hay algo que poner en ella. Reservarle
+   lugar cuando está vacía le roba un tercio del ancho a la camisa. */
+.rooms .r-lay[data-side="true"] {
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
 }
 
-/* La zona de una ranura. Centrada, con la prenda contenida adentro: un
-   recorte alto y uno ancho ocupan el mismo lugar del cuerpo sin deformarse. */
-.rooms .r-zone {
-  position: absolute;
-  left: 50%;
-  translate: -50% 0;
+.rooms .r-lay-main,
+.rooms .r-lay-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.rooms .r-lay-row {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.rooms .r-piece {
   display: grid;
   place-items: center;
-  padding: 0;
-  border: 1px solid transparent;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   border-radius: 14px;
-  background: none;
-  transition:
-    border-color 0.45s var(--r-ease),
-    background-color 0.45s var(--r-ease);
+  transition: transform 0.35s var(--r-ease);
 }
 
-.rooms .r-zone img {
+/* `contain` y no `cover`: un recorte alto y uno ancho tienen que caber
+   enteros. Un zapato cortado por la mitad no dice qué zapato es. */
+.rooms .r-piece img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  pointer-events: none;
-  /* Una sombra de contacto: sin ella la ropa se ve pegada al fondo y el
-     conjunto no se lee como capas. */
-  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.22));
 }
 
-/* La zona vacía se marca SOLO mientras se la está eligiendo. Dibujar las
-   seis a la vez parecía lo servicial y era lo contrario: seis rectángulos
-   punteados superpuestos tapan al cuerpo y el maniquí deja de leerse como un
-   maniquí. Vacía y quieta no es un hueco que haya que llenar — es ropa que
-   esa persona no se está poniendo. */
-.rooms .r-zone[data-empty="true"][data-on="true"] {
-  border-style: dashed;
+.rooms .r-piece[data-on="true"] {
+  transform: scale(1.04);
 }
 
-/* La que se está editando. El halo es del color del dato y por fuera del
-   recorte, no una caja: la prenda no es rectangular. */
-.rooms .r-zone[data-on="true"] {
-  border-color: color-mix(in srgb, var(--tone) 60%, transparent);
-  border-style: solid;
-  background: color-mix(in srgb, var(--tone) 10%, transparent);
+/* Sobre la mesa clara, la tinta también es oscura siempre. */
+.rooms .r-lay-empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #16161a6b;
 }
 
-.rooms .r-zone[data-on="true"] img {
-  filter: drop-shadow(0 0 2px var(--tone)) drop-shadow(0 8px 12px rgba(0, 0, 0, 0.22));
-}
-
-/* Las prendas de un conjunto armado antes del maniquí, que no tienen ranura y
-   siguen puestas donde las dejó el dedo. */
-.rooms .r-loose {
-  position: absolute;
-  display: block;
-  width: 46%;
-}
-
-.rooms .r-loose img {
-  width: 100%;
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.22));
-}
-
-/* La miniatura de un conjunto guardado: el mismo maniquí, en chico. Sin
-   marco ni fondo propios —el de la tarjeta alcanza— y sin el piso, que a este
-   tamaño es una mancha. */
+/* La miniatura de la lista: el mismo dibujo, más chico. */
 .rooms .r-thumbnail {
   display: block;
-  width: 100%;
 }
 
-.rooms .r-thumbnail .r-figure {
-  border: 0;
-  border-radius: 0;
-  background: var(--r-sunk);
+.rooms .r-thumbnail .r-lay {
+  padding: 0.5rem;
+  gap: 0.3125rem;
+  border-radius: 16px;
+}
+
+.rooms .r-thumbnail .r-lay-row,
+.rooms .r-thumbnail .r-lay-main,
+.rooms .r-thumbnail .r-lay-side {
+  gap: 0.3125rem;
 }
 
 /* --------------------------------------------------------------------------
    El vestidor
+
+   Un riel de fotos por parte del cuerpo. La ropa se elige mirándola: un riel
+   contesta "¿cuál me pongo?" de un vistazo, y ninguna lista de nombres con
+   flechas lo va a hacer nunca.
    -------------------------------------------------------------------------- */
 
-.rooms .r-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.rooms .r-slot {
-  border-radius: 16px;
-  background: var(--r-panel);
-  border: 1px solid var(--r-edge);
-  overflow: hidden;
-  transition: border-color 0.35s var(--r-ease);
-}
-
-.rooms .r-slot[data-on="true"] {
-  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
-}
-
-.rooms .r-slot-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-}
-
-/* La flecha: el control del selector. Ancha, alta y sin borde, porque son
-   doce en la pantalla y doce botones con marco son doce cajas. */
-.rooms .r-step-key {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 3rem;
-  border: 0;
-  background: none;
-  color: var(--r-ink-3);
-  cursor: pointer;
-  transition: color 0.25s var(--r-ease), background-color 0.25s var(--r-ease);
-}
-
-.rooms .r-step-key:active {
-  background: var(--r-sunk);
-  color: var(--r-ink);
-}
-
-@media (hover: hover) {
-  .rooms .r-step-key:hover {
-    color: var(--r-ink);
-  }
-}
-
-/* El centro de la fila: qué ranura es y qué tiene puesto. Dos líneas, y la
-   de arriba es el rótulo chico — la misma pareja que el titular y su
-   eyebrow, a escala de fila. */
-.rooms .r-slot-face {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.0625rem;
-  padding: 0.625rem 0.25rem;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-
-.rooms .r-slot-name {
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--r-ink-3);
-}
-
-.rooms .r-slot-worn {
-  overflow: hidden;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--r-ink-3);
-}
-
-.rooms .r-slot[data-filled="true"] .r-slot-worn {
-  color: var(--r-ink);
-}
-
-.rooms .r-slot[data-on="true"] .r-slot-name {
-  color: var(--r-tone-ink);
-}
-
-/* El cajón de la ranura: la ropa a la vista, que se desliza a lo ancho. */
-.rooms .r-rack {
+.rooms .r-rail {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding: 0.125rem 0.75rem 0.75rem;
   scrollbar-width: none;
-  animation: r-drawer 0.4s var(--r-ease) both;
+  /* Sangra hasta el borde: una fila cortada en seco se lee como el final de
+     la lista, y media prenda asomando dice que hay más. */
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  padding-block: 0.25rem;
 }
 
-.rooms .r-rack::-webkit-scrollbar {
+.rooms .r-rail::-webkit-scrollbar {
   display: none;
 }
 
-.rooms .r-hanger {
-  display: flex;
-  width: 4.75rem;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.375rem;
-  border-radius: 12px;
+.rooms .r-pick {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: 0.3125rem;
+  border-radius: 16px;
   background: var(--r-sunk);
   border: 1px solid transparent;
-  font-size: 0.6875rem;
-  color: var(--r-ink-2);
+  cursor: pointer;
   transition:
     transform 0.3s var(--r-ease),
-    border-color 0.25s var(--r-ease),
-    background-color 0.25s var(--r-ease);
+    background-color 0.25s var(--r-ease),
+    border-color 0.25s var(--r-ease);
 }
 
-.rooms .r-hanger:active {
-  transform: scale(0.94);
-  transition-duration: 0.1s;
-}
-
-.rooms .r-hanger[data-on="true"] {
-  background: var(--r-wash);
-  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
-  color: var(--r-tone-ink);
-  font-weight: 600;
-}
-
-.rooms .r-hanger img {
+.rooms .r-pick img {
   width: 100%;
-  height: 3rem;
+  height: 100%;
   object-fit: contain;
 }
 
-.rooms .r-hanger span {
-  max-width: 100%;
+.rooms .r-pick:active {
+  transform: scale(0.92);
+  transition-duration: 0.1s;
 }
 
-/* --------------------------------------------------------------------------
-   Los huesos de la espera
-   -------------------------------------------------------------------------- */
+/* La puesta, con el color del módulo. Es lo único que distingue la que está
+   encima del cuerpo de las otras veinte del riel. */
+.rooms .r-pick[data-on="true"] {
+  background: var(--r-wash);
+  border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+}
 
 .rooms .r-ghost {
   display: block;
   background: var(--r-sunk);
   animation: r-breathe 1.8s var(--r-ease-soft) infinite;
 }
+
 
 /* --------------------------------------------------------------------------
    Movimiento
