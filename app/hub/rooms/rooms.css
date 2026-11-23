@@ -1152,6 +1152,33 @@
   );
 }
 
+/* La categoría ya elegida, plegada.
+
+   Con la foto respondiendo la pregunta, la grilla de veintidós casillas pasa
+   a ser lo excepcional: se abre cuando la foto se equivocó. Plegada ocupa un
+   renglón y dice las dos cosas que importan —cuál quedó puesta y que se
+   puede cambiar—. */
+.rooms .r-pickedcat {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.4375rem 0.875rem 0.4375rem 0.4375rem;
+  border-radius: 14px;
+  background: var(--r-sunk);
+  color: var(--r-ink);
+  cursor: pointer;
+  transition:
+    transform 0.3s var(--r-ease),
+    background-color 0.25s var(--r-ease);
+}
+
+.rooms .r-pickedcat:active {
+  transform: scale(0.98);
+  transition-duration: 0.1s;
+}
+
 /* La pregunta del paso. Es la única frase de la pantalla y el pulgar no tiene
    que buscarla: va arriba de la grilla, en cuerpo de pregunta y no de rótulo,
    porque es literalmente lo que hay que contestar. */

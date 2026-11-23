@@ -1,7 +1,7 @@
 "use server";
 
-import { COLORS, catalog, wearCatalog } from "@/lib/rooms";
 import { readGarment } from "@/lib/ai/garment";
+import { catalogFor, ownRows } from "./ai-catalog";
 import {
   isCategory,
   isCondition,
@@ -253,23 +253,13 @@ export async function guessItem(id: string): Promise<Guess> {
     .select("id,label")
     .eq("user_id", user.id);
 
-  const own = ((mine ?? []) as Record<string, unknown>[]).map((row) => ({
-    id: String(row.id),
-    label: String(row.label),
-    hue: "#6b7280",
-    glyph: "other",
-  }));
-
-  const options = [...catalog(own), ...wearCatalog()].map((row) => ({
-    key: row.key,
-    label: row.label,
-  }));
+  const { categories, colors } = catalogFor(ownRows(mine));
 
   const read = await readGarment({
     base64: image.base64,
     mimeType: image.mimeType,
-    categories: options,
-    colors: COLORS.map((row) => ({ key: row.key, label: row.label })),
+    categories,
+    colors,
   });
 
   if (!read.ok) {

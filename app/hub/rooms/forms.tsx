@@ -59,6 +59,7 @@ import { NavLink } from "@/components/nav-link";
 import { CategoryGlyph, VariantGlyph } from "./category-glyph";
 import { CategoryMaker } from "./category-maker";
 import { DictateKey } from "./dictate";
+import { guessPhoto } from "./ai-actions";
 import { SquareFramer, type Framed } from "./framer";
 import { CATEGORIES_PATH, trailPath } from "./paths";
 
@@ -366,7 +367,14 @@ function ColorPicker({ value, used }: { value: string | null; used: string[] }) 
 /* -------------------------------------------------------------------------- */
 
 /** Las dos puertas de la foto, para abrirlas desde otro paso. */
-export type PhotoDoors = { camera: () => void; gallery: () => void };
+export type PhotoDoors = {
+  camera: () => void;
+  gallery: () => void;
+  /** Meterle una foto desde afuera: la siguiente de la cola. */
+  load: (file: File) => void;
+  /** Dejarlo como recién montado, sin desmontarlo. */
+  reset: () => void;
+};
 
 /**
  * La foto de una cosa: opcional, pero ofrecida.
@@ -394,6 +402,9 @@ function PhotoField({
   thumbField = "thumb",
   onDrop,
   doorsRef,
+  multiple,
+  onExtra,
+  onPicked,
   children,
 }: {
   /** Lo que ya está guardado: el enlace firmado o la miniatura. */
@@ -420,6 +431,19 @@ function PhotoField({
    * rompe nada: se cae en el paso de siempre, con sus dos botones.
    */
   doorsRef?: React.RefObject<PhotoDoors | null>;
+  /**
+   * Dejar elegir varias de la galería.
+   *
+   * Registrar una casa son cientos de objetos y la mitad ya están
+   * fotografiados. Elegir de a una es abrir la galería una vez por objeto;
+   * elegir doce es abrirla una vez. La primera entra al encuadrador y el
+   * resto espera en la cola, que las va trayendo de a una al guardar.
+   */
+  multiple?: boolean;
+  /** Las que no son la primera, para la cola de quien llama. */
+  onExtra?: (files: File[]) => void;
+  /** Aviso de que hay una foto lista, con su miniatura. */
+  onPicked?: (thumb: string) => void;
   /** Lo que va debajo de la foto — por ejemplo, quitar el fondo. */
   children?: (fresh: boolean) => React.ReactNode;
 }) {
@@ -446,6 +470,16 @@ function PhotoField({
     doorsRef.current = {
       camera: () => camera.current?.click(),
       gallery: () => gallery.current?.click(),
+      load: (file: File) => void take(file),
+      reset: () => {
+        setOpen((shown) => {
+          if (shown) URL.revokeObjectURL(shown.url);
+          return null;
+        });
+        setError(null);
+        setBusy(false);
+        discard();
+      },
     };
     return () => {
       doorsRef.current = null;
@@ -492,6 +526,7 @@ function PhotoField({
       setPreview(ready.preview);
       setThumb(ready.thumb);
       setFresh(true);
+      onPicked?.(ready.thumb);
     } catch {
       setError("No se pudo recortar esa imagen.");
     } finally {
@@ -546,11 +581,14 @@ function PhotoField({
         ref={gallery}
         type="file"
         accept="image/*"
+        multiple={multiple}
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
         onChange={(event) => {
-          void take(event.target.files?.[0]);
+          const files = [...(event.target.files ?? [])];
+          void take(files[0]);
+          if (files.length > 1) onExtra?.(files.slice(1));
           event.target.value = "";
         }}
       />
@@ -911,41 +949,35 @@ function hottest<T extends { key: string }>(options: T[], use: Record<string, nu
  * inventario de verdad no son diez cosas, son cientos, y cualquier campo que
  * cueste una decisión consciente se paga cientos de veces.
  *
- * Por eso el alta son TRES pantallas de una pregunta cada una y no un
- * formulario de siete campos. Todo junto cabía —cabía de hecho— pero elegir
- * entre veintidós casillas mientras el cursor parpadea en un campo de texto y
- * un botón de cámara espera abajo es tener tres decisiones abiertas a la vez,
- * y tres decisiones abiertas a la vez es lo que vuelve lento algo que son
- * cuatro toques. Separadas, cada pantalla se contesta sin pensar: qué clase
- * de cosa es, cómo se llama, cómo se ve.
+ * Empieza por la FOTO, y ese orden es todo el diseño.
  *
- * El orden tampoco es casual. La categoría va primera porque es la única que
- * se contesta de un vistazo y sin teclado —y porque, puesta primera, se puede
- * ver entera en grande en vez de apretada debajo del nombre—. El nombre va
- * segundo, cuando ya hay color en la pantalla y se puede dictar. La foto va
- * última porque es la única que puede saltarse.
+ * Antes empezaba por la categoría: veintidós casillas, después el nombre,
+ * después la foto. Tres preguntas, tres decisiones, por objeto. Pero la foto
+ * ya contiene las respuestas —una camiseta blanca se ve que es una camiseta
+ * y se ve que es blanca— así que preguntarlas antes de mirarla es pedirle a
+ * la persona que haga a mano un trabajo que la imagen ya hizo.
  *
- * Al editar no hay pasos: ahí no se está llenando una gaveta, se está
- * corrigiendo una cosa, y lo que hace falta es ver todo junto.
+ * Entonces: se fotografía, el modelo mira la miniatura mientras la persona
+ * todavía está encuadrando, y la segunda pantalla aparece LLENA. Lo que
+ * queda es revisar —que es un vistazo, no una decisión— y corregir lo que
+ * esté mal, que es lo único que de verdad hace falta que haga un humano.
+ *
+ * La IA nunca decide sola de forma invisible: lo que puso se ve puesto, en
+ * los mismos campos que la persona tocaría, y se cambia con un toque. Y
+ * nunca pisa lo que ya se escribió a mano.
+ *
+ * La galería acepta varias fotos de una. Registrar una casa son cientos de
+ * objetos y la mitad ya están fotografiados: doce fotos elegidas de una vez
+ * entran en cola y la cola se va vaciando con cada "Agregar y seguir", sin
+ * volver a abrir la galería ni una vez más.
  *
  * Y nada de eso sirve si el botón tarda. Por eso la foto no viaja con el
  * formulario: el alta termina con el INSERT —nombre, categoría, miniatura,
- * unos KB— y la imagen grande se sube sola por detrás mientras se escribe el
- * objeto siguiente. La cosa ya se ve completa en la lista, porque la
- * miniatura la recortó el teléfono y entró con la fila.
+ * unos KB— y la imagen grande se sube sola por detrás mientras se fotografía
+ * el objeto siguiente.
  *
- * Y al agregar, la pantalla NO se cierra: vuelve al paso del nombre con la
- * categoría puesta. Volver a la lista y tocar otra vez "Agregar cosa" por
- * cada objeto es la mitad del trabajo de llenar un cajón, y quien vacía una
- * gaveta de cables agrega quince cables seguidos. Arriba queda el conteo de
- * lo que llevás con un "deshacer" para el último, que es lo que permite
- * escribir rápido sin miedo a equivocarse.
- *
- * El "¿dónde está?" se fue de acá. Era un desplegable con todos los lugares
- * de la casa y daba a entender que uno tiene que decirle a la app dónde
- * guardó algo — cuando la app ya lo sabe, porque se agregó estando adentro.
- * Mover sigue existiendo, pero como lo que es: una corrección, dentro de los
- * detalles y solo al editar.
+ * Al editar no hay pasos ni cola: ahí no se está llenando una gaveta, se
+ * está corrigiendo una cosa, y lo que hace falta es ver todo junto.
  */
 export function ItemForm({
   nodeId,
@@ -966,11 +998,11 @@ export function ItemForm({
   /**
    * Qué se está guardando.
    *
-   * "wear" cambia la primera pantalla entera: en vez de las veintidós
-   * categorías de la casa, las trece clases de prenda. Es un botón aparte en
-   * la lista porque la ropa no es una categoría más —un armario son camisas,
-   * pantalones y zapatos, no "treinta ropas"— y porque la clase de prenda es
-   * lo que después deja armar un conjunto sin adivinar qué va arriba.
+   * "wear" cambia la grilla de categorías: en vez de las veintidós de la
+   * casa, las trece clases de prenda. Es un botón aparte en la lista porque
+   * la ropa no es una categoría más —un armario son camisas, pantalones y
+   * zapatos, no "treinta ropas"— y porque la clase de prenda es lo que
+   * después deja armar un conjunto sin adivinar qué va arriba.
    */
   mode?: "thing" | "wear";
   onSaved: () => void;
@@ -985,29 +1017,36 @@ export function ItemForm({
   const nameField = useRef<HTMLInputElement>(null);
   const doorsRef = useRef<PhotoDoors | null>(null);
 
-  /* En qué paso va el alta: 1 la categoría, 2 el nombre, 3 la foto. Al editar
-     no se usa —se ve todo junto— y por eso arranca en el último. */
-  const [step, setStep] = useState(editing ? 3 : 1);
+  /* Dos pasos: la foto y la revisión. Al editar no se usa —se ve todo
+     junto— y por eso arranca en el último. */
+  const [step, setStep] = useState(editing ? 2 : 1);
 
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState(item ? categoryOf(item.category, own).key : "");
+  const [color, setColor] = useState<string | null>(item?.color ?? null);
+
+  /* Qué tocó la persona. Es lo que impide que una corazonada tardía le pise
+     el nombre que acaba de escribir: el modelo solo llena lo que está
+     vacío y sin tocar. */
+  const [touched, setTouched] = useState({ name: editing, category: editing, color: editing });
 
   /* Las categorías que nacieron en ESTA pantalla. El servidor todavía no las
-     mandó —la lista de arriba se renderizó antes de que existieran— y sin
-     esto habría que recargar la pantalla entera en medio de un alta en
-     cadena para poder usar la que se acaba de crear. */
+     mandó —la lista se renderizó antes de que existieran— y sin esto habría
+     que recargar la pantalla entera en medio de un alta en cadena para poder
+     usar la que se acaba de crear. */
   const [fresh, setFresh] = useState<OwnCategory[]>([]);
   const [making, setMaking] = useState(false);
 
   const mine = [...own, ...fresh.filter((row) => !own.some((saved) => saved.id === row.id))];
 
-  /* El armario tiene su propio catálogo. `item?.category` entra para que una
-     prenda guardada como "Ropa" —de antes de las trece clases— se vea con su
-     casilla marcada en vez de en blanco. */
   const options = wear ? wearCatalog(item?.category ?? null) : catalog(mine);
   const hot = hottest(options, use ?? {});
 
-  const [color, setColor] = useState<string | null>(item?.color ?? null);
+  /* La grilla de categorías, abierta o cerrada. Cerrada muestra la elegida
+     como una ficha y nada más: con la categoría ya puesta por la foto,
+     veintidós casillas son veintidós cosas que no hay que mirar. */
+  const [openCats, setOpenCats] = useState(false);
+
   const [condition, setCondition] = useState<string>(item?.condition ?? "good");
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
   const [open, setOpen] = useState(false);
@@ -1015,13 +1054,16 @@ export function ItemForm({
   /** Lo agregado en esta tanda, para el conteo y para deshacer el último. */
   const [added, setAdded] = useState<{ id: string; name: string }[]>([]);
 
-  /* Cuántas fotos están viajando ahora mismo y cuántas se cayeron. El campo
-     de foto se desmonta y vuelve con cada objeto —de ahí `round`—, que es la
-     única forma honesta de vaciarlo: su recorte, su previsualización y sus
-     dos inputs son estado suyo, y `form.reset()` no los toca. */
+  /** Las fotos elegidas de una que todavía no se registraron. */
+  const [queue, setQueue] = useState<File[]>([]);
+
+  /* Qué dijo el modelo y si todavía está mirando. */
+  const [reading, setReading] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  /* Cuántas fotos están viajando ahora mismo y cuántas se cayeron. */
   const [uploads, setUploads] = useState(0);
   const [lost, setLost] = useState(0);
-  const [round, setRound] = useState(0);
 
   /* Avisar antes de cerrar la pestaña con fotos a medio subir. Es la única
      contra de subir por detrás, y cuesta tres líneas. */
@@ -1062,13 +1104,57 @@ export function ItemForm({
   }
 
   /**
+   * Preguntarle a la foto qué es.
+   *
+   * Se dispara apenas hay encuadre, no al llegar a la pantalla siguiente:
+   * los dos o tres segundos que tarda el modelo transcurren mientras la
+   * persona todavía está mirando la foto, así que la revisión aparece llena
+   * y no aparece vacía y después se llena sola delante de los ojos, que es
+   * lo que haría que uno escribiera encima.
+   */
+  function ask(thumb: string) {
+    if (editing || !thumb) return;
+
+    setReading(true);
+    setSaid(null);
+
+    void guessPhoto(thumb)
+      .then((result) => {
+        if (!result.ok) {
+          setSaid(result.error);
+          return;
+        }
+
+        /* Solo lo que está vacío y sin tocar. Quien ya escribió "cargador de
+           la laptop" no puede ver cómo se lo reemplazan por "cable negro". */
+        setName((current) => (touched.name || current.trim() ? current : result.name));
+        setCategory((current) => (touched.category || current ? current : result.category));
+        setColor((current) => (touched.color || current ? current : result.color));
+        setSaid(null);
+      })
+      .catch(() => setSaid("No se pudo reconocer la foto."))
+      .finally(() => setReading(false));
+  }
+
+  /** Traer la siguiente foto de la cola al encuadrador. */
+  function pull(files: File[]) {
+    const [next, ...rest] = files;
+    if (!next) return false;
+
+    setQueue(rest);
+    doorsRef.current?.reset();
+    doorsRef.current?.load(next);
+    setStep(1);
+    return true;
+  }
+
+  /**
    * Guardar, y seguir.
    *
    * El resultado se atiende acá y no en un efecto sobre `useActionState`: lo
    * que pasa después de guardar —vaciar el formulario, anotar lo que entró,
-   * devolver el cursor— es una consecuencia de ESTE envío, no del hecho de
-   * que el estado haya cambiado. Escrito como efecto, React tiene razón en
-   * quejarse: son renders en cascada para algo que ya sabíamos al enviar.
+   * traer la foto siguiente— es consecuencia de ESTE envío, no del hecho de
+   * que el estado haya cambiado.
    */
   function submit(data: FormData) {
     const sent = String(data.get("name") ?? "").trim();
@@ -1078,12 +1164,8 @@ export function ItemForm({
 
        El alta en cadena vive o muere por lo que tarda el botón: el INSERT con
        nombre, categoría y miniatura son unos KB y vuelve al instante, pero el
-       cuadrado de 1080 px son cientos y en datos móviles se sienten. Mandarlo
-       en el mismo FormData hacía esperar la red para poder escribir el objeto
-       siguiente —y, mientras se esperaba, la foto seguía en pantalla y no
-       había forma de saber si la cosa había entrado.
-
-       Al editar no: ahí la hoja se cierra y guardar una sola cosa no es una
+       cuadrado de 1080 px son cientos y en datos móviles se sienten. Al
+       editar no: ahí la hoja se cierra y guardar una sola cosa no es una
        carrera, así que la foto viaja con el formulario como siempre.
     */
     const picked = data.get("photo");
@@ -1110,9 +1192,6 @@ export function ItemForm({
         return;
       }
 
-      /* Alta en cadena: no se cierra nada y no se vuelve al paso uno. Se
-         limpia el nombre, se recuerda lo que entró y la categoría se queda
-         puesta a propósito. */
       if (result.id) {
         setAdded((current) => [{ id: result.id as string, name: sent }, ...current].slice(0, 20));
         if (photo) sendPhoto(result.id, photo, thumb);
@@ -1121,57 +1200,55 @@ export function ItemForm({
 
       form.current?.reset();
       setName("");
+      setColor(null);
       setQuantity(1);
       setOpen(false);
-      setRound((current) => current + 1);
-      setStep(2);
-    });
-  }
+      setOpenCats(false);
+      setSaid(null);
+      setTouched({ name: false, category: false, color: false });
 
-  /**
-   * Al paso de la foto, con la cámara ya abierta.
-   *
-   * El orden importa y no es cosmético: la cámara se abre DENTRO del mismo
-   * toque que trajo a esta función —si se hiciera después de pintar el paso
-   * tres, ya no habría gesto de la persona detrás y el navegador no abriría
-   * nada—. Así el paso de la foto es un toque y no tres.
-   */
-  function toPhoto(door: "camera" | "gallery") {
-    if (door === "camera") doorsRef.current?.camera();
-    else doorsRef.current?.gallery();
-    setStep(3);
+      /* La categoría se queda puesta: quien vacía una gaveta de cables
+         agrega quince cables seguidos. Si viene otra foto en la cola, la
+         foto va a proponer la suya y la va a pisar, que es lo correcto. */
+      if (!pull(queue)) {
+        doorsRef.current?.reset();
+        setStep(1);
+      }
+    });
   }
 
   const tag = categoryOf(category, mine);
   const tone = category ? tag.hue : "#6b7280";
+  const twoEnds = hasTwoEnds(category);
 
-  /* La corazonada, ahora como oferta y no como automatismo. Antes la
-     categoría se elegía sola mientras se escribía el nombre; con la categoría
-     puesta de entrada eso ya no corresponde —nada peor que un campo que se
-     desarma solo— pero el diccionario sigue sirviendo para lo que se dicta de
-     un tirón: quien dijo "tijeras" teniendo puesto "Cocina" lo arregla con un
-     toque. En el armario no se ofrece: el diccionario habla de categorías de
-     la casa, no de clases de prenda. */
+  /* La corazonada del diccionario, para cuando no hay foto que mirar. Como
+     oferta y nunca como cambio solo: nada peor que un campo que se desarma
+     mientras se escribe. */
   const hunch = !wear && !editing && name.trim().length >= 3 ? guessCategory(name, mine) : null;
   const offer = hunch && hunch !== category ? categoryOf(hunch, mine) : null;
 
-  const twoEnds = hasTwoEnds(category);
-  const titles = [
-    "",
-    wear ? "La prenda" : "La categoría",
-    "El nombre",
-    twoEnds ? "Las puntas" : "La foto",
-  ];
+  const tiles = (list: typeof options) =>
+    list.map((option) => ({
+      key: option.key,
+      label: option.label,
+      tone: option.hue,
+      icon: <CategoryGlyph category={option.glyph ?? option.key} className="size-[1.375rem]" />,
+    }));
+
+  function pickCategory(key: string) {
+    setCategory(key);
+    setTouched((now) => ({ ...now, category: true }));
+    setOpenCats(false);
+  }
 
   return (
     <form ref={form} action={submit} className="flex flex-col gap-4">
       <input type="hidden" name="node_id" value={item?.node_id ?? nodeId} />
       {item ? <input type="hidden" name="id" value={item.id} /> : null}
       <input type="hidden" name="condition" value={condition} />
-      {/* El color viaja acá y no dentro de su selector: el selector vive en
-          el paso del nombre y el envío ocurre en el de la foto, así que un
-          campo que se desmonta con su pantalla llegaría vacío. */}
+      <input type="hidden" name="category" value={category} />
       <input type="hidden" name="color" value={wantsColor(category) ? (color ?? "") : ""} />
+      {step !== 2 && !editing ? <input type="hidden" name="name" value={name} /> : null}
 
       {/* Al editar, lo primero no es un campo: es la salida a "cómo llegar",
           que es lo que uno quiere de una cosa ya guardada —mandarle a alguien
@@ -1197,16 +1274,13 @@ export function ItemForm({
         />
       ) : null}
 
-      {/* El recibo de la tanda. Arriba del campo y no abajo porque es lo que
-          se mira entre objeto y objeto para saber que sí entró. */}
+      {/* El recibo de la tanda. Arriba y no abajo porque es lo que se mira
+          entre objeto y objeto para saber que sí entró. */}
       {added.length > 0 ? (
         <div className="r-receipt">
           <span className="min-w-0 flex-1 truncate">
             <strong>{added.length}</strong>{" "}
             {added.length === 1 ? "agregada" : "agregadas"} · {added[0].name}
-            {/* Las fotos que todavía viajan se cuentan acá y no en un cartel
-                aparte: es el mismo renglón que se mira entre objeto y objeto,
-                y así nadie tiene que buscar si la suya ya subió. */}
             {uploads > 0 ? (
               <span className="r-up"> · {uploads === 1 ? "subiendo 1 foto" : `subiendo ${uploads} fotos`}</span>
             ) : null}
@@ -1224,284 +1298,86 @@ export function ItemForm({
         </div>
       ) : null}
 
-      {/* Dónde va el alta, y cómo se vuelve. Sin esto, tres pantallas que se
-          parecen son tres pantallas en las que uno no sabe si avanzó. */}
       {!editing ? (
         <div className="r-steps">
           {step > 1 ? (
             <button
               type="button"
-              onClick={() => setStep(step - 1)}
+              onClick={() => setStep(1)}
               className="r-steps-back"
-              aria-label="Volver al paso anterior"
+              aria-label="Volver a la foto"
             >
               <ArrowBack className="size-[1.125rem]" />
             </button>
           ) : null}
+
           <span>
-            <strong>{titles[step]}</strong> · paso {step} de 3
+            <strong>{step === 1 ? "La foto" : "Revisar"}</strong> · paso {step} de 2
           </span>
-          {/* La categoría elegida se queda a la vista en los pasos siguientes:
-              es la única respuesta que ya se dio y que no se ve en ningún otro
-              lado del paso dos. */}
-          {step > 1 && category ? (
+
+          {/* Cuántas fotos esperan. Es el único número que importa cuando se
+              está vaciando una galería: cuánto falta. */}
+          {queue.length > 0 ? (
             <span className="r-steps-tag" style={{ "--tone": tone } as React.CSSProperties}>
-              <CategoryGlyph category={tag.glyph ?? tag.key} className="size-[0.9375rem]" />
-              {tag.label}
+              {queue.length === 1 ? "1 foto en cola" : `${queue.length} fotos en cola`}
             </span>
           ) : null}
         </div>
       ) : null}
 
-      {/* ----------------------------- Paso 1 ----------------------------- */}
-
-      {editing || step === 1 ? (
-        <>
-          {!editing ? (
-            <p className="r-ask">{wear ? "¿Qué prenda es?" : "¿Qué clase de cosa es?"}</p>
-          ) : null}
-
-          {/* Las más usadas se COPIAN arriba, no se mueven: la casilla de
-              "cables" sigue estando donde la mano ya la busca, y de paso está
-              también en la primera fila. Duplicar una casilla cuesta un poco
-              de alto de pantalla; reordenar la grilla cuesta la memoria
-              muscular, que es lo único que hace rápido al objeto doscientos. */}
-          {!editing && hot.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <span className="r-eyebrow px-1">Las que más usás</span>
-              <TilePicker
-                big
-                name="category"
-                legend={wear ? "Prenda, las más usadas" : "Categoría, las más usadas"}
-                value={category}
-                options={hot.map((option) => ({
-                  key: option.key,
-                  label: option.label,
-                  tone: option.hue,
-                  icon: (
-                    <CategoryGlyph
-                      category={option.glyph ?? option.key}
-                      className="size-[1.375rem]"
-                    />
-                  ),
-                }))}
-                onPick={(key) => {
-                  setCategory(key);
-                  if (!editing) setStep(2);
-                }}
-              />
-              <span className="r-eyebrow mt-2 px-1">Todas</span>
-            </div>
-          ) : null}
-
-          <TilePicker
-            big={!editing}
-            name="category"
-            legend={wear ? "Prenda" : "Categoría"}
-            value={category}
-            options={options.map((option) => ({
-              key: option.key,
-              label: option.label,
-              tone: option.hue,
-              icon: (
-                <CategoryGlyph category={option.glyph ?? option.key} className="size-[1.375rem]" />
-              ),
-            }))}
-            onPick={(key) => {
-              setCategory(key);
-              if (!editing) setStep(2);
-            }}
-            /* La casilla de hacerse una categoría va al final de la grilla y
-               no en un enlace a "ajustes": el momento en que alguien descubre
-               que le falta "pesca" es con la caña en la mano, no en una
-               pantalla de configuración a la que va a entrar otro día.
-
-               En el armario no va: las trece clases de prenda son un cuerpo,
-               no un gusto, y una prenda que no esté ahí es una categoría de
-               la casa. */
-            extra={
-              !making && !wear ? (
-                <button
-                  type="button"
-                  onClick={() => setMaking(true)}
-                  className="r-cat r-cat-new"
-                  aria-label="Hacer una categoría nueva"
-                >
-                  <PlusSlot className="size-[1.375rem]" />
-                  <span>Nueva</span>
-                </button>
-              ) : null
-            }
-          />
-
-          {/* Renombrar, recolorear o borrar NO se hace acá: es otra cosa, se
-              hace una vez cada tanto, y meterla en el alta sería llenar de
-              botones la pantalla que vive o muere por estar vacía. */}
-          {mine.length > 0 && !making && !wear ? (
-            <NavLink href={CATEGORIES_PATH} className="r-hint underline underline-offset-4">
-              Mis categorías
-            </NavLink>
-          ) : null}
-
-          {making ? (
-            <CategoryMaker
-              nodeId={item?.node_id ?? nodeId}
-              onCancel={() => setMaking(false)}
-              onDone={(saved) => {
-                setFresh((current) => [...current, saved]);
-                setCategory(saved.id);
-                setMaking(false);
-                if (!editing) setStep(2);
-              }}
-            />
-          ) : null}
-        </>
-      ) : (
-        <input type="hidden" name="category" value={category} />
-      )}
-
-      {/* ----------------------------- Paso 2 ----------------------------- */}
-
-      {editing || step === 2 ? (
-        <div>
-          <label className="r-field-label" htmlFor="item-name">
-            {editing ? "¿Qué cosa es?" : wear ? "¿Cómo le decís?" : "¿Qué cosa es?"}
-          </label>
-
-          <div className="r-named">
-            <input
-              ref={nameField}
-              id="item-name"
-              name="name"
-              type="text"
-              required
-              maxLength={80}
-              autoComplete="off"
-              enterKeyHint={editing ? "done" : "next"}
-              autoFocus={!editing}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              /* Enter no guarda: lleva a la foto. Guardar desde acá existe
-                 —el botón de abajo— pero no puede ser lo que pasa al apretar
-                 la tecla que el teclado ofrece de paso. */
-              onKeyDown={(event) => {
-                if (editing || event.key !== "Enter") return;
-                event.preventDefault();
-                if (name.trim().length > 0) toPhoto("camera");
-              }}
-              placeholder={
-                wear ? "Sudadera gris, jean negro…" : "Cable HDMI, memoria RAM, tijeras…"
-              }
-              className="r-field r-field-lg"
-            />
-
-            {/* Dictar, para quien tiene las dos manos ocupadas. Dentro del
-                campo y no debajo: es otra forma de llenar ESTE campo, no otra
-                función de la pantalla. */}
-            {!editing ? <DictateKey onHeard={setName} /> : null}
-          </div>
-
-          {/* El color va con el nombre y no en los detalles: en un armario de
-              ochenta prendas, "Camiseta" sin color no distingue cuatro
-              camisetas, y lo que no distingue no se busca. Solo donde
-              significa algo —ropa y cables—: una fila de dieciséis puntos en
-              el alta de un pasaporte es ruido que hay que saltar. */}
-          {wantsColor(category) ? (
-            <div className="mt-3.5">
-              <Swatches value={color} onPick={setColor} />
-            </div>
-          ) : null}
-
-          {/* La oferta de la corazonada: una píldora, nunca un cambio solo. */}
-          {offer ? (
-            <button
-              type="button"
-              onClick={() => setCategory(offer.key)}
-              className="r-chip mt-2.5 gap-1.5"
-              style={{ "--tone": offer.hue } as React.CSSProperties}
-            >
-              <CategoryGlyph
-                category={offer.glyph ?? offer.key}
-                className="size-[0.9375rem]"
-              />
-              ¿Es {offer.label.toLowerCase()}?
-            </button>
-          ) : null}
-        </div>
-      ) : (
-        <input type="hidden" name="name" value={name} />
-      )}
-
-      {!editing && step === 2 ? (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            disabled={name.trim().length === 0}
-            onClick={() => toPhoto("camera")}
-            className="r-key r-key-lit w-full gap-2"
-            style={{ "--tone": tone } as React.CSSProperties}
-          >
-            <Camera className="size-[1.125rem]" />
-            Tomar la foto
-          </button>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={name.trim().length === 0}
-              onClick={() => toPhoto("gallery")}
-              className="r-key flex-1 gap-2 text-[0.9375rem]"
-            >
-              <Grid className="size-[1.125rem]" />
-              Elegir
-            </button>
-            <button
-              type="submit"
-              disabled={pending || name.trim().length === 0}
-              className="r-key flex-1 text-[0.9375rem]"
-            >
-              {pending ? "Guardando…" : "Guardar sin foto"}
-            </button>
-          </div>
-        </div>
+      {!editing && step === 1 ? (
+        <p className="r-ask">
+          {wear ? "Fotografiá la prenda" : "Fotografiá la cosa"}
+        </p>
       ) : null}
 
-      {/* ----------------------------- Paso 3 ----------------------------- */}
+      {/* La foto. Vive en los dos pasos: en el primero es toda la pantalla y
+          en el segundo encabeza la revisión. Nunca se desmonta, porque el
+          archivo elegido vive en sus inputs. */}
+      <PhotoField
+        doorsRef={doorsRef}
+        multiple={!editing}
+        onExtra={(files) => setQueue((current) => [...current, ...files])}
+        onPicked={(thumb) => {
+          setStep(2);
+          ask(thumb);
+        }}
+        label={twoEnds ? "Una punta" : undefined}
+        saved={item?.photo ?? item?.thumb ?? null}
+        onDrop={
+          item
+            ? () => {
+                void removeItemPhoto(item.id, item.node_id);
+                onSaved();
+              }
+            : undefined
+        }
+      >
+        {(shot) => (item && isWearable(item.category) && !shot ? <Cutout item={item} /> : null)}
+      </PhotoField>
 
-      {/* El campo de la foto NO se desmonta en los pasos anteriores: tiene que
-          existir para que el toque del paso dos pueda abrirle la cámara, y
-          porque el archivo elegido vive en sus inputs y desmontarlo lo
-          perdería. Oculto, sus inputs siguen viajando en el formulario. */}
-      <div hidden={!editing && step !== 3}>
-        <PhotoField
-          /* La `key` es lo que vacía el campo al pasar al objeto siguiente: su
-             recorte y su previsualización son estado interno, y sin desmontarlo
-             la foto del cable anterior seguía ahí, dando a entender que no se
-             había guardado nada. */
-          key={round}
-          doorsRef={doorsRef}
-          label={twoEnds ? "Una punta" : undefined}
-          saved={item?.photo ?? item?.thumb ?? null}
-          onDrop={
-            item
-              ? () => {
-                  void removeItemPhoto(item.id, item.node_id);
-                  onSaved();
-                }
-              : undefined
-          }
-        >
-          {(shot) => (item && isWearable(item.category) && !shot ? <Cutout item={item} /> : null)}
-        </PhotoField>
+      {/* Sin foto también se puede. Obligar a fotografiar un clip es la
+          forma más rápida de que el inventario deje de llenarse. */}
+      {!editing && step === 1 ? (
+        <button type="button" onClick={() => setStep(2)} className="r-key w-full">
+          Seguir sin foto
+        </button>
+      ) : null}
 
-        {/* Un cable se identifica por sus DOS puntas: "cable USB" describe a
-            seis cables distintos y "USB-C a Lightning" no se escribe, se
-            fotografía. La segunda no es una foto más —es la mitad que falta
-            del dato— y por eso está acá y no detrás de "más detalles". */}
-        {twoEnds ? (
-          <div className="mt-4">
+      {editing || step === 2 ? (
+        <>
+          {/* Lo que dijo la foto. Mientras mira, se dice que está mirando: un
+              formulario que se llena solo sin avisar se siente roto. */}
+          {reading ? (
+            <p className="r-hint" role="status">
+              Mirando la foto…
+            </p>
+          ) : said ? (
+            <p className="r-hint">{said}</p>
+          ) : null}
+
+          {twoEnds ? (
             <PhotoField
-              key={`b${round}`}
               field="photo2"
               thumbField="thumb2"
               label="La otra punta"
@@ -1515,78 +1391,228 @@ export function ItemForm({
                   : undefined
               }
             />
-          </div>
-        ) : null}
-      </div>
+          ) : null}
 
-      {/* Todo lo que tiene un valor por defecto que acierta casi siempre vive
-          acá adentro. Mostrarlo de entrada llenaba la pantalla de decisiones
-          que casi nadie cambia. */}
-      {editing || step === 3 ? (
-        <details className="r-more" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-          <summary>
-            <Sliders className="size-4" />
-            Más detalles
-            <span className="r-more-sum">{summarize(condition, quantity)}</span>
-          </summary>
+          <div>
+            <label className="r-field-label" htmlFor="item-name">
+              {wear ? "¿Cómo le decís?" : "¿Qué cosa es?"}
+            </label>
 
-          <div className="flex flex-col gap-5 pt-4">
-            <fieldset>
-              <legend className="r-field-label">Estado</legend>
-              <div className="flex flex-wrap gap-2">
-                {CONDITIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => setCondition(option.key)}
-                    className="r-chip"
-                    data-on={condition === option.key}
-                    style={{ "--tone": tone } as React.CSSProperties}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            <div>
-              <span className="r-field-label">¿Cuántos?</span>
-              <Stepper value={quantity} onChange={setQuantity} />
-            </div>
-
-            {/* Mover es una corrección, no un paso del alta: solo al editar, y
-                acá abajo, donde no le quita lugar a lo que se usa siempre. */}
-            {item && places.length > 1 ? (
-              <div>
-                <label className="r-field-label" htmlFor="item-move">
-                  Mover a otro lugar
-                </label>
-                <select id="item-move" name="move_to" defaultValue={item.node_id} className="r-field">
-                  {places.map((place) => (
-                    <option key={place.id} value={place.id}>
-                      {place.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-
-            <div>
-              <label className="r-field-label" htmlFor="item-note">
-                Nota
-              </label>
-              <textarea
-                id="item-note"
-                name="note"
-                rows={3}
-                maxLength={400}
-                defaultValue={item?.note ?? ""}
-                placeholder="Funciona bien, es de 2 metros…"
-                className="r-field resize-none"
+            <div className="r-named">
+              <input
+                ref={nameField}
+                id="item-name"
+                name="name"
+                type="text"
+                required
+                maxLength={80}
+                autoComplete="off"
+                enterKeyHint="done"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setTouched((now) => ({ ...now, name: true }));
+                }}
+                placeholder={wear ? "Sudadera gris, jean negro…" : "Cable HDMI, tijeras…"}
+                className="r-field r-field-lg"
               />
+
+              {!editing ? (
+                <DictateKey
+                  onHeard={(heard) => {
+                    setName(heard);
+                    setTouched((now) => ({ ...now, name: true }));
+                  }}
+                />
+              ) : null}
             </div>
+
+            {offer ? (
+              <button
+                type="button"
+                onClick={() => pickCategory(offer.key)}
+                className="r-chip mt-2.5 gap-1.5"
+                style={{ "--tone": offer.hue } as React.CSSProperties}
+              >
+                <CategoryGlyph category={offer.glyph ?? offer.key} className="size-[0.9375rem]" />
+                ¿Es {offer.label.toLowerCase()}?
+              </button>
+            ) : null}
           </div>
-        </details>
+
+          {/* La categoría, ya puesta y plegada. Abrirla es un toque y es lo
+              que hay que hacer cuando la foto se equivocó; dejarla abierta
+              siempre sería volver a poner veintidós casillas delante de una
+              respuesta que ya está dada. */}
+          <div>
+            <span className="r-field-label">{wear ? "Prenda" : "Categoría"}</span>
+
+            {category && !openCats ? (
+              <button
+                type="button"
+                onClick={() => setOpenCats(true)}
+                className="r-pickedcat"
+                style={{ "--tone": tone } as React.CSSProperties}
+              >
+                <span className="r-glyph" data-size="sm">
+                  <CategoryGlyph
+                    category={tag.glyph ?? tag.key}
+                    className="size-[1.0625rem]"
+                  />
+                </span>
+                <span className="min-w-0 flex-1 text-left font-medium">{tag.label}</span>
+                <span className="r-hint">Cambiar</span>
+              </button>
+            ) : (
+              <>
+                {hot.length > 0 ? (
+                  <div className="mb-3 flex flex-col gap-1.5">
+                    <span className="r-eyebrow px-1">Las que más usás</span>
+                    <TilePicker
+                      big
+                      name="category-hot"
+                      legend="Las más usadas"
+                      value={category}
+                      options={tiles(hot)}
+                      onPick={pickCategory}
+                    />
+                    <span className="r-eyebrow mt-2 px-1">Todas</span>
+                  </div>
+                ) : null}
+
+                <TilePicker
+                  big={!editing}
+                  name="category-all"
+                  legend={wear ? "Prenda" : "Categoría"}
+                  value={category}
+                  options={tiles(options)}
+                  onPick={pickCategory}
+                  extra={
+                    !making && !wear ? (
+                      <button
+                        type="button"
+                        onClick={() => setMaking(true)}
+                        className="r-cat r-cat-new"
+                        aria-label="Hacer una categoría nueva"
+                      >
+                        <PlusSlot className="size-[1.375rem]" />
+                        <span>Nueva</span>
+                      </button>
+                    ) : null
+                  }
+                />
+
+                {mine.length > 0 && !making && !wear ? (
+                  <NavLink
+                    href={CATEGORIES_PATH}
+                    className="r-hint mt-2 inline-block underline underline-offset-4"
+                  >
+                    Mis categorías
+                  </NavLink>
+                ) : null}
+
+                {making ? (
+                  <div className="mt-3">
+                    <CategoryMaker
+                      nodeId={item?.node_id ?? nodeId}
+                      onCancel={() => setMaking(false)}
+                      onDone={(saved) => {
+                        setFresh((current) => [...current, saved]);
+                        setMaking(false);
+                        pickCategory(saved.id);
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {wantsColor(category) ? (
+            <Swatches
+              value={color}
+              onPick={(key) => {
+                setColor(key);
+                setTouched((now) => ({ ...now, color: true }));
+              }}
+            />
+          ) : null}
+
+          {/* Todo lo que tiene un valor por defecto que acierta casi siempre
+              vive acá adentro. Mostrarlo de entrada llenaba la pantalla de
+              decisiones que casi nadie cambia. */}
+          <details
+            className="r-more"
+            open={open}
+            onToggle={(event) => setOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <Sliders className="size-4" />
+              Más detalles
+              <span className="r-more-sum">{summarize(condition, quantity)}</span>
+            </summary>
+
+            <div className="flex flex-col gap-5 pt-4">
+              <fieldset>
+                <legend className="r-field-label">Estado</legend>
+                <div className="flex flex-wrap gap-2">
+                  {CONDITIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setCondition(option.key)}
+                      className="r-chip"
+                      data-on={condition === option.key}
+                      style={{ "--tone": tone } as React.CSSProperties}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div>
+                <span className="r-field-label">¿Cuántos?</span>
+                <Stepper value={quantity} onChange={setQuantity} />
+              </div>
+
+              {item && places.length > 1 ? (
+                <div>
+                  <label className="r-field-label" htmlFor="item-move">
+                    Mover a otro lugar
+                  </label>
+                  <select
+                    id="item-move"
+                    name="move_to"
+                    defaultValue={item.node_id}
+                    className="r-field"
+                  >
+                    {places.map((place) => (
+                      <option key={place.id} value={place.id}>
+                        {place.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <div>
+                <label className="r-field-label" htmlFor="item-note">
+                  Nota
+                </label>
+                <textarea
+                  id="item-note"
+                  name="note"
+                  rows={3}
+                  maxLength={400}
+                  defaultValue={item?.note ?? ""}
+                  placeholder="Funciona bien, es de 2 metros…"
+                  className="r-field resize-none"
+                />
+              </div>
+            </div>
+          </details>
+        </>
       ) : null}
 
       <Error state={state} />
@@ -1599,14 +1625,20 @@ export function ItemForm({
         </p>
       ) : null}
 
-      {editing || step === 3 ? (
+      {editing || step === 2 ? (
         <button
           type="submit"
           disabled={pending || name.trim().length === 0 || category.length === 0}
           className="r-key r-key-lit w-full"
           style={{ "--tone": tone } as React.CSSProperties}
         >
-          {pending ? "Guardando…" : editing ? "Guardar" : "Agregar y seguir"}
+          {pending
+            ? "Guardando…"
+            : editing
+              ? "Guardar"
+              : queue.length > 0
+                ? `Agregar y seguir · falta${queue.length === 1 ? "" : "n"} ${queue.length}`
+                : "Agregar y seguir"}
         </button>
       ) : null}
 
