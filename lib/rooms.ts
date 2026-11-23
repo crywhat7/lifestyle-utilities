@@ -160,6 +160,35 @@ export const SLOTS: {
   { key: "shoes", label: "Zapatos", empty: "Sin zapatos", top: 85, height: 14, width: 60, z: 4 },
 ];
 
+/**
+ * Dónde cae cada prenda al ponerla sobre la mesa.
+ *
+ * Son cajas centradas en (x, y) con ancho y alto en por ciento del lienzo, y
+ * existen por una razón: un lienzo libre de verdad —donde cada prenda nace en
+ * el centro y hay que acomodarla— no es libertad, es tarea. Así, el conjunto
+ * se ve armado desde la primera prenda y mover algo es opcional.
+ *
+ * La disposición es la de una mesa: lo grande a la izquierda —la camisa
+ * arriba, el pantalón debajo— y lo chico en una columna a la derecha. Se
+ * pisan un poco a propósito, como se pisa la ropa de verdad cuando uno la
+ * tiende.
+ */
+export const LAYOUT: Record<Slot, { x: number; y: number; w: number; h: number }> = {
+  accessory: { x: 76, y: 11, w: 32, h: 14 },
+  top: { x: 31, y: 26, w: 50, h: 36 },
+  outer: { x: 76, y: 36, w: 42, h: 30 },
+  bottom: { x: 32, y: 68, w: 52, h: 38 },
+  socks: { x: 77, y: 60, w: 24, h: 16 },
+  shoes: { x: 74, y: 85, w: 42, h: 20 },
+};
+
+/** Dónde nace una prenda sin ranura conocida: el medio, y que la muevan. */
+export const LOOSE_BOX = { x: 50, y: 50, w: 44, h: 32 };
+
+export function boxOf(slot: string | undefined) {
+  return (slot && LAYOUT[slot as Slot]) || LOOSE_BOX;
+}
+
 const SLOT_MAP = new Map(SLOTS.map((slot) => [slot.key, slot]));
 
 export function slotOf(key: unknown) {

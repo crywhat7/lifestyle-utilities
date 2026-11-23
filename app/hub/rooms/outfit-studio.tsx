@@ -4,6 +4,7 @@ import { startTransition, useActionState, useEffect, useMemo, useState } from "r
 import { Cross, Trash } from "@/components/icons";
 import {
   SLOTS,
+  boxOf,
   slotOf,
   suggestedSlot,
   type Garment,
@@ -31,30 +32,30 @@ const RAILS = [...SLOTS].sort(
     ["top", "bottom", "shoes", "outer", "socks", "accessory"].indexOf(b.key)
 );
 
-/** Qué prenda está puesta en cada ranura. */
-type Worn = Partial<Record<Slot, string>>;
-
 /**
  * Armar un conjunto.
  *
- * Arriba, el conjunto tendido —ver `OutfitFigure`—; abajo, un riel de fotos
- * por cada parte del cuerpo. Se toca una prenda y aparece arriba. Se toca
- * otra y la reemplaza. Se toca la que está puesta y se la quita.
+ * Arriba, el conjunto tendido sobre la mesa —ver `OutfitFigure`—; abajo, un
+ * riel de fotos por cada parte del cuerpo. Se toca una prenda y aparece
+ * arriba, en su lugar. Se arrastra si ese lugar no gusta.
  *
- * Eso es todo, y llegar ahí costó dos intentos fallidos que conviene dejar
- * escritos. El primero fue un lienzo libre: arrastrar, escalar y girar
- * recortes hasta que el conjunto se veía derecho. Armar un conjunto no puede
- * ser un trabajo de recortes. El segundo fue un maniquí con seis filas de
- * flechitas: "Arriba — Sin camisa ‹ ›". Ordenado, legible y horrible — para
- * ver una camisa había que pasarlas de a una, a ciegas, leyendo nombres.
+ * Llegar acá costó dos intentos fallidos que conviene dejar escritos. El
+ * primero fue un lienzo libre: cada prenda nacía en el centro y había que
+ * acomodarla a mano. Eso no es libertad, es tarea, y armar un conjunto
+ * terminaba siendo un trabajo de recortes. El segundo fue lo contrario: un
+ * maniquí con seis filas de flechitas —"Arriba · Sin camisa ‹ ›"—, ordenado,
+ * legible y horrible: para ver una camisa había que pasarlas de a una, a
+ * ciegas, leyendo nombres.
  *
- * La ropa se elige MIRÁNDOLA. Es lo único que hacen igual todas las apps que
- * resuelven esto bien, y es obvio en cuanto se ve: un riel de fotos contesta
- * "¿cuál me pongo?" de un vistazo, y ninguna lista de nombres con flechas lo
- * va a hacer nunca.
+ * Lo que funciona es el medio. La prenda CAE en su lugar, así que el conjunto
+ * se ve armado desde la primera; y se puede mover y agrandar, así que la
+ * forma final es la que uno quiere y no la que el programa impone. "Acomodar"
+ * devuelve todo a su sitio, que es lo que vuelve barato el experimento.
  *
+ * Y la ropa se elige MIRÁNDOLA. Un riel de fotos contesta "¿cuál me pongo?"
+ * de un vistazo, y ninguna lista de nombres con flechas lo va a hacer nunca.
  * Cada riel ofrece toda la ropa recortada, con la que probablemente
- * corresponde primero. Esconder opciones por categoría dejaría prendas
+ * corresponde primero: esconder opciones por categoría dejaría prendas
  * imposibles de poner, y el costo de ofrecer de más es rodar un poco.
  */
 export function OutfitStudio({
@@ -67,15 +68,15 @@ export function OutfitStudio({
   onDone: () => void;
 }) {
   const [state, action, pending] = useActionState(saveOutfit, IDLE);
-  const [worn, setWorn] = useState<Worn>(() => dress(outfit?.pieces ?? []));
+  const [pieces, setPieces] = useState<Piece[]>(() => settle(outfit?.pieces ?? []));
   const [active, setActive] = useState<Slot | null>(null);
 
   useEffect(() => {
     if (state.status === "saved") onDone();
   }, [state, onDone]);
 
-  /* La ropa que ofrece cada ranura, calculada una vez: con veinte prendas y
-     seis ranuras, reordenar en cada tecla es trabajo para nada. */
+  /* La ropa que ofrece cada riel, calculada una vez: con veinte prendas y
+     seis rieles, reordenar en cada tecla es trabajo para nada. */
   const racks = useMemo(() => {
     const out = {} as Record<Slot, Garment[]>;
 
@@ -90,30 +91,108 @@ export function OutfitStudio({
     return out;
   }, [wardrobe]);
 
-  const pieces = useMemo(() => undress(worn), [worn]);
+  const wornAt = (slot: Slot) => pieces.find((piece) => piece.slot === slot);
 
+  /** Poner, cambiar o sacar la prenda de una ranura. */
   function wear(slot: Slot, id: string | null) {
-    setWorn((current) => {
-      const next = { ...current };
-      if (id) next[slot] = id;
-      else delete next[slot];
-      return next;
+    setPieces((current) => {
+      const rest = current.filter((piece) => piece.slot !== slot);
+      if (!id) return rest;
+
+      /* Cambiar de camisa conserva dónde y de qué tamaño quedó la anterior:
+         quien acomodó la suya no quiere volver a acomodarla por probarse
+         otra. */
+      const before = current.find((piece) => piece.slot === slot);
+      const box = boxOf(slot);
+
+      return [
+        ...rest,
+        {
+          item_id: id,
+          slot,
+          x: before?.x ?? box.x,
+          y: before?.y ?? box.y,
+          scale: before?.scale ?? 1,
+          rot: before?.rot ?? 0,
+        },
+      ];
     });
   }
 
+  function move(slot: string, x: number, y: number) {
+    setPieces((current) =>
+      current.map((piece) => (piece.slot === slot ? { ...piece, x, y } : piece))
+    );
+  }
+
+  function resize(slot: Slot, scale: number) {
+    setPieces((current) =>
+      current.map((piece) => (piece.slot === slot ? { ...piece, scale } : piece))
+    );
+  }
+
+  /** Todo de vuelta a su lugar. Es lo que hace barato probar. */
+  function tidy() {
+    setPieces((current) =>
+      current.map((piece) => {
+        const box = boxOf(piece.slot);
+        return { ...piece, x: box.x, y: box.y, scale: 1, rot: 0 };
+      })
+    );
+  }
+
   const dressed = pieces.length;
+  const chosen = active ? wornAt(active) : null;
+  const askew = pieces.some((piece) => {
+    const box = boxOf(piece.slot);
+    return Math.abs(piece.x - box.x) > 1 || Math.abs(piece.y - box.y) > 1 || piece.scale !== 1;
+  });
 
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form action={action} className="flex flex-col gap-5">
       {outfit ? <input type="hidden" name="id" value={outfit.id} /> : null}
       <input type="hidden" name="pieces" value={JSON.stringify(pieces)} />
 
-      <OutfitFigure
-        pieces={pieces}
-        wardrobe={wardrobe}
-        active={active}
-        onPick={(slot) => setActive((current) => (current === slot ? null : (slot as Slot)))}
-      />
+      <div className="flex flex-col gap-2">
+        <OutfitFigure
+          pieces={pieces}
+          wardrobe={wardrobe}
+          active={active}
+          onPick={(slot) => setActive((now) => (now === slot ? null : (slot as Slot)))}
+          onMove={move}
+        />
+
+        {/* El tamaño aparece al tocar una prenda y no antes: una barra fija
+            debajo de la mesa sería un control para algo que casi nunca se
+            cambia, ocupando lugar siempre. */}
+        {chosen && active ? (
+          <div className="r-size">
+            <span className="r-eyebrow shrink-0">Tamaño</span>
+            <input
+              type="range"
+              min={50}
+              max={180}
+              step={1}
+              value={Math.round((chosen.scale || 1) * 100)}
+              onChange={(event) => resize(active, Number(event.target.value) / 100)}
+              aria-label="Tamaño de la prenda"
+            />
+            <button type="button" onClick={() => resize(active, 1)} className="r-hint shrink-0">
+              normal
+            </button>
+          </div>
+        ) : (
+          <p className="r-hint text-center">
+            {dressed > 0 ? "Arrastrá una prenda para moverla. Tocala para cambiarle el tamaño." : ""}
+          </p>
+        )}
+
+        {askew ? (
+          <button type="button" onClick={tidy} className="r-key self-center text-[0.8125rem]">
+            Acomodar todo
+          </button>
+        ) : null}
+      </div>
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3">
@@ -127,7 +206,7 @@ export function OutfitStudio({
           const rack = racks[slot.key];
           if (rack.length === 0) return null;
 
-          const wornId = worn[slot.key];
+          const wornId = wornAt(slot.key)?.item_id;
 
           return (
             <div key={slot.key} className="flex flex-col gap-1.5">
@@ -163,8 +242,12 @@ export function OutfitStudio({
                       aria-label={option.name}
                       title={option.name}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {option.cutout ? <img src={option.cutout} alt="" /> : <Cross className="size-5 opacity-30" />}
+                      {option.cutout ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={option.cutout} alt="" />
+                      ) : (
+                        <Cross className="size-5 opacity-30" />
+                      )}
                     </button>
                   </li>
                 ))}
@@ -225,51 +308,31 @@ export function OutfitStudio({
 /* -------------------------------------------------------------------------- */
 
 /**
- * De conjunto guardado a maniquí vestido.
+ * Un conjunto guardado, listo para la mesa.
  *
- * Un conjunto armado en el lienzo viejo no trae ranuras, así que al abrirlo
- * se reparte por la categoría de cada prenda. No va a quedar perfecto —el
- * lienzo nunca supo qué era una camisa— pero queda editable, que es mejor que
- * quedar intacto y no poder tocarse.
+ * Los que se armaron antes vienen sin ranura o con coordenadas de otro
+ * dibujo —el lienzo libre primero, el maniquí después—. En vez de borrarlos
+ * para estrenar, se los acomoda: se les reparte una ranura libre y se los
+ * manda a su lugar de la mesa. No va a quedar igual que como se guardó, pero
+ * queda visible y editable, que es mejor que quedar intacto y no poder
+ * tocarse.
  */
-function dress(pieces: Piece[]): Worn {
-  const worn: Worn = {};
+function settle(pieces: Piece[]): Piece[] {
+  const taken = new Set<string>();
 
-  for (const piece of pieces) {
-    const slot = slotOf(piece.slot)?.key;
-    if (slot) {
-      worn[slot] = piece.item_id;
-      continue;
+  return pieces.map((piece) => {
+    let slot = slotOf(piece.slot)?.key;
+
+    if (!slot || taken.has(slot)) {
+      slot = SLOTS.find((candidate) => !taken.has(candidate.key))?.key;
     }
 
-    const guess = SLOTS.find((candidate) => !worn[candidate.key]);
-    if (guess) worn[guess.key] = piece.item_id;
-  }
+    if (!slot) return piece;
+    taken.add(slot);
 
-  return worn;
-}
-
-/**
- * De maniquí vestido a lo que viaja al servidor.
- *
- * Las coordenadas se siguen escribiendo aunque el maniquí dibuje por ranura:
- * son el centro de la zona, y existen para que un conjunto guardado hoy se
- * entienda con cualquier dibujo —el de antes incluido— sin una migración.
- */
-function undress(worn: Worn): Piece[] {
-  return SLOTS.flatMap((slot) => {
-    const id = worn[slot.key];
-    if (!id) return [];
-
-    return [
-      {
-        item_id: id,
-        slot: slot.key,
-        x: 50,
-        y: slot.top + slot.height / 2,
-        scale: 1,
-        rot: 0,
-      },
-    ];
+    /* Las coordenadas del maniquí eran del cuerpo, no de la mesa: cualquier
+       conjunto guardado con ranura se vuelve a tender desde cero. */
+    const box = boxOf(slot);
+    return { item_id: piece.item_id, slot, x: box.x, y: box.y, scale: 1, rot: 0 };
   });
 }
